@@ -1,0 +1,8 @@
+	TITLE	'GO Transient Program'
+
+; (C) 2018 Yuri Prokushev
+; GNU GPL 2
+; GO command re-executes last loaded program from memory without disk reread
+
+	ORG	100H
+	END	100H          ; nothing

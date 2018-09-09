@@ -1,0 +1,24 @@
+;
+; SYSLIB Module Name:  SCOMPH
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	comphd
+
+;
+;  SCOMPHD --
+;	Compare HL with DE.  On return, Zero means HL=DE; Carry means
+; HL<DE.
+;	PSW is affected.  HL and DE are not.
+;
+COMPHD:
+	LD	A,H	; COMPARE HIGH
+	CP	D
+	RET	NZ	; IF NOT ZERO, FLAGS ARE SET
+	LD	A,L	; COMPARE LOW
+	CP	E
+	RET
+
+	END
+

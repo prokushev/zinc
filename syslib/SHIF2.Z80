@@ -1,0 +1,57 @@
+;
+; SYSLIB Module Name: HIF2
+; Author: Richard Conn
+; SYSLIB Version Number: 3.6
+; Module Version Number: 1.1
+
+	public	hif2
+
+;
+; HIF2 is an arithmetic IF facility.  A key value is passed in the DE register
+; pair and a test value is passed in the HL register pair:
+;
+;	LXI	D,5	; key value
+;	LXI	H,TEST	; test value
+;	CALL	HIF2
+;	JMP	HLTD	; go here if HL < DE
+;	JMP	HEQD	; go here if HL = DE
+;	JMP	HGTD	; go here if HL > DE
+;
+hif2:
+	ex	(sp),hl		; get return address
+	ld	(return),hl
+	ex	(sp),hl
+	ld	(hlsave),hl	; save HL
+	push	de		; save regs
+	push	af
+	ld	a,h		; compare highs
+	cp	d
+	jp	c,less
+	jp	nz,greater
+	ld	a,l		; highs are equal, compare lows
+	cp	e
+	jp	c,less
+	jp	nz,greater
+	ld	de,3		; HL = DE, so offset is 3 bytes
+	jp	goto
+greater:
+	ld	de,6		; HL > DE, so offset is 6 bytes
+	jp	goto
+less:
+	ld	de,0		; HL < DE, so offset is 0 bytes
+goto:
+	ld	hl,(return)	; get return address
+	add	hl,de		; add in offset
+	pop	af		; restore regs
+	pop	de
+	ex	(sp),hl		; set return address on stack
+	ld	hl,(hlsave)	; restore HL
+	ret
+;
+; Save buffers
+;
+hlsave:	ds	2	; original HL
+return:	ds	2	; original return address
+
+	end
+

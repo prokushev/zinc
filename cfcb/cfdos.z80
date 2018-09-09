@@ -1,0 +1,96 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+
+	.Z80
+	CSEG
+
+	EXTRN	C@GUSR,C@PUSR,C@GET
+
+CFDOS::	CALL	C@GET
+	CP	20h
+	JR	NC,NODOS
+	LD	L,A
+	PUSH	DE
+	CALL	C@GUSR
+	LD	B,A
+	PUSH	BC
+	LD	A,L	;Get uid spec.
+	OR	A
+	CALL	NZ,C@PUSR
+C@FVEC::
+	CALL	5
+	POP	BC
+	PUSH	AF
+	LD	A,B	
+	CALL	C@PUSR
+	POP	AF
+	POP	DE
+	LD	B,H
+	CP	0FFh
+	SCF
+	RET	NZ
+	LD	A,H
+	OR	A
+	LD	A,L
+	SCF
+	RET	Z
+	XOR	A
+	DEC	H
+	JR	Z,RNC	;1 - Disk I/O		
+	INC	A
+	DEC	H
+	JR	Z,RNC	;2 - Disk R/O
+	LD	A,28
+	DEC	H
+	JR	Z,RNC	;3 - File R/O
+	LD	A,22
+	DEC	H
+	JR	Z,RNC	;4 - Invalid drive	
+	LD	A,30	
+	DEC	H
+	JR	Z,RNC	;5 - File already open
+	LD	A,7
+	DEC	H
+	JR	Z,RNC	;6 - Unknown error
+	LD	A,37
+	DEC	H
+	JR	Z,RNC	;7 - Password error
+	LD	A,24
+	DEC	H
+	JR	Z,RNC	;8 - File exists
+	LD	A,20
+	DEC	H
+	JR	Z,RNC	;9 - ? in filename
+	LD	A,39
+	DEC	H
+	JR	Z,RNC	;10 - wheel protected
+	LD	A,L
+	LD	B,H
+	SCF
+	RET
+;
+RNC:	AND	A
+	RET
+;
+NODOS:	XOR	A
+	LD	A,38
+	RET
+
+	END		
+

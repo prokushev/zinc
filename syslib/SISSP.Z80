@@ -1,0 +1,56 @@
+;
+;  SYSLIB Module Name:  SISSP
+;  Author:  Richard Conn
+;  SYSLIB Version Number:  3.6
+;  Module Version Number:  1.1
+
+	public	issp
+;
+;	ISSP returns Zero Flag Set if char in A is a space
+; character (null, space, tab, carriage return, line feed, form feed,
+; back space, or delete).  ISSP returns NZ if not.
+;
+;	Char in A is unaffected.
+;
+
+;
+;  DEFINE SPACE CHARS
+;
+NULL	EQU	0
+BS	EQU	'H'-'@'
+TAB	EQU	'I'-'@'
+LF	EQU	'J'-'@'
+HT	EQU	'K'-'@'
+FF	EQU	'L'-'@'
+CR	EQU	'M'-'@'
+SPACE	EQU	' '
+DEL	EQU	7FH
+
+ISSP:
+	PUSH	HL		; SAVE REGS
+	PUSH	BC
+	LD	C,A		; SAVE CHAR IN C
+	AND	7FH		; MASK MSB
+	LD	B,9		; TABLE COUNT IN B
+	LD	HL,SPTAB	; PT TO TABLE
+ISSPL:
+	CP	(HL)		; MATCH?
+	JP	Z,ISSP1
+	INC	HL		; PT TO NEXT
+	DEC	B
+	JP	NZ,ISSPL
+	DEC	B		; SET FLAG TO NZ FOR NO MATCH
+ISSP1:
+	LD	A,C		; RESTORE CHAR
+	POP	BC		; RESTORE REGS
+	POP	HL
+	RET
+
+;
+;  SPACE TABLE
+;
+SPTAB:
+	DB	NULL,SPACE,TAB,LF,FF,CR,BS,HT,DEL
+
+	END
+

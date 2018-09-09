@@ -1,0 +1,23 @@
+;
+; SYSLIB Module Name:  SPRINT
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	print
+
+;
+;  PRINT -- 
+;	PRINT STRING PTED TO BY RET ADR UNTIL BINARY 0 ENCOUNTERED
+;	AFFECT NO REGISTERS OR FLAGS
+;
+	EXT	PSTR
+
+PRINT:
+	EX	(SP),HL	; HL=ADR, OLD HL ON STACK
+	CALL	PSTR	; PRINT STRING PTED TO BY HL
+	EX	(SP),HL	; RESTORE HL AND NEW RET ADR
+	RET
+
+	END
+

@@ -1,0 +1,23 @@
+;
+; SYSLIB Module Name:  SLPRINT
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	lprint
+
+;
+;  LPRINT -- 
+;	PRINT STRING PTED TO BY RET ADR UNTIL BINARY 0 ENCOUNTERED ON LST:
+;	AFFECT NO REGISTERS OR FLAGS
+;
+	EXT	LPSTR
+
+LPRINT:
+	EX	(SP),HL		; HL=ADR, OLD HL ON STACK
+	CALL	LPSTR		; PRINT STRING PTED TO BY HL
+	EX	(SP),HL		; RESTORE HL AND NEW RET ADR
+	RET
+
+	END
+

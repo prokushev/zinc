@@ -1,0 +1,1119 @@
+;    3DEVICE: Set device assignments (GPLed clone of CP/M 3 DEVICE)
+;    Copyright (C) 2001  John Elliott <jce@seasip.demon.co.uk>
+;
+;    This program is free software; you can redistribute it and/or modify
+;    it under the terms of the GNU General Public License as published by
+;    the Free Software Foundation; either version 2 of the License, or
+;    (at your option) any later version.
+;
+;    This program is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;    GNU General Public License for more details.
+;
+;    You should have received a copy of the GNU General Public License
+;    along with this program; if not, write to the Free Software
+;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+NO	EQU	0
+YES	EQU	NOT NO
+
+	.z80
+	cseg
+;
+	INCLUDE	ZINCHEAD.INC
+;
+	EXT	AGOTO1,COMPB,PAFDC,EVAL10	;syslib
+	EXT	BDOS,COUT,PSTR,PRINT,CAPSTR	;syslib
+	EXT	C3SCBG,C3SCBB,C3SCBW,C3DTBL	;cpm3lib
+	EXT	C3DINI,C3DEVL,C3DEVG,C3DEVC	;cpm3lib
+	EXT	C3EXIT,C3OPT			;cpm3lib
+	EXT	STRCHR,STRLEN,TOKENL,TOKENG	;strlib
+	EXT	LEXSTR				;strlib
+;
+;Code segment options area
+;
+TIMEOUT:
+	DEFB	1	;Support the Amstrad timeout extension?
+SILENT:	DEFB	0	;Display NAMES and VALUES after a reassignment?
+;
+MAIN:	LD	SP,(6)
+	CALL	C3DTBL	;Get a copy of DEVTBL
+	LD	A,H
+	OR	L
+	JR	NZ,MAIN1
+;
+; No DEVTBL. Oops.
+;
+	CALL	PRINT
+	DEFB	'This CP/M system does not support device reassignment.',cr,lf,0
+	LD	HL,0FF00h
+	JP	C3EXIT
+;
+MAIN1:	CALL	PARSE		;Parse command tail
+	JR	Z,NOCMD		;Nothing typed?
+	CALL	CRLF
+	RST	0
+;
+DEFSTAT:
+	LD	A,(SILENT)
+	OR	A
+	JP	NZ,0		;Print out the works after every change?
+	CALL	NAMES
+	CALL	CRLF
+	CALL	VALUES
+	RST	0
+;
+; No command-line parameters.
+;
+NOCMD:	CALL	NAMES		;Print names and values
+	CALL	CRLF
+	CALL	VALUES
+	CALL	PRINT
+	DEFB	cr,lf,'Enter new assignment or hit RETURN',cr,lf,0
+	LD	HL,7Fh
+	PUSH	HL		;Then ask for a new command tail, and 
+	LD	(HL),80h	;act on it.
+	INC	HL		;Max buffer size is 80h
+	LD	(HL),0
+	POP	DE
+	LD	C,0Ah
+	CALL	BDOS		;Line input 
+	CALL	CRLF
+	CALL	PARSE		;Act on new command
+	CALL	CRLF
+	RST	0
+;
+; Parse and act on a DEVICE command tail.
+; Returns Zero set if no tokens found, else Zero reset.
+;
+PARSE:	LD	HL,80h	;First: 0-terminate command line.
+	LD	E,(HL)
+	LD	D,H
+	INC	HL
+	EX	DE,HL	;DE->command line
+	ADD	HL,DE
+	LD	(HL),D	;0-terminate command line (we know DE=81h, so D=0)
+;
+	PUSH	DE	;DE->ASCIIZ command.
+	EX	DE,HL	;HL->ASCIIZ command.
+	CALL	CAPSTR	;To uppercase.
+	LD	DE,GLOPTS
+	LD	IY,GLPARS
+	CALL	C3OPT	;Parse global options
+	POP	DE	;DE->ASCIIZ command.	
+;
+;Skip whitespace 
+;
+	CALL	SKSP
+	RET	Z	;Z set: no keyword found
+;
+	LD	HL,KEYWORDS
+	LD	B,1	;Exact
+	CALL	TOKENL	;Look up the token. Returns token ID in A.
+	JR	C,KEXEC
+;
+; No luck. Let's try matching physical devices.
+;
+	CALL	PDEVOPT
+	JP	C,PDPROPS
+
+	EX	DE,HL
+	CALL	PSTR
+	CALL	PRINT
+	DEFB	cr,lf,' - Invalid keyword / physical device.',cr,lf,0
+	LD	HL,0FF01h
+	JP	C3EXIT
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Keywords understood by DEVICE.
+;
+	DSEG
+;
+;Global options [QUIET] / [NO QUIET]
+;
+GLOPTS:	DEFB	'Q',0,'NOQ',0,'NO Q',0,0
+GLPARS:	DEFW	SETQ,SETNQ,SETNQ
+KEYWORDS:
+	DEFB	'NAMES',0,'VALUES',0
+;
+; The names of the 5 logical devices. The physical ones live in the DEVTBL.
+; Note that the last 5 must be last; they are referenced elsewhere in the 
+; program.
+;
+	DEFB	'CONSOLE',0,'AUXILIARY',0
+	DEFB	'CON',0, 'AUX',0, 'AXI',0, 'AXO',0
+DEVNS:	DEFB	'CONIN',0,'CONOUT',0,'AUXIN',0,'AUXOUT',0,'LST',0,0
+;
+	CSEG
+;
+SETQ:	LD	A,1
+	LD	(SILENT),A	;Don't display full details after 
+	RET			;a reassignment
+;
+SETNQ:	XOR	A		;Do display details after
+	LD	(SILENT),A	;a reassignment
+	RET
+;
+KEXEC:	CALL	KXC1	;Return with 0 flag reset,
+	XOR	A	;because we successfully found a keyword.
+	DEC	A
+	RET
+;
+KXC1:	CALL	AGOTO1
+;
+; These jumps must exactly match the entries in KEYWORDS above.
+;
+	DEFW	NAMES,VALUES
+	DEFW	VCON, VAUX
+	DEFW	VCON, VAUX, VAXI, VAXO
+	DEFW	VCNI, VCNO, VAXI, VAXO, VLST
+;
+; Skip over leading spaces in a DEVICE command. We can also skip over
+; option phrases here.
+;
+SKSP:	LD	A,(DE)
+	INC	DE
+	OR	A
+	RET	Z	;Return with Z set: End of line
+	CP	' '
+	JR	Z,SKSP
+	CP	9
+	JR	Z,SKSP
+	CP	'['	;Start of option phrase
+	JR	NZ,SKSP2
+SKSP1:	LD	A,(DE)
+	INC	DE	;End of line in option phrase
+	OR	A
+	RET	Z
+	CP	']'
+	JR	NZ,SKSP1
+	JR	SKSP
+;
+SKSP2:	DEC	DE
+	RET		;NZ: Not end of line
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Implement DEVICE NAMES.
+;
+; Each entry is 7+6+7 = 20 characters wide.
+;
+NAMES:	CALL	PRINT
+	DEFB	cr,lf,'Physical Devices:',cr,lf
+	DEFB	'I=Input,O=Output,S=Serial,X=Xon-Xoff',0
+	LD	A,(TIMEOUT)
+	OR	A
+	JR	Z,NAMES0
+	CALL	PRINT
+	DEFB	',T=Timeout',0
+NAMES0:	CALL	CRLF
+	
+	LD	A,20
+	CALL	INITCOL	;Set up column print
+
+	LD	BC,0F00h
+NAMES1:	CALL	PDNPR	;Show name		
+	RET	NC	;HL->flags byte
+	PUSH	BC
+	LD	A,' '
+	CALL	COUT
+	INC	HL
+	LD	A,(HL)	;Print baud rate
+	CALL	PBAUD
+	DEC	HL
+	LD	A,(HL)	;Print device flags	
+	CALL	PFLAGS
+	CALL	ENDCOL
+	POP	BC	;Room for another column?
+	INC	C
+	DJNZ	NAMES1
+	CALL	CRLF
+	RET
+;
+PFLAGS:	LD	HL,PFBUF	;Buffer that will hold device flags 
+	PUSH	HL		;as a string. Initialise it to spaces.
+	LD	B,6
+PFLAG1:	LD	(HL),20h
+	INC	HL
+	DJNZ	PFLAG1	
+	POP	HL
+	LD	BC,0100h + 'I'	;Input
+	CALL	PFLAG2
+	LD	BC,0200h + 'O'	;Output
+	CALL	PFLAG2
+	LD	BC,0800h + 'S'	;Serial
+	CALL	PFLAG2
+	LD	BC,1000h + 'X'	;Xon/Xoff
+	CALL	PFLAG2
+	XOR	80h		;Print 'T' if timeout is _en_abled
+	LD	C,A
+	LD	A,(TIMEOUT)
+	OR	A
+	LD	A,C
+	LD	BC,8000h + 'T'	;Timeout disabled
+	CALL	NZ,PFLAG2
+	LD	HL,PFBUF
+	JP	PSTR
+;
+PFLAG2:	PUSH	AF	; If (A & B) append C to the list at HL.
+	AND	B
+	JR	Z,PFLAG3
+	LD	(HL),C
+	INC	HL
+PFLAG3:	POP	AF
+	RET
+;
+PBAUD:	PUSH	HL
+	AND	0Fh
+	LD	HL,BAUDS
+	LD	C,A
+	CALL	TOKENG
+	CALL	PSTR
+	POP	HL
+	RET
+;
+	DSEG
+BAUDS:	DEFB	'NONE  ',0
+	DEFB	'50    ',0
+	DEFB	'75    ',0
+	DEFB	'110   ',0
+	DEFB	'134.5 ',0
+	DEFB	'150   ',0
+	DEFB	'300   ',0
+	DEFB	'600   ',0
+	DEFB	'1200  ',0
+	DEFB	'1800  ',0
+	DEFB	'2400  ',0
+	DEFB	'3600  ',0
+	DEFB	'4800  ',0
+	DEFB	'7200  ',0
+	DEFB	'9600  ',0
+	DEFB	'19200 ',0
+	CSEG
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Implement DEVICE PHYSICALDEV.
+;
+; C = device number.
+;
+PDPROPS:
+	CALL	PDMAIN
+	XOR	A	;Return NZ.
+	DEC	A
+	RET
+;
+; B = new baud rate, or 0FFh
+; D = new XON, or 0FFh
+; E = new TIMEOUT, or 0FFh
+;
+PDMAIN:	LD	A,B
+	AND	D
+	AND	E
+	INC	A
+	JP	Z,PDPRP	;No options. Just display properties.
+;
+; Aha. We have options. HL->device table entry.
+; So set options, and print them out.
+;
+	CALL	PDSOPTS
+	JP	DEFSTAT	
+;
+PDPRP:	CALL	PRINT
+	DEFB	'Physical device: ',0	
+	CALL	PDNPR	;HL->baud rate
+	CALL	PRINT
+	DEFB	cr,lf
+	DEFB	'Baud rate:       ',0
+	INC	HL
+	LD	A,(HL)
+	CALL	PBAUD
+	DEC	HL
+	CALL	PRINT
+	DEFB	cr,lf
+	DEFB	'Characteristics: ',0
+	LD	A,(HL)	;Characteristics byte
+	BIT	0,A
+	JR	Z,PDPR0
+	CALL	PRINT	
+	DEFB	'INPUT',0	;Bit 0: Device can input
+	CALL	SPCR
+PDPR0:	BIT	1,A
+	JR	Z,PDPR1
+	CALL	PRINT		;Bit 1: Device can output
+	DEFB	'OUTPUT',0
+	CALL	SPCR
+PDPR1:	BIT	2,A
+	JR	Z,PDPR2
+	CALL	PRINT		;Bit 2: Device supports setting baudrate
+	DEFB	'SOFT-BAUD',0	;      via DEVICE
+	CALL	SPCR
+PDPR2:	BIT	3,A
+	JR	Z,PDPR3
+	CALL	PRINT		;Bit 3: Device is serial
+	DEFB	'SERIAL',0
+	JR	PDPR3A
+PDPR3:	CALL	PRINT
+	DEFB	'PARALLEL',0
+PDPR3A:	CALL	SPCR
+	BIT	4,A
+	JR	Z,PDPR4
+	CALL	PRINT		;Bit 4: Device supports XON-XOFF
+	DEFB	'XON-XOFF',0
+	CALL	SPCR
+PDPR4:	LD	C,A
+	LD	A,(TIMEOUT)
+	OR	A
+	RET	Z
+	LD	A,C
+	AND	80h		;Bit 7: Device doesn't time out
+	RET	Z
+	CALL	PRINT
+	DEFB	'TIMEOUT DISABLED',0
+	JP	CRLF
+;
+SPCR:	CALL	PRINT
+	DEFB	cr,lf,'                 ',0
+	RET
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;Columnar printing
+;
+INITCOL:
+	LD	(COLW),A	;Column width
+	LD	L,1Ah
+	CALL	C3SCBG
+	INC	L
+	LD	A,L
+	LD	(COLM),A	;Screen width
+	LD	(COLC),A	;Screen space remaining
+	RET
+;
+ENDCOL:	PUSH	AF
+	LD	A,(COLW)	;Column width
+	LD	D,A
+	LD	A,(COLC)	;Space remaining
+	SUB	D
+	JR	C,ENDCL1
+	CP	D
+	JR	C,ENDCL1
+	LD	(COLC),A
+	LD	A,' '
+	CALL	COUT
+	POP	AF
+	RET
+;
+ENDCL1:	CALL	CRLF
+	LD	A,(COLM)
+	LD	(COLC),A
+	POP	AF
+	RET
+;
+	DSEG
+COLW:	DEFB	0	;Width of a column
+COLM:	DEFB	0	;Width of the screen
+COLC:	DEFB	0	;Space remaining in current column
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Implement DEVICE VALUES.
+;
+VALUES:	CALL	PRINT
+	DEFB	cr,lf,'Current Assignments:',cr,lf,0
+	XOR	A	;CONIN:
+	LD	B,5	;5 logical devices
+VALU1:	PUSH	AF
+	PUSH	BC
+	CALL	VALSHOW
+	POP	BC
+	POP	AF
+	INC	A
+	DJNZ	VALU1
+	RET
+;
+; A = logical device: 0=conin etc.
+;
+VALSHOW:
+	CALL	LDNPR	;Show device name
+	CALL	PRINT
+	DEFB	'= ',0
+	ADD	A,A
+	ADD	A,22h
+	LD	L,A		;L = index of device word		
+	CALL	C3SCBG		;HL = device word
+;
+	LD	A,H
+	OR	L
+	JR	NZ,VALS0
+	CALL	PRINT
+	DEFB	'Null Device',cr,lf,0
+	RET
+
+VALS0:	LD	BC,1000h	;B = count. C = physical device index
+VALS1:	BIT	7,H
+	JR	Z,VALS2
+	PUSH	HL
+	CALL	PDNPR		;Returns Carry clear if device does
+	POP	HL		;not exist.
+	JR	C,VALS3
+	CALL	PRINT
+	DEFB	'??????'
+	DEFB	cr,lf,'Logical device assigned to non-existent '
+	DEFB	'physical device.',cr,lf,0
+	RET
+;
+; To do: Wrap line?
+;
+VALS3:	LD	A,' '		;Print a space after device name
+	CALL	COUT
+VALS2:	INC	C
+	ADD	HL,HL		;Next device
+	DJNZ	VALS1
+CRLF:	CALL	PRINT
+	DEFB	cr,lf,0
+	RET	
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; DEVICE logical-dev
+;
+
+;
+; Special bits for the console. We have to parse for PAGE, COLUMNS and LINES
+;
+VCON:	PUSH	DE
+	EX	DE,HL	;HL->command
+	LD	DE,CONOPTS
+	LD	IY,CONOPTC
+	CALL	C3OPT
+	LD	A,(CVFLAG)
+	OR	A
+	JP	Z,VCON1
+;
+; Console size may have been changed
+;
+	CALL	PRINT
+	DEFB	cr,lf,'Console width set to ',0
+	LD	L,1Ah
+	CALL	C3SCBG	;Get console width
+	INC	A
+	CALL	PAFDC
+	CALL	PRINT
+	DEFB	' columns',cr,lf,'Console page set to ',0
+	LD	L,1Ch
+	CALL	C3SCBG	;Get console height
+	INC	A
+	CALL	PAFDC
+	CALL	PRINT
+	DEFB	' lines',cr,lf,lf,0
+	RST	0
+;
+VCON1:	POP	DE
+	LD	A,5	;5 => CONIN+CONOUT
+	JP	VSEND
+;
+	DSEG
+CVFLAG:	DEFB	0
+CONOPTS:
+	DEFB	'P',0,'C',0,'L',0,0
+CONOPTC:
+	DEFW	VCONP, VCONC, VCONL
+	CSEG
+;
+VCONC:	CALL	GETI		;Read integer
+	PUSH	HL
+	LD	L,1Ah		;Set it as columns
+	JR	VCONQ
+;
+VCONL:	CALL	GETI		;Read integer
+	PUSH	HL
+	LD	L,1Ch		;Set it as lines
+VCONQ:	DEC	E
+	CALL	C3SCBB
+	POP	HL
+VCONP:	LD	A,1		;And flag to print page size
+	LD	(CVFLAG),A
+	RET
+;
+GETI:	LD	A,(HL)
+	INC	HL
+	OR	A
+	JR	Z,OPTERR
+	CP	']'
+	JR	Z,OPTERR
+	CP	','
+	JR	Z,OPTERR
+	CP	'='
+	JR	NZ,GETI
+	LD	A,(HL)
+	CP	'0'
+	JR	C,OPTERR
+	CP	'9'+1
+	JR	NC,OPTERR	
+	JP	EVAL10
+;
+OPTERR:	CALL	PRINT
+	DEFB	'Incorrect COLUMNS/LINES option. Must be COLUMNS=n or LINES=n',cr,lf,0
+	LD	HL,0FF03h
+	JP	C3EXIT
+;
+VAUX:	LD	A,6	;6 => AUXIN + AUXOUT
+	JR	VSEND
+;
+VCNI:	XOR	A
+	LD	B,A
+	JR	VSEND
+;
+VCNO:	LD	A,1
+	JR	VSEND
+;
+VAXI:	LD	A,2
+	JR	VSEND
+;
+VAXO:	LD	A,3
+	JR	VSEND
+;
+VLST:	LD	A,4
+VSEND:	CALL	VSET
+	LD	A,B
+	OR	A
+	RET	Z	;Nothing changed
+	JP	DEFSTAT
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Reassign / display logical device A.
+; 
+; A=0-6: CONIN:,CONOUT:,AUXIN:,AUXOUT:,LST:,CON:,AUX:
+;
+; Returns B=0 if no reassignment, else B nonzero.
+;
+VSET:	PUSH	DE
+	LD	(LDEV),A	;Logical device, we'll want this later.
+	LD	C,A		;C=logical device 
+VSETLP:	LD	A,(DE)
+	INC	DE
+	OR	A
+	JR	Z,VSDISP	;End of line and no = sign. Displaying.
+	CP	'='
+	JR	NZ,VSETLP
+;
+; Got an = sign. We are assigning. DE->just after the =
+;
+	CALL	CKNULL		;Device FOO:=NULL
+	JR	Z,DEVNUL
+;
+;Split up the line we are given. DE->line. 
+;1. Call LEXSTR to split the command up.
+;2. For each fragment, get the physical device name and set any options
+;  on that device.
+;3. Set appropriate bits in PDBMP
+;
+	LD	HL,0
+	LD	(PDBMP),HL
+	CALL	LEXSTR
+	LD	A,B
+	OR	A
+	JP	Z,NOPDEV
+PDALP:	PUSH	HL	;HL->1st token
+	LD	C,(HL)	;Token length
+	INC	HL
+	PUSH	BC
+	EX	DE,HL	;DE->command fragment
+	CALL	PDLEX
+	POP	BC
+	POP	HL
+	PUSH	BC
+	LD	B,0
+	INC	BC	;Skip over length byte
+	INC	BC	;Skip over terminating NULL
+	ADD	HL,BC	;Go to next token
+	POP	BC
+	DJNZ	PDALP
+	LD	DE,(PDBMP)
+	DEFB	03Eh	;Swallow the LD DE, 
+DEVNUL:	LD	DE,0	;Null device
+
+
+SETDEV:	LD	A,(LDEV) ;Logical device
+	CP	5
+	JR	C,SDSGL
+	JR	Z,SDCON
+	LD	A,2	;Assign AUXIN:
+	CALL	SDEV1
+	LD	A,3	;and AUXOUT:
+	JR	SDSGL
+
+SDCON:	XOR	A	;Assign CONIN:
+	CALL	SDEV1
+	LD	A,1	;and CONOUT:
+SDSGL:	CALL	SDEV1
+	POP	DE
+	RET
+;
+SDEV1:	PUSH	DE	;Assign bitmask DE to device A.
+	ADD	A,A
+	ADD	A,22h
+	LD	L,A	;L=SCB offset
+	CALL	C3SCBW
+	POP	DE
+	LD	B,1
+	RET
+;
+; Display the assignment of one device.
+;
+VSDISP:	POP	DE
+	LD	A,C	;Logical device
+	CP	5	;CON: 
+	JR	Z,VSDCON
+	CP	6	;AUX:
+	JR	Z,VSDAUX
+VSDCMN:	CALL	VALSHOW
+	LD	B,0
+	RET
+;
+VSDCON:	XOR	A	;Expand CON: to CONIN: and CONOUT:
+	CALL	VALSHOW
+	LD	A,1
+	JR	VSDCMN
+;
+VSDAUX:	LD	A,2	;Expand CON: to CONIN: and CONOUT:
+	CALL	VALSHOW
+	LD	A,3
+	JR	VSDCMN
+;
+; Error: DEVICE LST:=
+;
+NOPDEV:	CALL	PRINT
+	DEFB	'No physical devices specified.',cr,lf,0
+	LD	HL,0FF04h
+	JP	C3EXIT
+;
+; Error: DEVICE LST:=FOOBLE
+;
+EPDEV:	EX	DE,HL
+	CALL	PSTR
+	CALL	PRINT
+	DEFB	cr,lf,'Unknown physical device.',cr,lf,0
+	LD	HL,0FF01h
+	JP	C3EXIT
+;
+	DSEG
+LDEV:	DEFB	0	;Logical device being assigned
+PDBMP:	DEFW	0	;Bitmap of physical devices to assign to logical
+			;device
+	CSEG
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Handle a "physical-dev {[option]}" argument on the right-hand side of
+; the DEVICE equals sign.
+;
+; DE->0-terminated argument. 
+;
+PDLEX:	CALL	SKSP	;Skip over leading whitespace
+	RET	Z	
+	CALL	PDEVOPT	;Find device ID and options.
+	JP	NC,EPDEV
+	CALL	LDCHK	;Can this physical device link to the 
+			;specified logical device?
+
+	PUSH	BC	;C = device ID
+	LD	A,B
+	AND	E
+	AND	D
+	INC	A
+	CALL	NZ,PDSOPTS	;Set options on the device
+	POP	BC
+	LD	HL,1
+	LD	A,C
+PDLEX1:	CP	0Fh		;Convert device number to device bitmap
+	JR	Z,PDLEX2
+	ADD	HL,HL
+	INC	A
+	JR	PDLEX1
+;
+PDLEX2:	LD	DE,(PDBMP)	;Add that device to the bitmap of
+	LD	A,E		;chosen devices
+	OR	L
+	LD	L,A
+	LD	A,D
+	OR	H
+	LD	H,A
+	LD	(PDBMP),HL
+	RET
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;Check if physical device at HL can be linked to logical device LDEV 
+;
+;HL->DEVTBL entry
+;
+LDCHK:	PUSH	DE
+
+	PUSH	HL
+	POP	IX	;IX->device table entry, flags at IX+6
+	LD	A,(LDEV)
+	LD	D,3	;Mask = 3: Check input and output
+	CP	5	;devices 5 and 6 (CON: and AUX:) check both
+	JR	NC,LDCHK1
+	DEC	D	;Mask = 2: Check output
+	CP	3	;devices 1, 3 and 4 check output
+	JR	NC,LDCHK1
+	DEC	A
+	JR	Z,LDCHK1
+	DEC	D
+;
+LDCHK1:	LD	A,(IX+6)	;Flags
+	AND	D
+	CP	D		;If A != D, device incapable
+	POP	DE
+	RET	Z
+;
+; Oh dear.
+;
+	LD	DE,LDCHK2
+	LD	BC,6		;Copy device name to message
+	LDIR
+;
+;A = flags
+
+	CALL	PRINT
+LDCHK2:	DEFB	'****** - device cannot ',0
+	BIT	0,A
+	JR	NZ,LDCHK3
+	CALL	PRINT
+	DEFB	'input.',cr,lf,0
+	JR	LDCHK4
+;
+LDCHK3:	CALL	PRINT
+	DEFB	'output.',cr,lf,0
+LDCHK4:	LD	HL,0FF05h
+	JP	C3EXIT
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Print the name of one of the logical devices, CONIN/CONOUT/AUXIN/AUXOUT/LST
+;
+LDNPR:	PUSH	AF
+	LD	C,A
+	CALL	LDNAME	;Get its name
+	PUSH	HL
+	CALL	PSTR	;Print it
+	LD	A,':'
+	CALL	COUT	;Follow it with a colon
+	POP	HL
+	CALL	STRLEN
+	LD	B,A	;Length of string
+	LD	A,7	;Pack with spaces so it's 6 + colon long
+	SUB	B
+	LD	B,A
+	LD	A,' '
+DEVNP1:	CALL	COUT
+	DJNZ	DEVNP1
+	POP	AF
+	RET
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Print the name of physical device number C
+; Returns Carry set if OK, Carry clear if no such device
+; Returns HL->device flags byte, A BC DE preserved.
+;
+PDNPR:	PUSH	AF
+	PUSH	BC
+	LD	A,C
+	CP	0Fh	;0Fh expands to "File"
+	JR	Z,PDNPR2
+	CALL	C3DEVG	;Get device table entry
+	LD	A,H
+	OR	L
+	JR	Z,PDNEND
+	LD	B,6
+PDNPR1:	LD	A,(HL)
+	CALL	COUT
+	INC	HL
+	DJNZ	PDNPR1
+PDNEND1:
+	POP	BC
+	POP	AF
+	SCF
+	RET
+;
+PDNPR2:	CALL	PRINT
+	DEFB	'File  ',0
+	JR	PDNEND1
+;
+PDNEND:	POP	BC
+	POP	AF
+	AND	A
+	RET
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Look up a logical device name. C=name, 0-4
+;
+LDNAME:	LD	HL,DEVNS
+	JP	TOKENG
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; See if DE->"NULL".
+;
+CKNULL:	CALL	PDFPAR	;Loads PFBUF with the string DE is pointing at.
+	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+	LD	B,6	;Compare PFBUF with "NULL"	
+	LD	DE,PFBUF
+	LD	HL,SNULL
+	CALL	COMPB
+	POP	HL
+	POP	DE
+	POP	BC
+	RET 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Given the name of a physical device (DE->device), find its number.
+; Returns C=deviceno + Carry set if OK, Carry clear if no such device.
+;
+	DSEG
+SNULL:	DEFB	'NULL  '
+PFBUF:	DEFB	'******',0
+TERMS:	DEFB	' =:[]',0
+	CSEG
+;
+;First, parse the name as fixed-field ASCII.
+;
+PDFIND:	CALL	PDFPAR
+;
+; Then, look it up.
+;
+	PUSH	DE
+	LD	DE,PFBUF
+	CALL	C3DEVL	;Returns C=device number; if HL=0, failed.
+	POP	DE
+	LD	A,H
+	OR	L
+	RET	Z	;Failed: Carry clear
+	SCF		;Success: C=device, Carry set.
+	RET
+;
+PDFPAR:	PUSH	BC	;Convert a string at DE to a fixed-length
+	PUSH	DE	;devicename field.
+	PUSH	HL
+	LD	B,6		;Max 6 characters in buffer
+	LD	HL,PFBUF
+PDFLP:	LD	A,(DE)
+	OR	A
+	JR	Z,PDFLE		;End of word at DE, space-pad.
+	CALL	ISEOW
+	LD	A,(DE)
+	JR	C,PDFLE		;Ditto
+	LD	(HL),A
+	INC	HL		;Next character.
+	INC	DE
+	DJNZ	PDFLP
+	JR	PDFLF		;We have 6 characters. Return.
+
+PDFLE:	LD	(HL),' '	;Pack with spaces.
+	INC	HL
+	DJNZ	PDFLE
+PDFLF:	POP	HL
+	POP	DE
+	POP	BC
+	RET
+;
+ISEOW:	PUSH	HL		;Is A in the string "TERMS"?
+	LD	HL,TERMS
+	CALL	STRCHR		;Returns Carry set if it is, else Carry clear.
+	POP	HL
+	RET
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Parse a physical device name and any options.
+; Note that this is parsing only - no action is taken.
+;
+; Entered with DE->device string.
+; Returns:
+;    B = baudrate, 0FFh if unspecified.
+;    C = If carry set: physical device number. Else Carry clear.
+;    D = 1 for XON, 0 for NOXON, 0FFh if unspecified.
+;    E = 1 for TIMEOUT, 0 for NOTIMEOUT, 0FFh if unspecified
+;   HL -> DEVTBL entry if carry set, else 0.
+;
+PDEVOPT:
+	CALL	PDFIND	
+	RET	NC
+
+	PUSH	AF
+	LD	A,0FFh
+	LD	(WBAUD),A
+	LD	(WTIME),A
+	LD	(WXON),A
+
+	PUSH	HL
+	PUSH	BC
+	EX	DE,HL
+;
+; HL->command line
+; 
+	LD	DE,WLIST
+	LD	IY,WJMP
+	LD	IX,WBAUD
+	CALL	C3OPT
+	LD	DE,(WTIME)
+	LD	A,(TIMEOUT)
+	OR	A
+	JR	NZ,WTIME1
+	LD	E,0FFh	;If TIMEOUT support is disabled,
+WTIME1:	POP	BC	;then just forget timeout entry.
+	POP	HL
+	POP	AF
+	LD	A,(WBAUD)
+	LD	B,A
+	RET
+;
+	DSEG
+WBAUD:	DEFB	0
+WTIME:	DEFB	0
+WXON:	DEFB	0
+
+WLIST:	DEFB	'19200',0
+	DEFB	 '19K2',0,'9600',0,'7200',0,'4800',0,'3600',0
+	DEFB	 '2400',0,'1800',0,'1200',0, '600',0, '300',0
+	DEFB	  '150',0, '134',0, '110',0,  '75',0,  '50',0
+	DEFB	    'T',0, 'NOT',0,'NO T',0
+	DEFB	    'X',0, 'NOX',0,'NO X',0,'N',0,0
+WJMP:	DEFW	BAUD15
+	DEFW	BAUD15,BAUD14,BAUD13,BAUD12,BAUD11
+	DEFW	BAUD09,BAUD08,BAUD07,BAUD06,BAUD05
+	DEFW	BAUD05,BAUD04,BAUD03,BAUD02,BAUD01
+	DEFW	OPTT, OPTNOT, OPTNOT
+	DEFW	OPTX, OPTNOX, OPTNOX, OPTNOX
+	CSEG
+;
+BAUD15:	LD	(IX+0),15
+	RET
+;
+BAUD14:	LD	(IX+0),14
+	RET
+;
+BAUD13:	LD	(IX+0),13
+	RET
+;
+BAUD12:	LD	(IX+0),12
+	RET
+;
+BAUD11:	LD	(IX+0),11
+	RET
+;
+BAUD10:	LD	(IX+0),10
+	RET
+;
+BAUD09:	LD	(IX+0),9
+	RET
+;
+BAUD08:	LD	(IX+0),8
+	RET
+;
+BAUD07:	LD	(IX+0),7
+	RET
+;
+BAUD06:	LD	(IX+0),6
+	RET
+;
+BAUD05:	LD	(IX+0),5
+	RET
+;
+BAUD04:	LD	(IX+0),4
+	RET
+;
+BAUD03:	LD	(IX+0),3
+	RET
+;
+BAUD02:	LD	(IX+0),2
+	RET
+;
+BAUD01:	LD	(IX+0),1
+	RET
+;
+OPTT:	LD	(IX+1),1
+	RET
+;
+OPTNOT:	LD	(IX+1),0
+	RET
+;
+OPTX:	LD	(IX+2),1
+	RET
+;
+OPTNOX:	LD	(IX+2),0
+	RET
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Set options for a device
+; C=device no.  B=baudrate, 0FFh not to change
+; D=new XON, 0FFh not to change
+; E=new TIMEOUT, 0FFh not to change
+; HL->DEVTBL entry
+;
+PDSOPTS:
+	PUSH	HL
+	POP	IY	;IY->device table entry
+	LD	L,0	;Re-initialise flag
+;
+; Firstly, check if baud rate change is possible. If it isn't, abort.
+;
+	LD	A,B
+	CP	0FFh
+	JR	Z,NOBAUD
+	BIT	2,(IY+6)
+	JR	NZ,YBAUD
+;
+; Can't set baud rate, device doesn't support it
+;
+	CALL	PRINT
+	DEFB	'Cannot set baud rate for device: ',0
+	CALL	PDNPR
+	CALL	PRINT
+	DEFB	' - not supported.',cr,lf,0
+	LD	HL,0FF02h
+	JP	C3EXIT
+
+YBAUD:	INC	B
+	LD	(IY+7),B
+	LD	L,1
+NOBAUD:	LD	A,D	;Set XON?
+	CP	0FFh
+	JR	Z,NCXON
+	LD	L,1
+	OR	A
+	JR	Z,NOXON
+	SET	4,(IY+6)
+	JR	NCXON
+;
+NOXON:	RES	4,(IY+6)
+NCXON:	LD	A,E
+	CP	0FFh
+	JR	Z,NCTIME
+	LD	L,1	;Re-init flag
+	OR	A
+	JR	Z,NOTIME
+	RES	7,(IY+6)
+	JR	NCTIME
+;
+NOTIME:	SET	7,(IY+6)
+NCTIME:	LD	A,L		;If there have been changes...
+	OR	A
+	JP	Z,C3DINI	;then call DEVINI on the device	
+	RET
+;
+	END
+
+

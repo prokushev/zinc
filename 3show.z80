@@ -1,0 +1,880 @@
+;
+;    3SHOW: Show disc usage (GPLed clone of CP/M 3 SHOW)
+;    Copyright (C) 2000  John Elliott <jce@seasip.demon.co.uk>
+;
+;    This program is free software; you can redistribute it and/or modify
+;    it under the terms of the GNU General Public License as published by
+;    the Free Software Foundation; either version 2 of the License, or
+;    (at your option) any later version.
+;
+;    This program is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;    GNU General Public License for more details.
+;
+;    You should have received a copy of the GNU General Public License
+;    along with this program; if not, write to the Free Software
+;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+
+	INCLUDE ZINCHEAD.INC
+
+LABE	EQU	20h
+SFCB	EQU	21h
+UNKNOWN	EQU	22h
+FREE	EQU	23h
+;
+	extrn	LEXCMD		; Split command line into separate entities
+	extrn 	C3OPT,C3EXIT,C3PINI,C3D2A,C3T2A		; cpm3lib
+	extrn	C3PINI,PMOPR,PMEPR,PMPSTR,PMESTR	; cpm3lib
+	extrn	PMOPG, PMEPG				; cpm3lib
+	extrn	MHL5DC, MHL4DC, MHLDC			; Syslib
+	extrn	@LAST					; end of program
+;
+MAIN:	LD	C,2Dh
+	LD	E,0FFh		; Deal with all errors internally
+	CALL	BDOS
+
+	CALL	C3PINI		; Check for PIPEMGR
+;
+; Check for [PAGE] and [NOPAGE]
+;
+	LD	DE,80h
+	LD	A,(DE)
+	INC	DE
+	LD	L,A
+	LD	H,D
+	ADD	HL,DE
+	LD	(HL),D		; 0-terminate the command line
+	EX	DE,HL
+	LD	DE,PGOPT
+	LD	IY,PGSUB
+	CALL	C3OPT
+	LD	A,(PGMODE)
+	CALL	C3PINI		; Initialise the pager
+;
+; Check for a completely blank command line. If so, generate one.
+;
+	LD	HL,81h
+CLG:	LD	A,(HL)
+	INC	HL
+	CP	'['	;Any options?
+	JR	Z,NCLG
+	CP	':'	;Any driveletters?
+	JR	Z,NCLG
+	OR	A
+	JR	NZ,CLG
+;
+; The command is completely blank. So generate one from the list of drives
+; logged in.
+;
+	LD	C,18h
+	CALL	BDOS	;Get list of logged-in drives
+	LD	DE,81h
+	LD	B,16
+	LD	C,'A'
+SPLP:	LD	A,L
+	AND	1
+	JR	Z,SPL1
+	LD	A,C
+	LD	(DE),A
+	INC	DE	;This generates the minimal command:
+	LD	A,':'
+	LD	(DE),A	;SHOW A:,B:,C:, etc. for logged-in drives.
+	INC	DE
+	LD	A,','
+	LD	(DE),A
+	INC	DE
+
+SPL1:	SRL	H
+	RR	L
+	INC	C
+	DJNZ	SPLP
+	LD	A,E
+	SUB	81h	;Length of the generated command line
+	LD	(80h),A
+;
+NCLG:	CALL	LEXCMD		; Separate out bits like A: [DRIVE] B: [USERS]
+;
+; Returns HL = set of command strings and B = count of command strings
+;
+MAINLP:	PUSH	BC
+	PUSH	HL
+	CALL	NC,DOSHOW
+	POP	HL
+	POP	BC
+	LD	E,(HL)	;E = length of command we just did
+	LD	D,0
+	INC	DE	;+1 for length byte
+	INC	DE	;+1 for terminating zero
+	ADD	HL,DE	;HL->next command, I hope
+	DJNZ	MAINLP
+	CALL	CRLF
+	RST	0
+;
+; Parse the driveletter, if any
+;
+	DSEG
+DDRIVE:	DEFB	0	;Default drive
+SDRIVE:	DEFB	0	;Drive we have been asked to show
+SMODE:	DEFB	0	;Space mode
+LMODE:	DEFB	0	;Label mode
+RMODE:	DEFB	0	;Dir mode
+UMODE:	DEFB	0	;Users mode
+DMODE:	DEFB	0	;Drive mode
+	CSEG
+
+DOSHOW:	PUSH	HL
+
+	XOR	A		;Reset all options
+	LD	DE,SDRIVE	;to their defaults
+	LD	B,6
+RESET1:	LD	(DE),A
+	INC	DE
+	DJNZ	RESET1
+	
+	INC	HL		;Search for a driveletter
+	LD	A,(HL)
+	OR	A		;If the command is entirely blank, don't do
+	JR	NZ,FDRV1	;it. Blank command tails were done earlier.
+	POP	HL
+	RET	
+;
+FDRV1:	LD	A,(HL)		;in the command tail
+	CP	'['
+	JR	Z,DRVE		;start of option phrase - no driveletter
+	OR	A
+	JR	Z,DRVE		;end of command line
+	CP	':'
+	JR	Z,DRVG		;driveletter!
+	INC	HL
+	JR	FDRV1
+;
+DRVG:	DEC	HL
+	LD	A,(HL)		;Is it a valid driveletter?
+	CP	'A'
+	JP	C,BADDRV
+	CP	'Q'
+	JP	NC,BADDRV
+	SUB	'@'
+	LD	(SDRIVE),A
+DRVE:	POP	HL
+	INC	HL
+	LD	DE,OPTN		;Parse any options in this segment
+	LD	IY,OPTR
+	CALL	C3OPT
+;
+; If no drive was present, assume current
+;
+	LD	A,(SDRIVE)
+	OR	A
+	JR	NZ,GOTDRV
+	LD	C,19h
+	CALL	BDOS
+	INC	A
+	LD	(SDRIVE),A
+GOTDRV:
+;
+; If no options were present, behave as [SPACE]
+;
+	LD	HL,SMODE
+	LD	B,5
+	XOR	A
+CKOPT:	OR	(HL)
+	INC	HL
+	DJNZ	CKOPT
+	OR	A
+	JR	NZ,DOIT
+	LD	A,1
+	LD	(SMODE),A
+DOIT:	LD	C,19h		;Save the default drive.
+	CALL	BDOS
+	LD	(DDRIVE),A
+	LD	A,(SDRIVE)
+	DEC	A
+	LD	E,A
+	LD	C,0Eh
+	CALL	BDOS		;Switch to the drive being evaluated.
+	CP	0FFh
+	JR	NZ,LOGGED
+	CALL	PMOPR
+	DEFB	'Cannot access drive ',0
+	CALL	OPDRV	
+	JR	ESCAPE
+
+LOGGED:	LD	IY,LMODE
+	LD	A,(IY+0)
+	OR	(IY+1)
+	OR	(IY+2)		;If any of these three is set, we need to
+	CALL	NZ,EVALDIR	;call EVALDIR to count entries.
+
+	LD	A,(SMODE)
+	OR	A
+	CALL	NZ,SHOWS
+	LD	A,(LMODE)
+	OR	A
+	CALL	NZ,SHOWL
+	LD	A,(UMODE)
+	OR	A
+	CALL	NZ,SHOWU
+	LD	A,(DMODE)
+	OR	A
+	CALL	NZ,SHOWD
+	LD	A,(RMODE)
+	OR	A
+	CALL	NZ,SHOWR
+
+ESCAPE:	LD	A,(DDRIVE)	;Switch back to the default drive
+	LD	E,A
+	LD	C,0Eh
+	CALL	BDOS
+	RET
+;
+BADDRV:	LD	(BDRV),A
+	LD	DE,B$
+	LD	C,9
+	CALL	BDOS
+	LD	HL,0FF00h
+	JP	C3EXIT
+;
+	DSEG
+B$:	DEFB	cr,lf,'Invalid drive letter '
+BDRV:	DEFB	'X: ',cr,lf,'$'
+
+OPTN:	DEFB	'SPACE',0,'LABEL',0,'USERS',0,'DRIVE',0,'DIR',0
+	DEFB	'S',0,'L',0,'U',0,'DR',0,'D',0,0
+OPTR:	DEFW	SETS,SETL,SETU,SETD,SETR
+	DEFW	SETS,SETL,SETU,SETD,SETR
+PGOPT:	DEFB	'P',0,'N',0,'H',0,'?',0,0
+PGSUB:	DEFW	OPTP,OPTNP,OPTHLP,OPTHLP
+PGMODE:	DEFB	2
+	CSEG
+;
+OPTHLP:	CALL	PMEPR
+	DEFB	'Syntax:',cr,lf,lf
+	DEFB	'SHOW {x:{[options]}}{,x:{[options]}}...',cr,lf,lf
+	DEFB	'Options are: ',cr,lf
+	DEFB	'SPACE: Free space (default).',cr,lf 
+	DEFB	'DIR:   Number of free directory entries.',cr,lf
+	DEFB	'DRIVE: Information about the disc drive.',cr,lf
+	DEFB	'LABEL: Disc label.',cr,lf
+	DEFB	'USERS: Count of files in various user areas.',cr,lf,0
+	
+	RST	0
+;
+OPTP:	LD	A,1
+	LD	(PGMODE),A
+	RET
+;
+OPTNP:	XOR	A
+	LD	(PGMODE),A
+	RET
+;
+SETS:	LD	A,1
+	LD	(SMODE),A
+	RET
+;
+SETL:	LD	A,1
+	LD	(LMODE),A
+	RET
+
+SETD:	LD	A,1
+	LD	(DMODE),A
+	RET
+
+SETU:	LD	A,1
+	LD	(UMODE),A
+	RET
+
+SETR:	LD	A,1
+	LD	(RMODE),A
+	RET
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; The actual displaying routines
+;
+; Get free space
+;
+SHOWS:
+	CALL	SHOWDRV
+	CALL	SHOWRO
+	JP	SHOWSP
+
+CRLF:	LD	A,0Dh
+	CALL	PMOPG
+	LD	A,0Ah
+	CALL	PMOPG
+	RET
+;
+; Show R/O status
+;
+SHOWRO:	LD	C,1Dh
+	CALL	BDOS	;Get bitmap of R/O drives
+	LD	A,(SDRIVE)
+RRLP:	DEC	A
+	JR	Z,RRELP
+	SRL	H
+	RR	L
+	JR	RRLP
+RRELP:	LD	A,L
+	AND	1
+	LD	E,'O'
+	JR	NZ,ISRW
+	LD	E,'W'
+ISRW:	LD	A,'R'
+	CALL	PMOPG
+	LD	A,E
+	JP	PMOPG
+;
+; Show free space
+;
+SHOWSP:	LD	A,(SDRIVE)
+	LD	E,A
+	DEC	E	;Drive to get space for
+	LD	C,2Eh	;Find free space
+	CALL	BDOS
+	CP	0FFh
+	JR	NZ,SHOWS1	
+	CALL	PMOPR
+	DEFB	', could not determine free space.',0
+	RET
+;
+SHOWS1:	CALL	PMOPR
+	DEFB	', Space:     ',0
+	LD	HL,(80h)
+	LD	A,(82h)
+	LD	B,3
+DIV8:	SRA	A
+	RR	H
+	RR	L	
+	DJNZ	DIV8		;HL = space free in K 
+	CALL	DEC5
+	CALL	PMOPR
+	DEFB	'k',0
+	RET
+;
+DEC3:	PUSH	HL
+	PUSH	DE
+	PUSH	BC
+	CALL	SPDEC
+	LD	HL,KBUF+5
+	CALL	PMPSTR
+	LD	A,' '
+	CALL	PMOPG
+	POP	BC
+	POP	DE
+	POP	HL
+	RET
+;
+; EHL is a 24-bit number. Output it as space-filled decimal. SYSLIB doesn't
+; help here so we're on our own.
+;
+DEC8:	LD	IY,KBUF
+	LD	D,98h
+	LD	BC,9680h	;10000000 
+	CALL	D8DIG
+	LD	D,0Fh
+	LD	BC,4240h	;1000000
+	CALL	D8DIG
+	LD	D,1
+	LD	BC,86A0h	;100000
+	CALL	D8DIG
+	LD	D,0
+	LD	BC,2710h	;10000
+	CALL	D8DIG
+	LD	DE,KBUF+4
+	CALL	MHL4DC
+	LD	HL,KBUF
+	LD	B,7
+	PUSH	HL		;Trim leading zeroes from this
+SPDEC1:	LD	A,(HL)		;rather big number
+	CP	'0'
+	JR	NZ,SPDEC2
+	LD	(HL),' '
+	INC	HL
+	DJNZ	SPDEC1
+SPDEC2:	POP	HL
+	JP	PMPSTR
+
+DEC5:	PUSH	HL
+	PUSH	DE
+	PUSH	BC
+	CALL	SPDEC
+	LD	HL,KBUF+3
+	CALL	PMPSTR
+	POP	BC
+	POP	DE
+	POP	HL
+	RET
+;
+SPDEC:	LD	DE,KBUF+3	;This SYSLIB print routine
+	JP	MHLDC		;packs integers with spaces.
+;
+; Calculate EHL / DBC and EHL % DBC
+;
+D8DIG:	LD	(IY+0),'0'
+D8LOOP:	LD	A,E
+	CP	D
+	JR	C,D8DPT		;If EHL < DBC then end
+	JR	NZ,D8SUB	;EHL > DBC, do subtract
+	PUSH	HL
+	AND	A
+	SBC	HL,BC
+	POP	HL
+	JR	C,D8DPT		;E=D and HL < BC 
+D8SUB:	AND	A
+	SBC	HL,BC		;EHL -= DBC
+	LD	A,E
+	SBC	A,D
+	LD	E,A
+	INC	(IY+0)
+	JR	D8LOOP
+;
+D8DPT:	INC	IY
+	RET
+;
+SHOWDRV:
+	CALL	CRLF
+OPDRV:	LD	A,(SDRIVE)
+	ADD	A,'@'
+	CALL	PMOPG
+	CALL	PMOPR
+	DEFB	': ',0
+	RET	
+;
+	DSEG
+KBUF:	DEFB	'00000000',0
+	CSEG
+
+;
+SHOWU:	CALL	SHOWDRV
+	CALL	PMOPR
+	DEFB	'Active user : ',0
+	LD	C,20h
+	LD	E,0FFh
+	CALL	BDOS
+	LD	H,0	;HL = active user
+	CALL	DEC3
+	CALL	SHOWDRV
+	CALL	PMOPR
+	DEFB	'Active files: ',0
+	LD	B,16
+	LD	DE,@LAST
+	LD	HL,0
+SHOWU0:	LD	A,(DE)
+	LD	C,A
+	INC	DE
+	LD	A,(DE)
+	INC	DE
+	OR	C
+	CALL	NZ,DEC3
+	INC	L
+	DJNZ	SHOWU0
+
+	CALL	SHOWDRV
+	CALL	PMOPR
+	DEFB	'No. of files: ',0
+	LD	B,16
+	LD	DE,@LAST
+SHOWU1:	LD	A,(DE)
+	LD	L,A
+	INC	DE
+	LD	A,(DE)
+	LD	H,A
+	INC	DE
+	OR	L
+	JR	Z,SU1
+	CALL	DEC3
+SU1:	DJNZ	SHOWU1
+	CALL	CRLF
+;
+; Fall through to:
+;
+SHOWR:	LD	HL,(@LAST+SFCB+SFCB)
+	LD	A,H
+	OR	L
+	JR	Z,NOTDIR
+	PUSH	HL
+	CALL	SHOWDRV
+	CALL	PMOPR
+	DEFB	'Number of time/date directory entries: ',0
+	POP	HL
+	CALL	DEC5
+NOTDIR:	CALL	SHOWDRV
+	CALL	PMOPR
+	DEFB	'Number of free directory entries:      ',0
+	LD	HL,(@LAST+FREE+FREE)
+DECCR:	CALL	DEC5
+	JP	CRLF
+;
+GETDPB:	LD	C,1Fh
+	CALL	BDOS
+	PUSH	HL
+	POP	IX
+	RET		;IX -> disk parameter block:
+;
+;0=spt
+;2=bsh
+;3=blm
+;4=exm
+;5=dsm
+;7=drm
+;	
+IXDOS:	PUSH	IX
+	CALL	BDOS
+	POP	IX
+	RET
+;
+EVALDIR:
+	CALL	GETDPB
+	LD	HL,@LAST
+	LD	DE,@LAST+1
+	LD	BC,128
+	LD	(HL),0
+	LDIR		;Zap the dir. entry totals
+
+	LD	DE,80h
+	LD	C,1Ah
+	CALL	IXDOS
+	LD	C,11h
+EVALP:	LD	DE,QFCB
+	CALL	IXDOS	
+	CP	0FFh
+	JR	Z,FIN	;A=00 01 02 03
+	RRCA		;A=00 80 01 81
+	RRCA		;A=00 40 80 C0
+	RRCA		;A=00 20 40 60
+	ADD	A,80h	;A=80 A0 C0 E0
+	LD	L,A
+	LD	H,0
+	LD	A,(HL)	;A = user code
+	CP	0E5h
+	JR	Z,ADDE5
+	CP	21h
+	JR	Z,ADDIT
+	LD	DE,(@LAST+126)	;Increase count of used entries
+	INC	DE		;(omitting SFCBs)
+	LD	(@LAST+126),DE
+	CP	10h
+	JR	C,ADDEXT	;An actual file
+	CP	20h
+	JR	C,ADDIT
+	JR	NZ,ADDUN
+;
+; It's a directory label
+;
+	LD	DE,@LAST+72
+	LD	BC,20h
+	LD	A,C
+	LDIR		;Keep a copy of the label, in case.
+	JR	ADDIT
+;
+ADDEXT:	PUSH	HL
+	POP	IY		;IY -> dir entry
+
+	LD	A,(IY+14)	;S2
+	OR	A
+	JR	NZ,ADDE5	;S2 nonzero - not the first extent
+	LD	A,(IX+4)	;Extent mask
+	CPL
+	AND	(IY+12)		;Extent & (~mask)
+	JR	NZ,ADDE5	;Extent nonzero - not the first
+	LD	A,(IY+0)	;User no.
+	DEFB	21h		;Swallow the LD A,UNKNOWN
+ADDUN:	LD	A,UNKNOWN
+ADDIT:	LD	L,A
+	LD	H,0
+	ADD	HL,HL
+	LD	DE,@LAST
+	ADD	HL,DE
+	LD	C,(HL)
+	INC	HL
+	LD	B,(HL)
+	INC	BC
+	LD	(HL),B
+	DEC	HL
+	LD	(HL),C	;Increase the count of dir.entry type "X"
+ADDE5:	LD	C,12h
+	JR	EVALP
+;
+FIN:	LD	HL,(@LAST+SFCB+SFCB)	;Were any SFCBs found?
+	LD	A,H
+	OR	L
+	JR	Z,NOSF1		;If so, there are (DRM+1) / 4 of them
+	LD	L,(IX+7)
+	LD	H,(IX+8)
+	INC	HL
+	SRL	H
+	RR	L
+	SRL	H
+	RR	L		;HL = SFCB count
+	LD	(@LAST+SFCB+SFCB),HL
+NOSF1:	LD	DE,(@LAST+126)
+	ADD	HL,DE		;HL = no. of non-free entries
+	LD	E,(IX+7)
+	LD	D,(IX+8)
+	INC	DE		;DE = total no. of entries
+	EX	DE,HL
+	AND	A
+	SBC	HL,DE		;HL = no. of free entries
+	LD	(@LAST+FREE+FREE),HL
+	RET
+;
+NOSFCB:
+	RET
+;
+	DSEG
+;
+;16 user areas
+;16 XFCBs
+; 1 label
+; 1 SFCB
+; 1 free
+; 1 any others
+;=============
+;36 dir. entry types
+;
+QFCB:	DEFB	'?????????????',0,0,0
+	DEFS	20
+DCRE:	DEFB	'Create',0
+DACC:	DEFB	'Access',0
+	CSEG
+;
+
+SHOWL:	LD	A,(@LAST+72)
+	CP	20h
+	JR	Z,SHOWL1
+	CALL	CRLF
+	CALL	PMOPR
+	DEFB	'No directory label exists on drive ',0
+	CALL	OPDRV
+	JP	CRLF
+;
+SHOWL1:	CALL	CRLF
+	CALL	PMOPR
+	DEFB	'Label for drive ',0
+	CALL	OPDRV
+	CALL	CRLF
+	CALL	CRLF
+	CALL	PMOPR
+	DEFB	'Directory     Passwds  Stamp   Stamp',0
+	CALL	CRLF
+	CALL	PMOPR
+	DEFB	'Label         Reqd     ',0
+ 
+	LD	A,(@LAST+72+12)
+	AND	40h
+	LD	HL,DCRE
+	CALL	Z,PMPSTR
+	LD	HL,DACC
+	CALL	NZ,PMPSTR
+	CALL	PMOPR
+	DEFB	'  Update  Label Created     Label Updated',0
+	CALL	CRLF
+	CALL	PMOPR
+	DEFB	'------------  -------  ------  ------  '
+	DEFB	'----------------  ----------------',0
+	CALL	CRLF
+ 
+	LD	HL,@LAST+72+1
+	LD	B,11
+LLP:	LD	A,(HL)
+	AND	7Fh
+	CALL	PMOPG
+	INC	HL
+	LD	A,B
+	CP	4
+	JR	NZ,LLP1
+	LD	A,'.'
+	CALL	PMOPG
+LLP1:	DJNZ	LLP
+	CALL	SP3
+	LD	A,(@LAST+72+12)
+	LD	C,A
+	BIT	7,A
+	CALL	YESNO
+	CALL	SPSP
+	AND	50h
+	CALL	YESNO
+	CALL	SPSP
+	LD	A,C
+	AND	20h
+	CALL	YESNO
+	CALL	SPSP
+	
+	LD	HL,(@LAST+72+24)
+	LD	DE,80h
+	CALL	C3D2A
+	CALL	APPSP
+	XOR	A
+	LD	HL,@LAST+72+24
+	CALL	C3T2A
+	CALL	APPSP
+	LD	(DE),A
+	INC	DE
+	LD	HL,(@LAST+72+28)
+	CALL	C3D2A
+	CALL	APPSP
+	XOR	A
+	LD	HL,@LAST+72+28
+	CALL	C3T2A
+	XOR	A
+	LD	(DE),A
+	LD	HL,80h
+	CALL	PMPSTR
+	JP	CRLF
+;
+APPSP:	LD	A,' '
+	LD	(DE),A
+	INC	DE
+	RET
+;
+SP3:	PUSH	AF
+	LD	A,' '
+	CALL	PMOPG
+	JR	SP2
+;
+SPSP:	PUSH	AF
+	LD	A,' ' 
+SP2:	CALL	PMOPG
+	CALL	PMOPG
+	POP	AF
+	RET
+;
+YESNO:	JR	NZ,PYES
+	CALL	PMOPR
+	DEFB	' off  ',0
+	RET
+;
+PYES:	CALL	PMOPR
+	DEFB	'  on  ',0
+	RET
+;
+SHOWD:	CALL	CRLF
+	CALL	PMOPR
+	DEFB	'       ',0
+	CALL	OPDRV
+	CALL	PMOPR
+	DEFB	'Drive Characteristics',0
+	CALL	CRLF
+	CALL	GETDPB
+	LD	E,0		;Overflow
+	LD	L,(IX+5)
+	LD	H,(IX+6)
+	INC	HL		;HL = no. of blocks
+	LD	B,(IX+2)	;Block shift
+	PUSH	IX
+	PUSH	HL
+SBLK:	ADD	HL,HL
+	JR	NC,SBLK1
+	INC	E
+SBLK1:	DJNZ	SBLK
+	CALL	DEC8		;EHL = no. of blocks
+	CALL	PMOPR
+	DEFB	': 128 Byte Record Capacity',0
+	CALL	CRLF	
+	POP	HL
+	POP	IX
+	LD	A,(IX+2)
+	SUB	3
+	JR	Z,BL1K
+	LD	B,A
+	LD	E,0
+SBLK2:	ADD	HL,HL
+	JR	NC,SBLK3
+	INC	E
+SBLK3:	DJNZ	SBLK2
+BL1K:	PUSH	IX
+	CALL	DEC8
+	CALL	PMOPR
+	DEFB	': Kilobyte Drive Capacity',0
+	CALL	CRLF
+	POP	IX
+	LD	L,(IX+7)
+	LD	H,(IX+8)
+	INC	HL
+	PUSH	IX	
+	CALL	SP3
+	CALL	DEC5
+	CALL	PMOPR
+	DEFB	': 32 Byte  Directory Entries',0
+	CALL	CRLF	
+	POP	IX
+
+	LD	L,(IX+11)
+	LD	H,(IX+12)	;Checksum vector
+	RES	7,H
+	PUSH	IX	
+	CALL	SP3
+	CALL	DEC5
+	CALL	PMOPR
+	DEFB	': Checked  Directory Entries',0
+	CALL	CRLF	
+	POP	IX
+	LD	A,(IX+6)	;DSM high. If it's 0 then double
+				;the number of records / dir entry
+				;which = 8 * records/block
+	LD	HL,8
+	LD	B,(IX+2)	;Block shift
+	LD	E,0
+RPDIR:	ADD	HL,HL
+	JR	NC,RPDIR0
+	INC	E
+RPDIR0:	DJNZ	RPDIR
+	OR	A
+	JR	NZ,RPDIR1
+	ADD	HL,HL
+RPDIR1:	PUSH	IX	
+	CALL	DEC8
+	CALL	PMOPR
+	DEFB	': Records / Directory Entry',0
+	CALL	CRLF	
+	POP	IX
+
+	LD	HL,1		;Records / block
+	LD	B,(IX+2)	;Block shift
+RPBLK:	ADD	HL,HL
+	DJNZ	RPBLK
+	PUSH	IX	
+	CALL	SP3
+	CALL	DEC5
+	CALL	PMOPR
+	DEFB	': Records / Block',0
+	CALL	CRLF
+	POP	IX
+	LD	L,(IX+0)
+	LD	H,(IX+1)
+	PUSH	IX
+	CALL	SP3
+	CALL	DEC5
+	CALL	PMOPR
+	DEFB	': Records / Track',0
+	CALL	CRLF	
+	POP	IX
+	LD	L,(IX+13)
+	LD	H,(IX+14)
+	PUSH	IX
+	CALL	SP3
+	CALL	DEC5
+	CALL	PMOPR
+	DEFB	': Reserved  Tracks',0
+	CALL	CRLF	
+	POP	IX
+	LD	HL,128
+	LD	A,(IX+15)
+	OR	A
+	JR	Z,PSH1
+	LD	B,A
+PSH:	ADD	HL,HL
+	DJNZ	PSH
+PSH1:	CALL	SP3
+	CALL	DEC5
+	CALL	PMOPR
+	DEFB	': Bytes / Physical Sector',0
+	JP	CRLF	
+
+	END
+

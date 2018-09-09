@@ -1,0 +1,47 @@
+;
+;    CPM3LIB library: An extension to SYSLIB for CP/M 3 features
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+	EXT	C3DEVC,C3DTBL
+
+; Return address of physical device record for device C (0 <= C < 15)
+; or 0 if the device can't be found. Returns HL=record; AF BC DE
+; preserved.
+
+	.z80
+	cseg
+
+C3DEVG::
+	LD	HL,0	
+	CALL	C3DEVC	;A = no. of devices in system
+	CP	C
+	RET	Z	;If A = C, 
+	RET	C	;or A < C, then C is out of range.
+	PUSH	BC
+	LD	A,C	;A = device number
+	ADD	A,A	;*2
+	ADD	A,A	;*4
+	ADD	A,A	;*8
+	LD	C,A
+	LD	B,0	;BC = offset into DEVTBL
+	CALL	C3DTBL
+	ADD	HL,BC	;HL->device entry
+	POP	BC
+	RET
+
+	END
+

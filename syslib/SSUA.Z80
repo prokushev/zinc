@@ -1,0 +1,45 @@
+;
+; SYSLIB Module Name:  SSUA
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	sua
+
+;
+;  Equates
+;
+bdos	equ	5
+bsua	equ	32	; set user number
+
+;
+;  Macros
+;
+putrg	macro
+	push	af
+	push	bc
+	push	de
+	push	hl
+	endm
+getrg	macro
+	pop	hl
+	pop	de
+	pop	bc
+	pop	af
+	endm
+
+;
+;	SUA sets the user number specified in the low-order 5 bytes
+; of A.  No error code is returned.
+;
+sua:
+	putrg		; save registers
+	and	1fh	; mask out upper 3 bits
+	ld	e,a	; user area in E
+	ld	c,bsua	; set user function
+	call	bdos
+	getrg		; restore registers
+	ret
+
+	end
+

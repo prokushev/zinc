@@ -1,0 +1,36 @@
+;
+;  SYSLIB Module Name:  SISCTRL
+;  Author:  Richard Conn
+;  SYSLIB Version Number:  3.6
+;  Module Version Number:  1.1
+
+	public	isctrl
+
+;
+;	ISCTRL returns Zero Flag Set if char in A is control (< space, DEL).
+; ISCTRL returns NZ if not.
+;
+;	Char in A is unaffected.
+;
+ISCTRL:
+	PUSH	BC	; SAVE BC
+	LD	C,A	; SAVE CHAR IN C
+	AND	7FH	; MASK OUT MSB
+	CP	' '	; LESS THAN SPACE?
+	JP	C,YES
+	CP	7FH	; DELETE?
+	JP	NZ,NO
+YES:
+	XOR	A	; SET FLAG
+	LD	A,C	; GET CHAR
+	POP	BC	; RESTORE BC
+	RET
+NO:
+	LD	A,0FFH	; SET FLAG
+	OR	A
+	LD	A,C	; GET CHAR
+	POP	BC	; RESTORE BC
+	RET
+
+	END
+

@@ -1,0 +1,43 @@
+;
+; SYSLIB Module Name: AIF2
+; Author: Richard Conn
+; SYSLIB Version Number: 3.6
+; Module Version Number: 1.1
+
+	public	aif2
+
+;
+; AIF2 is an arithmetic IF facility.  A key value is passed in the B register
+; and a test value is passed in the A register:
+;
+;	MVI	B,5	; key value
+;	MVI	A,TEST	; test value
+;	CALL	AIF2
+;	JMP	ALTB	; go here if A < B
+;	JMP	AEQB	; go here if A = B
+;	JMP	AGTB	; go here if A > B
+;
+aif2:
+	ex	(sp),hl	; get return address
+	push	af	; save regs
+	push	de
+	cp	b	; compare
+	jp	c,less
+	jp	z,equal
+	ld	de,6	; A > B, so add 6
+	add	hl,de
+	jp	less
+equal:
+	ld	de,3	; A = B, so add 3
+	add	hl,de
+;
+;  A < B, so HL contains the return address (no change)
+;
+less:
+	pop	de	; restore regs
+	pop	af
+	ex	(sp),hl
+	ret
+
+	end
+

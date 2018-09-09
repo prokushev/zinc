@@ -1,0 +1,164 @@
+;
+; LULIB Module: LUDIR
+; Author: Richard Conn
+; Date: 8 August 85
+; LULIB Version: 1.0
+; LULIB Module Version: 1.0
+;
+	public	ludir
+
+;
+;	LUDIR stores selected directory entries from a library in a
+; memory buffer.  It accepts an ambiguous file name reference and an
+; LUD pointer (as provided by LUINIT), and it builds a listing of names
+; in memory.  This listing is structured as follows:
+;
+;	DB	'FILENAME'
+;	DB	'TYP'
+;	DW	START_INDEX
+;	DW	LENGTH
+;	DW	CRC
+;	...			; entries repeated as necessary
+;	DB	0		; indicates end of list
+;
+;	On input, DE = ptr to LUD, HL = ptr to FN.FT, and BC = ptr to
+;		memory buffer
+;	On output, A is return code:
+;		0     OK
+;		0FFH  Memory Buffer overflow (encountered top of TPA)
+;
+;	Side Effect: DMA Address is set to 80H
+;
+
+;
+;	Externals and Equates
+;
+lentsz	equ	17		; size of dir entry:
+				;	11 - for FN.FT
+				;	 2 - for Index
+				;	 2 - for Length
+				;	 2 - for CRC
+bdose	equ	5
+
+	ext	f$open,r$read
+
+	.in	luddef
+
+ludir:
+	push	hl		; save regs
+	push	de
+	push	bc
+	ld	c,26		; set DMA address
+	ld	de,tbuff
+	call	bdose		; use BDOS call
+	pop	bc		; restore and save regs
+	pop	de
+	pop	hl
+	push	hl
+	push	de
+	push	bc
+	ld	a,(bdose+7)	; get upper base page of system
+	sub	a,10		; pt to below ZCPR3
+	ld	(tpaend),a	; set end ptr
+	ld	(file),hl	; save ptr to file name
+	ld	h,b		; get ptr to memory buffer
+	ld	l,c
+	ld	(buffer),hl	; save ptr to memory buffer
+	ld	hl,ludfcb	; offset to FCB
+	add	hl,de
+	ex	de,hl		; DE = FCB
+	ld	c,(hl)		; get length of directory
+	inc	hl
+	ld	b,(hl)
+	ld	hl,0		; read directory in (record 0)
+loop:
+	call	r$read		; random read
+	jr	nz,error	; file not found if error
+	push	hl		; save key regs
+	push	de
+	push	bc
+	call	scan		; scan for file name match and build buffer
+	pop	bc		; restore key regs
+	pop	de
+	pop	hl
+	jr	z,error		; TPA full
+	inc	hl		; pt to next record
+	dec	bc		; count down length of dir
+	ld	a,b		; done?
+	or	c
+	jr	nz,loop
+	ld	hl,(buffer)	; point to next byte after last entry
+	ld	(hl),0		; store zero
+	jr	done		; A=0 from before the "jr nz,loop"
+error:
+	or	0ffh		; set 0FFH
+done:
+	pop	bc		; restore regs
+	pop	de
+	pop	hl
+	or	a		; set flags
+	ret
+;
+;  Scan TBUFF for file names
+;  If memory overflow, A=0 and Zero Flag Set
+;  If OK, A=0FFH
+;
+scan:
+	ld	hl,tbuff	; pt to buffer
+	ld	c,4		; 4 entries possible
+scan1:
+	ld	a,(hl)		; check for active entry
+	or	a		; 0=yes
+	jr	nz,scanxt
+	push	hl
+	inc	hl		; pt to name
+	ld	de,(file)	; pt to file name
+	ld	b,11		; 11 bytes
+scanlp:
+	ld	a,(de)		; get name
+	and	7fh		; mask msb
+	cp	'?'		; match wild
+	jr	z,scanlp1
+	cp	(hl)		; compare to dir entry
+	jr	nz,scanlp2
+scanlp1:
+	inc	hl		; pt to next
+	inc	de
+	djnz	scanlp
+	pop	de		; we have a match - pt to entry with DE
+	ld	hl,(buffer)	; get address of next buffer entry
+	ld	a,(tpaend)	; check for overflow
+	cp	h
+	jr	c,scanerr	; TPA overflow
+	push	de		; save ptr
+	push	bc		; save count
+	inc	de		; pt to file name
+	ex	de,hl		; source in HL
+	ld	bc,lentsz	; entry size
+	ldir
+	ld	(buffer),de	; save ptr for next copy
+	pop	bc		; get count
+	jr	scanlp2		; continue
+scanerr:
+	xor	a		; return with zero for error
+	ret
+scanlp2:
+	pop	hl		; pt to current
+scanxt:
+	ld	de,32		; pt to next
+	add	hl,de
+	dec	c		; count down
+	jr	nz,scan1
+	or	0ffh		; set no error
+	ret
+
+;
+;  Buffers
+;
+file:	ds	2		; pointer to FN.FT
+buffer:	ds	2		; pointer to memory buffer
+tpaend:	ds	1		; end page of TPA
+ludent:	ds	2		; pointer to LUD entry
+
+	end
+

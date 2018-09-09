@@ -1,0 +1,26 @@
+;
+; SYSLIB Module Name:  BIN
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	bin
+BDOS	EQU	5
+
+;
+;  GET CHAR FROM USER IN A VIA BDOS CALL
+;	AFFECT ONLY PSW
+;
+BIN:
+	PUSH	HL	; SAVE REGS
+	PUSH	DE
+	PUSH	BC
+	LD	C,1	; GET CHAR
+	CALL	BDOS
+	POP	BC	; RESTORE REGS
+	POP	DE
+	POP	HL
+	RET
+
+	END
+

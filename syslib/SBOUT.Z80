@@ -1,0 +1,29 @@
+;
+; SYSLIB Module Name:  BOUT
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	bout
+BDOS	EQU	5
+
+;
+;  OUTPUT CHAR IN A VIA BDOS CALL
+;	AFFECT NO REGS
+;
+BOUT:
+	PUSH	HL	; SAVE REGS
+	PUSH	DE
+	PUSH	BC
+	PUSH	AF
+	LD	C,2	; PUT CHAR
+	LD	E,A	; CHAR IN E
+	CALL	BDOS
+	POP	AF	; RESTORE REGS
+	POP	BC
+	POP	DE
+	POP	HL
+	RET
+
+	END
+

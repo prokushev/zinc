@@ -1,0 +1,51 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+
+	.z80
+	cseg
+
+	extrn	cparse,copfcb,cmkdev,cdvini
+
+	ld	hl,drvr2
+	ld	de,dev1
+	ld	bc,drvr1
+	call	cmkdev
+	ld	Hl,cdvini
+	ld	de,pfcb
+	call	cparse
+	ld	de,myfcb
+	ld	hl,0
+	ld	c,0
+	call	copfcb
+	nop
+	rst	0
+;
+drvr2:
+drvr1:	xor	a
+	ret
+	
+	dseg
+pfcb:	dw	81h
+	dw	myfcb
+myfcb:	defs	48
+dev1:	defb	'DEV'
+	cseg
+	end
+
+

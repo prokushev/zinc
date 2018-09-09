@@ -1,0 +1,5 @@
+move c: 3erase.z80 makeera.sub last.z80
+:m80$1 =LAST.Z80
+:m80$1 =3erase.z80
+:link 3erase,b:cfcb.irl[s],b:cpm3lib.irl[s],b:syslib.irl[s],last
+

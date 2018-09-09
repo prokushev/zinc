@@ -1,0 +1,58 @@
+;
+;    CPM3LIB library: An extension to SYSLIB for CP/M 3 features
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+
+	.z80
+	cseg
+	
+	ext	C3PUSH,C3POP,C3SCBG,ZPUSHI,ZPOPI
+;
+; This is tricky, because the CP/M 3 BDOS doesn't allow time in seconds to
+; be set by a program. We have to use the BIOS.
+;
+C3STIME::
+	CALL	C3PUSH
+	PUSH	HL	;HL -> stamp
+	LD	L,3Ah
+	CALL	C3SCBG	;HL -> SCB
+	LD	DE,58h
+	ADD	HL,DE	;HL -> date stamp
+	EX	DE,HL
+	POP	HL
+	LD	BC,5
+;
+; On systems where the clock is interrupt-driven, ensure the clock is 
+; stopped while setting it.
+;
+	CALL	ZPUSHI
+	DI
+	LDIR		;Copy our stamp into the SCB.
+	CALL	ZPOPI
+
+	LD	HL,(1)
+	LD	DE,4Bh
+	ADD	HL,DE	;HL -> the BIOS "TIME" routine
+	LD	B,0FFh	;Setting the clock
+	LD	DE,C3POP
+	PUSH	DE
+	JP	(HL)	;Returns to C3POP.
+;
+	end
+
+
+

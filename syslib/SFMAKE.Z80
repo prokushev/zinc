@@ -1,0 +1,29 @@
+;
+; SYSLIB Module Name:  SFMAKE
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.2
+
+	public	f$make
+
+;
+;  F$MAKE -- MAKE FILE WHOSE FCB IS PTED TO BY DE
+;
+	EXT	BDOS
+	EXT	F$DELETE
+
+F$MAKE:
+	CALL	F$DELETE	; DELETE FILE
+	PUSH	HL		; SAVE HL
+	PUSH	BC		; SAVE BC
+	LD	C,B$MAKE
+	CALL	BDOS
+	OR	A		; SET FLAGS (Z FLAG)
+	POP	BC		; RESTORE BC
+	POP	HL		; RESTORE HL
+	RET
+
+B$MAKE	EQU	22	; MAKE FILE
+
+	END
+

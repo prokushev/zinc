@@ -1,0 +1,28 @@
+;
+; SYSLIB Module Name:  SFREAD
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.2
+
+	public	f$read
+
+;
+;  F$READ -- READ BLOCK FROM FILE WHOSE FCB IS PTED TO BY DE
+;	RET W/A=0 IF OK AND FLAGS SET
+;
+	EXT	BDOS
+
+F$READ:
+	PUSH	HL	; SAVE HL
+	PUSH	BC	; SAVE BC
+	LD	C,B$RECR
+	CALL	BDOS
+	OR	A	; SET FLAGS (Z FLAG)
+	POP	BC	; RESTORE BC
+	POP	HL	; RESTORE HL
+	RET
+
+B$RECR	EQU	20	; READ RECORD
+
+	END
+

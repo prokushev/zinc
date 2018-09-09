@@ -1,0 +1,483 @@
+;
+;    3SETDEF: Set system defaults (GPLed clone of CP/M 3 SETDEF)
+;    Copyright (C) 2000  John Elliott <jce@seasip.demon.co.uk>
+;
+;    This program is free software; you can redistribute it and/or modify
+;    it under the terms of the GNU General Public License as published by
+;    the Free Software Foundation; either version 2 of the License, or
+;    (at your option) any later version.
+;
+;    This program is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;    GNU General Public License for more details.
+;
+;    You should have received a copy of the GNU General Public License
+;    along with this program; if not, write to the Free Software
+;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+;
+	INCLUDE	ZINCHEAD.INC
+;
+	EXTRN	PRINT,PSTR,BOUT,CRLF,C3SCBG,C3OPT,ISALPHA
+;
+MAIN:	LD	L,3Ah
+	CALL	C3SCBG			;HL -> SCB
+	PUSH	HL
+	POP	IX			;IX -> SCB
+
+	CALL	GETPARS			;Get current settings
+
+	LD	DE,80h			;0-terminate the command line.
+	LD	A,(DE)
+	LD	L,A
+	LD	H,D			;HL = cmd line length
+	INC	DE
+	ADD	HL,DE			;DE -> cmd line
+	LD	(HL),D
+	EX	DE,HL			;HL -> cmd line
+	LD	DE,OPTS
+	LD	IY,OPTJMP
+	CALL	C3OPT
+;
+; Check for a search path parameter
+;
+	LD	HL,81h
+CMLP:	LD	A,(HL)
+	INC	HL
+	OR	A
+	JR	Z,CMEND
+	CP	'['
+	JR	Z,CMEND
+	CP	' '
+	JR	Z,CMLP
+	DEC	HL	;HL -> path
+	CALL	RDPATH
+
+CMEND:	LD	BC,(F_FLAGS)
+	LD	A,B
+	OR	C
+	JR	Z,NOSET
+	CALL	SHOWPARS
+	CALL	SETPARS
+	RST	0
+
+NOSET:	LD	BC,0FFFFh
+	CALL	SHOWPARS
+	RST	0
+;
+	DSEG
+
+OPTS:	DEFB	'US',0,'UK',0,'YMD',0,'ISO',0	;Date formats
+	DEFB	'PAGE=ON',0,'PAGE=OFF',0,'NO P',0,'NOP',0
+	DEFB	'P=ON',0,'P=OFF',0,'P',0
+	DEFB	'DISPLAY=ON',0,'DISPLAY=OFF',0,'NO D',0,'NOD',0
+	DEFB	'D=ON',0,'D=OFF',0,'D',0
+	DEFB	'TEMPORARY=',0,'T=',0,'ORDER=',0,'O=',0
+	DEFB	0
+;
+OPTJMP:	DW	SET_US,SET_UK,SET_ISO,SET_ISO
+	DW	SET_PG,SET_NP,SET_NP,SET_NP,SET_PG, SET_NP, SET_PG
+	DW	SET_D, SET_ND,SET_ND,SET_ND,SET_D,  SET_ND, SET_D
+	DW	SET_T, SET_T, SET_O, SET_O
+F_FLAGS:
+	DEFW	0	;Bit 0 = include path
+			;    1 = order
+			;    2 = temp drive
+			;    3 = paged output
+			;    4 = prog name display
+			;    5 = date formatq
+
+V_PATH:	DEFB	0,0,0,0	;Path
+V_ORD:	DEFB	0	;Order
+V_TEMP:	DEFB	0	;Temp drive
+V_PAGE:	DEFB	0	;Paged output
+V_PND:	DEFB	0	;Program name display
+V_FMT:	DEFB	0	;Date format
+
+	CSEG
+;
+PATHOFF	EQU	04Ch	;Path offset
+ORDOFF	EQU	018h	;Search order
+TMPOFF	EQU	050h	;Temp drive
+PAGOFF	EQU	02Dh	;Page mode
+PNDOFF	EQU	018h	;Program name display
+FMTOFF	EQU	0Ch	;Date format
+
+GETPARS:
+	LD	HL,PATHOFF	;Copy the search path
+	PUSH	IX
+	POP	DE
+	ADD	HL,DE
+	LD	DE,V_PATH
+	LD	BC,4
+	LDIR
+
+	LD	A,(IX+ORDOFF)	;Copy the search order
+	AND	18h
+	LD	(V_ORD),A
+	LD	A,(IX+TMPOFF)	;Temp drive
+	LD	(V_TEMP),A
+	LD	A,(IX+PAGOFF)	;Page mode
+	LD	(V_PAGE),A
+	LD	A,(IX+PNDOFF)	;Program name display
+	AND	3
+	LD	(V_PND),A
+	LD	A,(IX+FMTOFF)	;Date format
+	AND	3
+	LD	(V_FMT),A
+	RET
+;
+SETPARS:
+	BIT	0,C		;Path set?
+	JR	Z,SETP0
+
+	PUSH	BC
+	LD	HL,PATHOFF	;Copy the search path
+	PUSH	IX		;back into the SCB
+	POP	DE
+	ADD	HL,DE
+	LD	DE,V_PATH
+	EX	DE,HL
+	LD	BC,4
+	LDIR
+	POP	BC
+
+SETP0:	BIT	1,C		;Search order
+	JR	Z,SETP1
+	LD	A,(V_ORD)	
+	AND	18h
+	LD	E,A
+	LD	A,(IX+ORDOFF)
+	AND	0E7h
+	OR	E
+	LD	(IX+ORDOFF),A	
+
+SETP1:	BIT	2,C		;Temp file drive
+	JR	Z,SETP2
+	LD	A,(V_TEMP)
+	LD	(IX+TMPOFF),A	;Temp drive
+
+SETP2:	BIT	3,C
+	JR	Z,SETP3
+	LD	A,(V_PAGE)
+	LD	(IX+PAGOFF),A	;Page mode
+
+SETP3:	BIT	4,C
+	JR	Z,SETP4
+	LD	A,(IX+PNDOFF)	;Program name display
+	AND	0FCh
+	LD	E,A
+	LD	A,(V_PND)
+	AND	3
+	OR	E
+	LD	(IX+PNDOFF),A
+
+SETP4:	BIT	5,C
+	RET	Z
+	LD	A,(V_FMT)
+	AND	3
+	LD	E,A
+	LD	A,(IX+FMTOFF)	;Date format
+	AND	0FCh
+	OR	E
+	LD	(IX+FMTOFF),A
+
+	RET
+;
+SHOWPARS:
+	PUSH	IX
+	BIT	0,C
+	JR	Z,SP0
+	LD	B,4
+	LD	DE,0
+	LD	HL,V_PATH
+SPLP:	LD	A,(HL)
+	CP	0FFh
+	JR	Z,SPLE
+	PUSH	HL
+	PUSH	DE
+	EX	DE,HL
+	ADD	HL,HL
+	ADD	HL,HL
+	LD	DE,ORDS
+	ADD	HL,DE
+	CALL	PSTR
+	POP	DE
+	POP	HL
+	CALL	PRINT
+	DEFB	' search drive     - ',0
+	CALL	SHOWDRV
+	CALL	CRLF
+	INC	HL	
+	INC	DE
+	DJNZ	SPLP
+SPLE:	CALL	CRLF
+
+SP0:	BIT	1,C	
+	JR	Z,SP1
+	CALL	PRINT
+	DEFB	'Search order         - ',0
+	LD	HL,(V_ORD)
+	LD	H,0
+	LD	DE,SRCHS
+	ADD	HL,DE
+	CALL	PSTR
+	CALL	CRLF
+
+SP1:	BIT	2,C
+	JR	Z,SP2
+	CALL	PRINT
+	DEFB	'Temporary file drive - ',0
+	LD	A,(V_TEMP)
+	CALL	SHOWDRV
+	CALL	CRLF
+
+SP2:	BIT	3,C
+	JR	Z,SP3
+	CALL	PRINT
+	DEFB	'Console page mode    - ',0
+	LD	A,(V_PAGE)
+	OR	A
+	CALL	Z,SYES
+	CALL	NZ,SNO
+	CALL	CRLF
+
+SP3:	BIT	4,C
+	JR	Z,SP4
+	CALL	PRINT
+	DEFB	'Program name display - ',0
+	LD	A,(V_PND)
+	OR	A
+	CALL	NZ,SYES
+	CALL	Z,SNO
+	CALL	CRLF
+
+SP4:	BIT	5,C
+	JR	Z,SP5
+	CALL	PRINT
+	DEFB	'Date format          - ',0
+	LD	A,(V_FMT)
+	OR	A
+	LD	HL,FMTUS
+	CALL	Z,PSTR
+	DEC	A
+	LD	HL,FMTUK
+	CALL	Z,PSTR
+	DEC	A
+	LD	HL,FMTISO
+	CALL	Z,PSTR
+	CALL	CRLF			
+
+SP5:	POP	IX
+	RET
+;
+SHOWDRV:
+	PUSH	AF
+	OR	A
+	JR	Z,SHOWDEF
+	ADD	A,'@'
+	CALL	BOUT
+	LD	A,':'
+	CALL	BOUT
+	POP	AF
+	RET
+;
+SHOWDEF:
+	CALL	PRINT
+	DEFB	'Default',0
+	POP	AF
+	RET
+;
+SYES:	CALL	PRINT
+	DEFB	'On',0
+	RET
+;
+SNO:	CALL	PRINT
+	DEFB	'Off',0
+	RET
+;
+	DSEG
+ORDS:	DEFB	'1st',0,'2nd',0,'3rd',0,'4th',0
+SCCHRS:	DEFB	'SC'	;Characters used at start of 'S'ub and 'C'om
+SRCHS:	DEFB	'COM    ',0,'COM,SUB',0,'SUB,COM',0
+FMTUS:	DEFB	'US',0
+FMTUK:	DEFB	'UK',0
+FMTISO:	DEFB	'ISO',0
+	CSEG
+;
+;Date format setting
+;
+SET_US:	XOR	A
+	JR	SET_FMT
+;
+SET_UK:	LD	A,1
+	JR	SET_FMT
+;
+SET_ISO:
+	LD	A,2
+SET_FMT:
+	LD	(V_FMT),A
+	LD	A,(F_FLAGS)
+	SET	5,A
+	LD	(F_FLAGS),A
+	RET
+;
+;Set page mode 
+;
+SET_PG:	XOR	A
+	DEFB	11h	;Swallow the LD A,0FFh
+SET_NP:	LD	A,0FFh
+SPG:	LD	(V_PAGE),A
+	LD	A,(F_FLAGS)
+	SET	3,A
+	LD	(F_FLAGS),A
+	RET
+;
+; Set DISPLAY / NODISPLAY
+;
+SET_D:	LD	A,3
+	DEFB	0Eh	;Swallow the XOR A
+SET_ND:	XOR	A
+	LD	(V_PND),A
+	LD	A,(F_FLAGS)
+	SET	4,A
+	LD	(F_FLAGS),A
+	RET
+;
+;Set temp. file drive
+;
+SET_T:	CALL	PARS_DRV	;Set the temporary drive letter.
+	JR	C,TMPUT
+	LD	A,(HL)
+	INC	HL
+	CALL	BOUT
+	CALL	PRINT
+	DEFB	': is not a valid drive letter.',cr,lf,0
+	RET
+;
+TMPUT:	INC	HL
+	LD	(V_TEMP),A
+	LD	A,(F_FLAGS)
+	SET	2,A
+	LD	(F_FLAGS),A
+	RET	
+
+PARS_DRV:
+	LD	A,(HL)		;Parse a possible drivespec at HL.
+	CP	'*'		;Can be 'A'-'P', or '*' for default.
+	JR	Z,TEMP0		;Returns NC if other character.
+	CP	'A'
+	CCF
+	RET	NC
+	CP	'P'+1
+	RET	NC
+	SUB	'@'
+	SCF
+	RET
+;
+TEMP0:	XOR	A
+	SCF
+	RET
+;
+SET_O:	LD	DE,(SCCHRS)	;Characters used to start the words "SUB"
+				;and "COM".
+	LD	A,(HL)		;Parse ORDER. The syntax accepted is:
+	CP	'('		;ORDER=([S|C]*{^[a-z][S|C]*})
+	JR	NZ,BADORD	;ie: one or two words separated by non-alpha 
+				;characters, each word starts with S or C.
+	LD	BC,0		;B = 1st S or C; C = 2nd S or C.
+	INC	HL
+	LD	A,(HL)		;Start of 1st word
+	INC	HL
+	CP	D
+	JR	Z,SET1		;C is acceptable
+	CP	E		;S is acceptable
+	JR	NZ,BADORD
+SET1:	LD	B,A		;1st letter
+SET1A:	LD	A,(HL)
+	INC	HL		;Skip over alpha characters
+	CALL	ISALPHA
+	JR	Z,SET1A
+	CP	')'		;If terminator was ")", end of option.
+	JR	Z,ONECMP
+	OR	A
+	JR	Z,BADORD	;End of line before finding the ")"
+	LD	A,(HL)
+	CP	E
+	JR	Z,SET2		;Second word starts with 'S'
+	CP	D
+	JR	NZ,BADORD	;Second word starts with 'C'
+SET2:	LD	C,A		;B=first type, C=second
+	CP	B
+	JR	Z,BADORD	;They're both the same!
+	LD	A,B
+	CP	D		;If first is 'C'om...
+	LD	A,8
+	JR	Z,SETIT		;then value = 8
+	LD	A,10h
+	JR	SETIT		;If first is 'S'ub, value = 16
+;
+ONECMP:	LD	A,B		;Only one word, so it had better be COM.
+	CP	D
+	JR	NZ,BADORD
+	XOR	A
+SETIT:	LD	(V_ORD),A	;Finally... store the value
+	LD	A,(F_FLAGS)
+	SET	1,A
+	LD	(F_FLAGS),A
+SETILP:	LD	A,(HL)		;Value for ORDER=() set. Skip over
+	OR	A		;the remainder of the ORDER phrase.
+	RET	Z		;End of line encountered.
+	INC	HL
+	CP	')'		;Closing bracket, end of ORDER.
+	RET	Z
+	JR	SETILP
+;
+BADORD:	CALL	PRINT
+	DEFB	'ORDER must be (COM), (COM,SUB) or (SUB,COM).',cr,lf,0
+	RET
+;
+;Parse a list of drives at HL. The list is a list of letters separated by 
+;non-alpha characters
+;
+RDPATH:
+	LD	DE,V_PATH
+	CALL	PARS_DRV	;1st drive must always be present
+	RET	NC
+	LD	(DE),A
+	INC	DE
+	LD	B,3		;Max. 3 more drives.
+RDP1:	INC	HL		
+	LD	A,(HL)		;Skip over nonalpha characters until
+	OR	A		;it finds an alpha one
+	JR	Z,RDPE
+	CP	'['		;End of line
+	JR	Z,RDPE
+	CP	'*'		;(or a *)
+	JR	Z,RDP2
+	CALL	ISALPHA
+	JR	NZ,RDP1	
+RDP2:	CALL	PARS_DRV	;Next drive
+	RET	NC
+	LD	(DE),A
+	INC	DE
+	DJNZ	RDP1
+RDPE:	LD	A,B		;All drives parsed. Fill any spare
+	OR	A		;spaces with 0FFh.
+	JR	Z,RDP4
+	LD	A,0FFh
+RDP3:	LD	(DE),A
+	INC	DE		;Spaces filled.
+	DJNZ	RDP3
+RDP4:	LD	A,(F_FLAGS)
+	SET	0,A
+	LD	(F_FLAGS),A	;Flag change to path
+	RET
+;
+	END
+
+
+

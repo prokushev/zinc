@@ -1,0 +1,77 @@
+;
+; SYSLIB Module Name:  S0FILE
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.2
+
+	public	fi0$open,f0$get,fi0$close
+	public	fo0$open,f0$put,fo0$close
+
+;  Date:     2 May 85
+;  Revised: Al Dunsmuir
+;  Changes:	- Table organization completely changed.
+;		- Extensive code optimization performed.
+;			
+;   Previous Version:	1.0 (16 Jan 84)
+
+
+;  EXTERNAL DECLARATIONS
+;
+	EXT	FI$OPEN
+	EXT	FO$OPEN
+	EXT	FI$CLOSE
+	EXT	FO$CLOSE
+	EXT	F$GET
+	EXT	F$PUT
+
+;
+;  MAIN ROUTINES FOR F0
+;
+FI0$OPEN:
+	PUSH	HL		;Save user REG
+	LD	HL,FI0$TBL	;Get FI0 table address.
+	JP	FI$OPEN		;Perform function
+
+FO0$OPEN:
+	PUSH	HL		;Save user REG
+	LD	HL,FO0$TBL	;Get FO0 table address.
+	JP	FO$OPEN		;Perform function
+
+F0$GET:
+	PUSH	HL		;Save user REG
+	LD	HL,FI0$TBL	;Get FI0 table address.
+	JP	F$GET		;Perform function
+
+F0$PUT:
+	PUSH	HL		;Save user REG
+	LD	HL,FO0$TBL	;Get FO0 table address.
+	JP	F$PUT		;Perform function
+
+FI0$CLOSE:
+	PUSH	HL		;Save user REG
+	LD	HL,FI0$TBL	;Get FI0 table address.
+	JP	FI$CLOSE	;Perform function
+
+FO0$CLOSE:
+	PUSH	HL		;Save user REG
+	LD	HL,FO0$TBL	;Get FO0 table address.
+	JP	FO$CLOSE	;Perform function
+
+;  Init Table and Buffers for F0 Routines
+;
+FI0$TBL:
+I0$FLG:	DB	0		;Input file opened flag (0=NO)
+I0$CNT:	DS	1		;Input char count
+I0$PTR:	DS	2		;Input char ptr
+I0$FCB:	DS	36		;Input file FCB
+I0$BUF:	DS	128		;Input Buffer
+
+FO0$TBL:
+O0$FLG:	DB	0		;Output file opened flag (0=NO)
+O0$CNT:	DS	1		;Output char count
+O0$PTR:	DS	2		;Output char ptr
+O0$FCB:	DS	36		;Output file FCB
+O0$BUF:	DS	128		;Output Buffer
+
+	END
+

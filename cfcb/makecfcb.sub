@@ -1,0 +1,64 @@
+pip c:=*.z80[k]
+pip c:=*.doc
+pip c:=makecfcb.sub
+:m80$1 =CDEL.Z80
+:m80$1 =CEXWILD.Z80
+:m80$1 =CCIREC.Z80
+:m80$1 =CCIRRC.Z80
+:m80$1 =CPARSE.Z80
+:m80$1 =CCRREC.Z80
+:m80$1 =CCRRRC.Z80
+:m80$1 =CCWREC.Z80
+:m80$1 =CREAD.Z80
+:m80$1 =CWRITE.Z80
+:m80$1 =CCXTND.Z80
+:m80$1 =CBYTO.Z80
+:m80$1 =CCLOSE.Z80
+:m80$1 =CRCLOSE.Z80
+:m80$1 =CDVTEST.Z80
+:m80$1 =CCZFCB.Z80
+:m80$1 =CCLAST.Z80
+:m80$1 =CCPW.Z80
+:m80$1 =CCDEV.Z80
+:m80$1 =CSEEK.Z80
+:m80$1 =COPFCB.Z80
+:m80$1 =CMKDEV.Z80
+:m80$1 =CCGUSR.Z80
+:m80$1 =CCGDRV.Z80
+:m80$1 =CERROR.Z80
+:m80$1 =CTELL.Z80
+:m80$1 =CMAKE.Z80
+:m80$1 =CDVINI.Z80
+:m80$1 =COPEN.Z80
+:m80$1 =CCGET.Z80
+:m80$1 =CIFNUL.Z80
+:m80$1 =CCBLEN.Z80
+:m80$1 =CFDOS.Z80
+:m80$1 =CTMAKE.Z80
+:m80$1 =CCDMA.Z80
+:m80$1 =CFIND.Z80
+:m80$1 =CCFIXF.Z80
+:m80$1 =CIFDEV.Z80
+:m80$1 =CFITEST.Z80
+:m80$1 =CPWSET.Z80
+:m80$1 =CDEVIO.Z80
+:m80$1 =CGEOF.Z80
+:m80$1 =CSEOF.Z80
+:m80$1 =CBYTI.Z80
+:m80$1 =CRBYTI.Z80
+:m80$1 =TDOS.Z80
+;
+; lib cfcb[i]=ccdel,cren,cattr 
+;
+:lib cfcb[i]=cdel,cexwild
+:lib cfcb[i]=cfcb.irl,cgeof,cseek,ctell,cclose,crclose,cbyto,cwrite,ccxtnd
+:lib cfcb[i]=cfcb.irl,cbyti,crbyti,cread,cdevio,ccblen,ccrrec
+:lib cfcb[i]=cfcb.irl,ccrrrc,ccwrec,cclast,ccirrc
+:lib cfcb[i]=cfcb.irl,ccirec,cfind,ctmake,cmake,copen,ccfixf,ccdma
+:lib cfcb[i]=cfcb.irl,cfdos,cpwset,cifnul,cifdev,ccget,cdvini,cmkdev
+:lib cfcb[i]=cfcb.irl,cerror,cparse,copfcb,ccgdrv,ccgusr,ccdev,ccpw
+:lib cfcb[i]=cfcb.irl,cczfcb,tdos
+:pip b:[g0]=cfcb.irl
+:0b:
+:set cfcb.irl[sys]
+:1d:

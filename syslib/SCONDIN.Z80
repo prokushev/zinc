@@ -1,0 +1,36 @@
+;
+; SYSLIB Module Name:  SCONDI
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	condin
+
+;
+;  SCONDIN.MAC --
+;	Conditional Input Routine
+;	When called, returns w/zero flag set if character not available
+;	  from CON: or character in A and flag not zero if character
+;	  available
+;	Only PSW affected
+;
+
+;  Externals --
+	EXT	CST	; CONSOLE STATUS ROUTINE (A=1 IF NOT RDA)
+	EXT	CIN	; CONSOLE INPUT ROUTINE
+
+CONDIN:
+	CALL	CST	; GET STATUS
+	AND	1	; MASK LSB
+	CP	1	; SET ZERO FLAG (Z=NOT RDA)
+	RET	Z
+	PUSH	BC
+	CALL	CIN	; GET CHAR
+	LD	C,A
+	OR	0FFH	; SET NZ
+	LD	A,C
+	POP	BC
+	RET
+
+	END
+

@@ -1,0 +1,72 @@
+;
+; SYSLIB Module Name:  SUD1
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.2
+
+	public	getud,putud
+
+;
+;  CONSTANT
+;
+BDOS	EQU	5	; BDOS ENTRY POINT
+
+;
+;  MACROS
+;
+PUTRG	MACRO
+	PUSH	AF
+	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+	ENDM
+
+GETRG	MACRO
+	POP	HL
+	POP	DE
+	POP	BC
+	POP	AF
+	ENDM
+
+;
+;  PUTUD -- SAVE CURRENT USER/DISK FOR LATER RESTORE
+;	NO REGS AFFECTED
+;
+PUTUD:
+	PUTRG
+	LD	C,25		; GET CURRENT DISK
+	CALL	BDOS
+	LD	(CDISK),A	; SET CURRENT DISK
+	LD	E,0FFH		; GET CURRENT USER
+	LD	C,32
+	CALL	BDOS
+	LD	(CUSER),A	; SET CURRENT USER
+	JP	DONE
+
+;
+;  GETUD -- RESTORE USER/DISK FROM PREVIOUS PUTUD
+;
+GETUD:
+	PUTRG
+	LD	A,(CDISK)	; SELECT DISK
+	LD	E,A
+	LD	C,14		; SELECT
+	CALL	BDOS
+	LD	A,(CUSER)	; SELECT USER
+	LD	E,A
+	LD	C,32		; SELECT
+	CALL	BDOS
+DONE:
+	GETRG
+	RET
+
+;
+;  BUFFERS
+;
+CDISK:
+	DS	1	; CURRENT DISK
+CUSER:
+	DS	1	; CURRENT USER
+
+	END
+

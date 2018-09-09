@@ -1,0 +1,63 @@
+;
+;    CPM3LIB library: An extension to SYSLIB for CP/M 3 features
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+;
+; Maximum size of DEVTBL, in entries. Different CP/M manuals suggest
+; 12 or 13; DEVICE.COM goes up to 15.
+;
+MAXDEV	EQU	15
+
+	EXT	C3DTBL	;DEVTBL
+;
+; Count entries in the DEVTBL. Since the DEVTBL doesn't change during
+; the course of a program, we cache the returned value using self-
+; modifying code.
+;
+C3DEVC::
+	LD	A,0	;<-------- will become LD A,COUNT
+	NOP		;<-------- will become "RET"
+
+	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+	CALL	C3DTBL
+	LD	C,0		;C = count
+	LD	A,H
+	OR	L
+	JR	Z,C3DCR		;HL = 0 => no physical devices in the system.
+	LD	DE,8		;Length of an entry
+	LD	B,MAXDEV
+C3DCL:	LD	A,(HL)
+	OR	A
+	JR	Z,C3DCR		;End of device table
+	INC	C	
+	ADD	HL,DE
+	DJNZ	C3DCL
+C3DCR:	LD	A,0C9h		;Store a RET in the "NOP" instruction
+	LD	(C3DEVC+2),A
+	LD	A,C		;Store the table length
+	LD	(C3DEVC+1),A
+	POP	HL		;Note A also holds return value.
+	POP	DE
+	POP	BC
+	RET
+
+	END
+

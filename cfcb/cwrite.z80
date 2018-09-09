@@ -1,0 +1,215 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+
+	extrn	cfdos,c@rrec,c@wrec,c@last,c@blen,c@irec,cifdev,cdevo,cifnul
+	extrn	c@xtnd
+;
+cwrite::
+	push	iy
+	push	de
+	pop	iy	;IY -> CFCB.
+	push	de
+	call	crr0
+	pop	de
+retl1:	pop	iy
+	ret
+;
+crr0:	call	cifnul		;Check for bad FCB
+	jr	nz,crr0a
+crr0c:	xor	a
+	ld	a,29
+	ret
+;
+crr0a:	bit	1,(iy+47)	;Open for write?
+	jr	z,crr0c
+	call	cifdev	;Is it for a device?
+	jr	nz,crr1
+
+crr0b:	push	bc	;Yes. Output as for this device.
+	ld	c,(hl)
+	call	cdevo
+	jr	nc,retl1
+	inc	hl
+	pop	bc
+	dec	bc
+	ld	a,b
+	or	c
+	jr	nz,crr0b
+	scf
+	ret
+;
+;1. Is number of bytes to write < number free in buffer? 
+;
+crr1:	push	iy
+	pop	de
+	ld	a,b
+	or	a
+	jr	nz,more	;A=0
+	or	c	;A=C
+	scf
+	call	z,c@xtnd
+	ret	z	;BC=0, all done!
+	call	bfree		;A:=no. free bytes in buffer.
+	cp	c		;If A<C, more to do.
+	jr	c,more
+;
+;Buffer will hold all bytes. So check it's loaded.
+;
+	bit	7,(iy+40)
+	scf
+	call	nz,fillbuf
+	ret	nc
+;
+;Buffer is loaded and has space for bfree() bytes. Find out where they 
+;should go.
+;	
+	ex	de,hl		;DE=address of bytes to write.
+	ld	l,(iy+38)
+	ld	h,(iy+39)
+	push	de		;HL=buffer addr.
+	ld	e,(iy+40)
+	ld	d,0		;DE=offset within buffer
+	add	hl,de		;HL=addr of space in buffer
+	pop	de		;DE=addr. of bytes to write.
+	ld	a,(iy+40)
+	add	a,c		;Update pointer
+	ld	(iy+40),a
+	ex	de,hl
+	ldir			;Move bytes to buffer.
+	set	7,(iy+47)	;"Dirty" flag.
+	push	iy
+	pop	de
+	call	c@xtnd		;Check for file extensions.
+	scf
+	ret
+more:	
+;
+;More bytes than will fit in the buffer need to be transferred. At this point,
+;either:
+;
+;1. The buffer isn't loaded (or loaded with pointer=0). So >=80h bytes need to
+;   be transferred, and we don't need to pre-read.
+;2. The buffer is loaded and 1<=pointer<=7Fh. So we don't need to pre-read. 
+;
+	ld	a,(iy+40)	;Go to wbuf if the buffer's not loaded.
+	or	a
+	jr	z,wbuf
+	bit	7,a		;Buffer empty?
+	jr	z,wbuf		
+;
+;Transfer bfree() bytes into the buffer.
+;
+	ld	e,(iy+38)	;HL=address of bytes.
+	ld	d,(iy+39)	;DE=address of buffer.
+	push	hl
+	ld	l,(iy+40)
+	ld	h,0		;HL=offset within buffer.
+	add	hl,de
+	ex	de,hl
+	pop	hl		;DE=address of space within buffer.
+	call	bfree
+pbuf1:	ldi
+	dec	bc
+	dec	a
+	jr	nz,pbuf1	;OK. Transferred bfree() bytes.
+	ld	(iy+40),80h
+	set	7,(iy+47)
+	jp	crr1		;Go back for another load.
+;
+wbuf:	
+;
+;At least 80h bytes need to be moved. So don't bother to preload the buffer.
+;If A=80h, then increment the current record, writing out any pending data
+;as we go.
+;
+	cp	80h
+	scf
+	call	z,c@irec
+	ret	nc	
+	ld	e,(iy+38)
+	ld	d,(iy+39)
+	ld	a,80h		;Fill the buffer with 80h bytes.
+	jr	pbuf1
+;
+fillbuf:
+;
+;Do a pre-read. IY+40 is either 80h or 0FFh. 
+;
+	ld	a,(iy+40)
+	cp	0ffh		;If A=0FFh, load current record 
+	scf			; - else, load next.
+	push	iy
+	pop	de
+	call	nz,c@irec
+	ret	nc
+fillb1:	push	hl
+	ld	l,(iy+38)
+	ld	h,(iy+39)	;HL -> record buffer
+	ld	a,h
+	or	l		;Resets Carry
+	ld	a,29
+	jr	z,fillb2
+	push	iy
+	pop	de
+	call	c@rrec		;Load current record.
+	jr	c,fillb2
+;
+;Possible failure if this record is beyond the end of the file - in which 
+;case, we get error 25 (EOF). 
+;
+	cp	25
+	scf
+	ccf
+	jr	nz,fillb2
+;
+;We got no. 25. So fill the buffer with ^Zs and report "OK".
+;
+	push	de
+	push	bc
+	ld	l,(iy+38)
+	ld	h,(iy+39)
+	ld	d,h
+	ld	e,l
+	inc	de
+	ld	bc,7fh
+	ld	(hl),1ah
+	ldir
+	pop	bc
+	pop	de		;OK!
+	scf
+fillb2:	pop	hl		;Retrieve load address.
+	ret	nc
+	ld	(iy+40),0
+	ret
+;
+bfree:	
+;
+;Return number of bytes free in buffer:
+;
+	ld	a,80h
+	bit	7,(iy+40)
+	ret	nz
+	sub	(iy+40)
+	ret
+;
+	end
+
+

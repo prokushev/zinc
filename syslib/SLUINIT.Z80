@@ -1,0 +1,106 @@
+;
+; LULIB Module: LUINIT
+; Author: Richard Conn
+; Date: 8 August 85
+; LULIB Version: 1.0
+; LULIB Module Version: 1.0
+;
+	public	luinit
+
+;
+;	LUINIT is used to init a library file for later access.
+; On input, DE = ptr to LUD (LU Descriptor) buffer, which contains
+; an FCB and other data as follows:
+;
+;	LUD:
+;		DS	2	; Length of LU Directory (filled by LUINIT)
+;		DS	2	; Index of current entry (filled by LU*)
+;		DS	2	; Length of current entry (filled by LU*)
+;		DS	11	; Name of current file
+;	LUD$FCB:
+;		DS	1	; Disk (set to current by LUINIT)
+;		DS	8	; LU File Name (filled by user)
+;		DS	3	; LU File Type (should be LBR, filled by user)
+;		DS	24	; dummy (zeroed by LUINIT)
+;
+;	On output, A is return code:
+;		0 - No error
+;		1 - File not found
+;		2 - File empty
+;		3 - Library File Format error
+;	Zero Flag is set accordingly
+;
+;	Side Effect: DMA Address is set to TBUFF
+;
+
+
+;
+;	Externals
+;
+	ext	f$open,f$read,initfcb
+bdose	equ	5
+
+	.in	luddef
+
+luinit:
+	push	hl		; save regs
+	push	de
+	push	bc
+	push	de		; save LUD ptr
+	ld	c,26		; set DMA
+	ld	de,tbuff	; to TBUFF
+	call	bdose
+	pop	de		; pt to LUD
+	ld	hl,ludidx	; fill LUD index and count with zeroes
+	add	hl,de		; pt to LUD index
+	ld	b,4		; 4 bytes
+fill:
+	ld	(hl),0		; store zeroes
+	inc	hl
+	dec	b
+	jr	nz,fill
+	ld	hl,ludfcb	; offset to LUD FCB
+	add	hl,de
+	ex	de,hl		; HL = LUD, DE = FCB
+	call	initfcb
+	call	f$open		; try to open LU file
+	jr	nz,erropen	; error return if file not found
+	call	f$read		; read directory block
+	jr	nz,errread	; error return if no first block
+	ld	a,(tbuff)	; check status (must be 0)
+	or	a
+	jr	nz,errfmt
+	ld	de,tbuff+luidx	; pt to index entry
+	ld	a,(de)		; check for 0000H
+	or	a
+	jr	nz,errfmt
+	inc	de
+	ld	a,(de)
+	or	a
+	jr	nz,errfmt
+	inc	de		; pt to length
+	ld	a,(de)		; get low
+	ld	(hl),a		; set LUD length
+	inc	de
+	inc	hl
+	ld	a,(de)
+	ld	(hl),a
+	xor	a		; no error
+done:
+	pop	bc		; return with no error
+	pop	de
+	pop	hl
+	or	a		; set return flag
+	ret
+erropen:
+	ld	a,1		; library file not found error
+	jr	done
+errread:
+	ld	a,2		; library file empty error
+	jr	done
+errfmt:
+	ld	a,3		; library file format error
+	jr	done
+
+	end
+

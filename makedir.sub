@@ -1,0 +1,8 @@
+move c: makedir.sub 3dir.z80 3diropt.z80 3dirpage.z80 3dirfmt.inc
+:m80$1 =3dir.z80
+:m80$1 =3diropt.z80
+:m80$1 =3dirpage.z80
+:m80$1 =last.z80
+:lib dirmods=3diropt,3dirpage
+:link 3dir.com=3dir,dirmods[s],b:cfcb.irl[s],b:cpm3lib.irl[s],b:syslib.irl[s],last
+:gencom 3dir b:pipemgr

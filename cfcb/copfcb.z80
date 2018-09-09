@@ -1,0 +1,150 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+
+
+	.z80
+	cseg
+
+	extrn	c@ndev,c@devs,c@gusr,c@gdrv
+copfcb::
+	push	bc
+	push	de
+	ld	(opptr),hl
+	bit	2,c
+	jr	z,cof00
+	ld	a,(de)
+	inc	a
+	bit	1,c
+	jr	nz,noudr
+	call	opusr
+	call	opcol
+	jr	noudr
+;
+cof00:	ld	hl,37
+	add	hl,de
+	ld	a,(hl)	;User / dev number
+	cp	20h
+	jr	nc,opdev
+	bit	1,c
+	jr	nz,noudr
+	call	opusr
+	ld	a,(de)
+	call	opdrv
+noudr:	inc	de
+	ld	b,8
+	call	fnft
+	ld	a,'.'
+	call	optxt
+	ld	b,3
+	call	fnft
+iret:	ld	hl,(opptr)
+	pop	de
+	pop	bc
+	ret
+;
+opdev:	and	0fh
+	inc	a		;A=dev no. +1, 1-16
+	ld	e,a
+	ld	a,(c@ndev)
+	cp	e		;if E>A, trouble.
+	ld	hl,qqqdev
+	jr	c,opdev1
+	dec	e
+	ld	d,0
+	ld	hl,c@devs
+	add	hl,de
+	add	hl,de
+	add	hl,de
+opdev1:	ld	a,(hl)
+	call	optxt
+	inc	hl
+	ld	a,(hl)
+	call	optxt
+	inc	hl
+	ld	a,(hl)
+	call	chrcol
+	ld	a,' '
+	bit	1,c	;Z set => field width=16, else 12.
+	ld	b,12
+	jr	z,pack1
+	ld	b,8
+pack1:	push	af
+	call	optxt
+	pop	af
+	djnz	pack1
+	jr	iret
+;	
+fnft:	ld	a,(de)
+	call	optxt
+	inc	de
+	djnz	fnft
+	ret
+;
+opusr:	or	a
+	call	z,c@gusr
+	dec	a
+	cp	10
+	ld	b,' '
+	jr	c,opdg1
+	ld	b,'1'
+	sub	10
+opdg1:	push	af
+	ld	a,b
+	call	optxt
+	pop	af
+opdg2:	add	a,'0'
+	jr	optxt
+;
+opdrv:	or	a
+	call	z,c@gdrv
+	add	a,'@'
+chrcol:	call	optxt
+opcol:	ld	a,':'
+optxt:	and	7fh
+	cp	' '
+	jr	nz,optxt1
+	bit	0,c
+	ret	nz
+optxt1:	push	hl
+	ld	hl,(opptr)
+	push	de
+	push	bc	
+	ld	e,a
+	ld	a,h
+	or	l
+	jr	nz,optxt2
+	ld	c,2
+	call	5
+optxt3:	pop	bc
+	pop	de
+	pop	hl
+	ret
+;
+optxt2:	ld	(hl),e
+	inc	hl
+	ld	(opptr),hl
+	jr	optxt3	
+;
+	dseg
+opptr:	defw	0
+qqqdev:	defb	'???'
+	cseg
+
+	end
+

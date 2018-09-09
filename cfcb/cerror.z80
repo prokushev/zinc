@@ -1,0 +1,137 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+
+	.z80
+	cseg
+
+	EXTRN	COPFCB
+;
+ERRBUF	EQU	84h
+;
+CERROR::
+;
+;DE => FCB
+;
+;Returns HL pointing to a menu, BC=CP/M3 error code, DE corrupt.	
+;
+	LD	(ERRNO),A
+	CP	40
+	JR	C,CERR0
+	LD	A,7
+CERR0:	LD	C,A
+	LD	B,0
+	LD	HL,ERRTAB
+	ADD	HL,BC
+	ADD	HL,BC
+	LD	C,(HL)
+	INC	HL
+	LD	B,(HL)
+	LD	HL,ERRBUF
+CERRLP:	LD	A,(BC)
+	OR	A
+	JR	Z,ERRDN
+	CP	'%'
+	JR	Z,CEFCB
+	LD	(HL),A
+	INC	HL
+CERRL1:	INC	BC
+	JR	CERRLP	
+;
+CEFCB:	PUSH	BC
+	LD	C,1
+	CALL	COPFCB
+	POP	BC
+	JR	CERRL1
+;
+ERRDN:	PUSH	HL
+	LD	BC,84h
+	OR	A
+	SBC	HL,BC
+	LD	H,1
+	LD	(82h),HL
+	POP	DE
+	LD	B,L	;Length
+	LD	HL,ABAN$
+ERRDN0:	LD	A,(HL)
+	LD	(DE),A
+	INC	DE
+	CP	' '
+	JR	Z,ERRDN1
+	INC	HL
+ERRDN1:	DJNZ	ERRDN0
+	XOR	A
+	LD	(DE),A
+	INC	DE
+	LD	(DE),A
+	LD	A,(ERRNO)
+	LD	C,A
+	LD	B,0FFh
+	LD	HL,80h
+	RET
+;
+	DSEG
+ABAN$:	DEFB	'Abandon '
+ERRTAB:	DEFW	ERR0,ERR1,ERR2,ERR3,ERR4,ERR5,ERR6,ERR7,ERR8,ERR9
+	DEFW	ERR10,ERR11,ERR12,ERR13,ERR14,ERR15,ERR16,ERR17,ERR18,ERR19
+	DEFW	ERR20,ERR21,ERR22,ERR23,ERR24,ERR25,ERR26,ERR27,ERR28,ERR29
+	DEFW	ERR30,ERR31,ERR32,ERR33,ERR34,ERR35,ERR36,ERR37,ERR38,ERR39
+ERR9:
+ERR6:
+ERR5:
+ERR4:
+ERR3:
+ERR2:
+ERR0:	DEFB	'File % Disk I/O error',0
+ERR1:	DEFB	'Disk is read-only',0
+ERR8:	DEFB	'File % Disk changed',0
+ERR36:
+ERR35:
+ERR34:
+ERR33:
+ERR19:
+ERR18:
+ERR17:
+ERR16:
+ERR15:
+ERR14:
+ERR13:
+ERR12:
+ERR11:
+ERR10:
+ERR7:	DEFB	'Unknown error',0
+ERR20:	DEFB	'Bad filename',0
+ERR21:	DEFB	'Bad parameter',0
+ERR22:	DEFB	'Invalid drive',0
+ERR23:	DEFB	'File % not found',0
+ERR24:	DEFB	'File % exists',0
+ERR25:	DEFB	'End of file %',0
+ERR26:	DEFB	'Disk full',0
+ERR27:	DEFB	'Directory full',0
+ERR28:	DEFB	'% is read-only',0
+ERR29:	DEFB	'% was not opened',0
+ERR30:	DEFB	'% is open already',0 
+ERR31:	DEFB	'Invalid RENAME',0
+ERR32:	DEFB	'% has an extent missing',0
+ERR37:	DEFB	'File % password error',0
+ERR38:	DEFB	'Illegal operation for %',0
+ERR39:	DEFB	'% is wheel protected',0
+ERRNO:	DEFB	0
+	CSEG
+	END
+

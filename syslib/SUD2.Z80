@@ -1,0 +1,48 @@
+;
+; SYSLIB Module Name:  SUD2
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.2
+
+	public	logud
+
+;
+;  CONSTANTS
+;
+BDOS	EQU	5	; BDOS ENTRY
+
+;
+;  MACROS
+;
+PUTRG	MACRO
+	PUSH	AF
+	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+	ENDM
+
+GETRG	MACRO
+	POP	HL
+	POP	DE
+	POP	BC
+	POP	AF
+	ENDM
+
+;
+;  LOGUD -- LOG IN USER/DISK, WHERE C=USER AND B=DISK
+;
+LOGUD:
+	PUTRG
+	LD	E,C	; SELECT USER
+	LD	C,32
+	PUSH	BC
+	CALL	BDOS
+	POP	BC
+	LD	E,B	; SELECT DISK
+	LD	C,14
+	CALL	BDOS
+	GETRG
+	RET
+
+	END
+

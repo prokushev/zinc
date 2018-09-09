@@ -1,0 +1,56 @@
+;
+; SYSLIB Module Name: BGOTO2
+; Author: Richard Conn
+; SYSLIB Version Number: 3.6
+; Module Version Number: 1.1
+
+	public	bgoto2
+
+;
+; BGOTO2 is a computed GOTO.  When called, register A = index of following
+; jump to branch to and register B = maximum index value, as indicated:
+;
+;	MVI	A,INDEX	; zero-relative
+;	MVI	B,2	; maximum index value
+;	CALL	BGOTO2
+;	JMP	ADDR0	; IF A=0
+;	JMP	ADDR1	; IF A=1
+;	JMP	ADDR2	; IF A=2
+;	<next instruction>	; IF A>B
+;	...
+; ADDR0:		; COME HERE IF A=0
+;	...
+; ADDR1:		; COME HERE IF A=1
+;	...
+; ADDR2:		; COME HERE IF A=2
+;	...
+;
+; No error or range checking is done
+;
+bgoto2:
+	ex	(sp),hl	; get address of routines, save HL
+	push	de	; save regs
+	push	af
+	push	hl	; save return address
+	cp	b	; test for range error
+	jp	c,goto	; OK if A < B
+	jp	z,goto	; OK if A = B
+	ld	a,b	; set A = error offset (B+1)
+	inc	a
+goto:
+	ld	h,0
+	ld	l,a
+	ex	de,hl	; index in DE
+	ld	hl,0
+	add	hl,de	; HL = index
+	add	hl,hl	; HL = index * 2
+	add	hl,de	; HL = index * 3
+	pop	de	; get return address
+	add	hl,de	; point to jump in HL
+	pop	af	; get regs
+	pop	de
+	ex	(sp),hl	; restore HL, set address of routine
+	ret
+
+	end
+

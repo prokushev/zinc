@@ -1,0 +1,174 @@
+;
+;    CPM3LIB library: An extension to SYSLIB for CP/M 3 features
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+
+	EXT	C3DAY,C3SCBG,EVAL10,C3MDYS,C3DFMT
+;
+; Convert an ASCII string at HL to CP/M 3 day count in DE.
+;
+; Returns A=0 and Z set if date is OK; else A<>0 and Z clear.
+; Returns HL->next character after date.
+;
+; BC preserved.
+;
+C3A2D::	PUSH	BC
+	CALL	C3DFMT	;Get date format
+	JR	Z,GETUS
+	DEC	A
+	JR	Z,GETUK
+;
+; Note: Format 3 (unknown) maps to Format 2 (ISO).
+;
+GETISO:	CALL	PNUM	;DE = year
+	JP	Z,ERROR	
+	LD	A,(HL)
+	CP	'-'
+	JP	NZ,ERROR
+	INC	HL
+	PUSH	DE	;Year pushed
+	CALL	PNUM
+	LD	C,E	;C = month
+	JP	Z,ERRP1
+	LD	A,(HL)
+	CP	'-'
+	JP	NZ,ERRP1
+	INC	HL
+	CALL	PNUM
+	LD	B,E
+	JR	Z,ERRP1	;B = day C = month 
+	POP	DE	;and DE = year. HL-> end of date
+	JR	PDCMN
+;
+GETUS:	CALL	PNUM	;E = month
+	JR	Z,ERROR	
+	LD	B,E
+	LD	A,(HL)
+	CP	'/'
+	JR	NZ,ERROR
+	INC	HL
+	CALL	PNUM	;E = day
+	JR	Z,ERROR
+	LD	B,E	
+	JR	GETYR
+;
+GETUK:	CALL	PNUM	;E = day
+	JR	Z,ERROR	
+	LD	B,E
+	LD	A,(HL)
+	CP	'/'
+	JR	NZ,ERROR
+	INC	HL
+	CALL	PNUM	;E = month
+	JR	Z,ERROR
+	LD	C,E	
+GETYR:	LD	A,(HL)	
+	CP	'/'
+	JR	NZ,ERROR
+	INC	HL
+	CALL	PNUM	;DE = year
+	JR	Z,ERROR
+;
+; B = day C = month DE = year (none checked)
+;
+PDCMN:
+;
+; If year < 78,  add 2000.
+; If year < 100, add 1900.
+;
+	LD	A,D
+	OR	A
+	JR	NZ,YROK	;>256
+	LD	A,E
+	CP	100
+	JR	NC,YROK	;>100
+	CP	78
+	JR	NC,C20
+	ADD	A,100
+	LD	E,A	;Add 100 extra years to put it into the 21st century.
+C20:	PUSH	HL
+	LD	HL,1900	
+	ADD	HL,DE
+	EX	DE,HL
+	POP	HL	
+;
+;Year checked and valid. Check month...
+;
+YROK:	LD	A,C
+	OR	A
+	JR	Z,ERROR
+	CP	13
+	JR	NC,ERROR
+;
+;and day.
+;
+	LD	A,B	;Can't have Day 0.
+	OR	A
+	JR	Z,ERROR
+	LD	A,E
+	AND	3	;Is this a leap year?
+	LD	A,29
+	JR	Z,ILP
+	DEC	A	;Set length of February
+ILP:	LD	(C3MDYS+1),A
+	PUSH	HL
+	PUSH	DE
+	LD	L,C	;Month
+	LD	H,0
+	DEC	HL
+	LD	DE,C3MDYS
+	ADD	HL,DE
+	LD	A,(HL)	;Max day number in current month
+	POP	DE
+	POP	HL
+	CP	B	;If A < B, then date is invalid
+	JR	C,ERROR
+	PUSH	HL	
+	EX	DE,HL	;HL = year
+	LD	D,B
+	LD	E,C	;DE = month & day
+	CALL	C3DAY
+	EX	DE,HL	;DE = day count
+	POP	HL
+	XOR	A
+	POP	BC
+	RET	
+;
+ERRP1:	POP	DE	;Tidy up the stack
+ERROR:	XOR	A
+	DEC	A	;NZ
+	POP	BC
+	RET
+;
+; Parse a number. Returns NZ if the number is OK, Z if not a number.
+;
+PNUM:	PUSH	BC
+	PUSH	HL	;HL -> number
+	CALL	EVAL10	;DE = parsed number
+	POP	BC	;BC -> start of number; HL->end
+	LD	A,B
+	CP	H
+	JR	NZ,PNR
+	LD	A,C
+	CP	L
+PNR:	POP	BC
+	RET
+	
+	END
+

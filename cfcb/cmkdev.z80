@@ -1,0 +1,61 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+
+	.z80
+	cseg
+	extrn	c@devs,c@ndev,c@drvr
+
+cmkdev::
+	ld	a,(c@ndev)
+	cp	10h
+	ld	a,27	;Dir full
+	ret	nc
+	ld	a,(c@ndev)
+	push	hl
+	push	bc
+	ld	hl,c@devs
+	ld	c,a
+	ld	b,0
+	add	hl,bc
+	add	hl,bc
+	add	hl,bc
+	ex	de,hl
+	ld	bc,3
+	ldir		;Move DEV: name
+	ld	bc,c@drvr
+	ld	l,a
+	ld	h,0
+	add	hl,hl
+	add	hl,hl
+	add	hl,bc	;hl=address of drivers
+	pop	de	;input driver
+	ld	(hl),e
+	inc	hl
+	ld	(hl),d
+	inc	hl
+	pop	bc
+	ld	(hl),c
+	inc	hl
+	ld	(hl),b
+	inc	a
+	ld	(c@ndev),a
+	scf
+	ret
+
+	end

@@ -1,0 +1,33 @@
+;
+; SYSLIB Module Name:  SCAPST
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	capstr
+
+;
+;  CAPSTR -- Capitalize String Pted to by HL
+;	This routine simply capitalizes the <NULL>-terminated string
+; pointed to by HL.  No Registers are affected.
+;
+	EXT	CAPS
+
+CAPSTR:
+	PUSH	AF	; SAVE REGS
+	PUSH	HL
+CAPSLP:
+	LD	A,(HL)	; GET CHAR
+	OR	A	; DONE?
+	JP	Z,CAPSDN
+	CALL	CAPS	; CAPITALIZE IT
+	LD	(HL),A	; PUT IT BACK
+	INC	HL	; PT TO NEXT
+	JP	CAPSLP
+CAPSDN:
+	POP	HL	; GET REGS
+	POP	AF
+	RET
+
+	END
+

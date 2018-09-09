@@ -1,0 +1,7 @@
+v3.2
+ CP/NET command clones was added: ENDLIST, LOGOFF, LOGIN.
+ CP/M 2.2 command clones was added: ASM, LOAD.
+ Tiny SYSLIB clone under LGPL.
+ ZCPR1 public domain as CP/M 2.2 CCP clone base.
+ ZSDOS GPL as CP/M 2.2 BDOS clone base.
+ Direct BDOS calls replaced by SYSLIB BDOS call 

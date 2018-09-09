@@ -1,0 +1,24 @@
+;
+; SYSLIB Module Name:  SMTH08
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	orhd
+
+;
+;  ORHD -- OR HL WITH DE, RESULT IN HL
+;
+ORHD:
+	PUSH	AF
+	LD	A,L	; DO LOW
+	OR	E
+	LD	L,A
+	LD	A,H	; DO HIGH
+	OR	D
+	LD	H,A
+	POP	AF
+	RET
+
+	END
+

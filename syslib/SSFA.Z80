@@ -1,0 +1,115 @@
+;
+; SYSLIB Module Name:  SSFA
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	sfa
+
+;
+;  Externals
+;
+	ext	initfcb
+
+;
+;  Equates
+;
+bdos	equ	5	; base address of BDOS
+bsfa	equ	30	; set file attributes function code
+
+;
+;  Macros
+;
+putrg	macro
+	push	hl	; save regs
+	push	de
+	push	bc
+	endm
+getrg	macro
+	pop	bc	; restore regs
+	pop	de
+	pop	hl
+	endm
+
+;
+;  SFA sets the unambiguous file whose FCB is pted to by DE
+;    to the attributes coded in A, where A0 is the R/O bit and
+;    A7 is the SYS bit; all other file attributes reflected in
+;    this FCB are retained
+;  On exit, A=0FFH and NZ if file not found or ambigous file reference
+;	A=0 and Z if OK
+;	All FCB fields are cleared except for file name and type
+;
+sfa:
+	putrg		; save registers
+	ld	c,a	; save file attributes in C
+;
+;  Check for ambiguous file name
+;
+	push	de	; save ptr to FCB
+	inc	de	; pt to first char
+	ld	b,11	; check 11 bytes
+amb:
+	ld	a,(de)	; get char
+	and	7fh	; mask MSB
+	cp	'?'
+	jp	z,amb1
+	inc	de
+	dec	b
+	jp	nz,amb
+	inc	b	; make NZ
+amb1:
+	pop	de
+	jp	z,error
+	push	de	; save ptr to FCB
+	ld	hl,9	; offset to R/O attribute
+	add	hl,de	; pt to R/O byte
+;
+;  Set R/O Bit
+;
+	ld	a,c	; get file attributes
+	rrca		; set new MSB
+	call	attset
+	inc	hl	; pt to SYS attribute
+;
+;  Set SYS Bit
+;
+	ld	a,c	; get attribute
+	call	attset
+;
+;  Change attributes on disk
+;
+	pop	de	; pt to FCB
+	call	initfcb
+	ld	c,bsfa	; use BDOS function
+	call	bdos
+	cp	0ffh	; error?
+	jp	z,error
+	xor	a	; OK
+	getrg		; restore registers
+	ret
+;
+;  Error Return
+;
+error:
+	ld	a,0ffh	; set code
+	or	a	; set flags
+	getrg		; restore registers
+	ret
+
+;
+;  Set attribute in A (MSB)
+;
+attset:
+	push	af	; save A
+	ld	a,(hl)	; get byte
+	and	7fh	; mask out MSB
+	ld	b,a	; save in B
+	pop	af	; get A
+	and	80h	; check SYS bit
+	or	b	; OR in SYS byte
+	ld	(hl),a	; put SYS byte
+	ret
+
+	end
+

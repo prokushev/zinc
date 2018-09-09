@@ -1,0 +1,26 @@
+;
+; SYSLIB Module Name:  SFDELETE
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	f$delete
+
+;
+;  F$DELETE -- DELETE FILE WHOSE FCB IS PTED TO BY DE
+;
+	EXT	BDOS
+
+F$DELETE:
+	PUSH	HL	; SAVE HL
+	PUSH	BC	; SAVE BC
+	LD	C,B$DEL
+	CALL	BDOS
+	POP	BC	; RESTORE BC
+	POP	HL	; RESTORE HL
+	RET
+
+B$DEL	EQU	19	; DELETE FILE
+
+	END
+

@@ -1,0 +1,28 @@
+;
+; SYSLIB Module Name:  SMTH03
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	rotlh
+
+;
+;  ROTLH -- ROTATE LEFT HL 1 BIT POSITION
+;
+ROTLH:
+	PUSH	AF
+	AND	A	; CLEAR CARRY
+	LD	A,L	; SHIFT LOW
+	RLA		; ROTATE 9-BIT ACC LEFT
+	LD	L,A
+	LD	A,H	; SHIFT HIGH
+	RLA
+	LD	H,A
+	LD	A,L	; ADD IN CARRY
+	ADC	0
+	LD	L,A
+	POP	AF
+	RET
+
+	END
+

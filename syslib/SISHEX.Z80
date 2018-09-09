@@ -1,0 +1,40 @@
+;
+;  SYSLIB Module Name:  SISHEX
+;  Author:  Richard Conn
+;  SYSLIB Version Number:  3.6
+;  Module Version Number:  1.1
+
+	public	ishex
+
+	EXT	ISDIGIT,CAPS
+
+;
+;	ISHEX returns Zero Flag Set if char in A is hexadecimal (0-9,A-F,a-f).
+; ISHEX returns NZ if not.
+;
+;	Char in A is unaffected.
+;
+ISHEX:
+	PUSH	BC	; SAVE BC
+	LD	C,A	; SAVE CHAR IN C
+	CALL	ISDIGIT	; IS IT A DIGIT?
+	JP	Z,YES
+	CALL	CAPS	; CAPITALIZE
+	CP	'A'	; LESS THAN A?
+	JP	C,NO
+	CP	'F'+1	; LESS THAN OR EQUAL TO F?
+	JP	NC,NO
+YES:
+	XOR	A	; SET FLAG
+	LD	A,C	; GET CHAR
+	POP	BC	; RESTORE BC
+	RET
+NO:
+	LD	A,0FFH	; SET FLAG
+	OR	A
+	LD	A,C	; GET CHAR
+	POP	BC	; RESTORE BC
+	RET
+
+	END
+

@@ -1,0 +1,105 @@
+;
+;    CPM3LIB library: An extension to SYSLIB for CP/M 3 features
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+
+	.z80
+	cseg
+
+	extrn	DIVHD,MULHD
+
+;
+;Convert a CP/M 3 day count in HL to D=day E=month HL=year 
+;
+C3DMY::	push	af
+	push	bc
+	push	ix
+
+	ld	de,730
+	add	hl,de	;HL = days since 2 Jan 1976 (so 1 Jan is Day 0)
+			;This makes month days come out right at the end
+;
+; Divide by 1461 to get number of 4-year cycles since 1 Jan 1976
+;
+	push	hl	;Days since 1/1/1976
+	ld	de,1461
+	call	DIVHD
+	ld	a,l	;A = 4-year cycles since 1/1/1976. The CP/M clock 
+			;   works up to mid-2157 so this is always a byte.
+	add	a,a
+	add	a,a	;A = no. of years since 1/1/1976
+	call	MULHD	;HL = no. of days in the cycles
+	and	a
+	pop	de	;DE = days since 1/1/1976
+	ex	de,hl
+	sbc	hl,de	;HL = days since start of cycle
+;
+; If daycount is 59, this is 29 Feb. 
+;
+	ld	c,a	;C = years since 1/1/1976 
+	ld	a,h
+	or	a
+	jr	nz,notf29
+	ld	a,l
+	cp	59
+	jr	z,f29
+	jr	c,ltf29
+notf29:	dec	hl	;HL = days since start of cycle, taking account
+			;    of leap years.
+ltf29:	push	hl
+	ld	de,365
+	call	DIVHD	; L = years since start of cycle
+	ld	a,l
+	add	a,c	; A = years since 1/1/1976
+	ld	c,a	; C = years since 1/1/1976
+	call	MULHD	;HL = days to start of year
+	pop	de
+	ex	de,hl	
+	and	a
+	sbc	hl,de	;HL = days since start of year
+	ld	b,0	; B = month
+	ld	ix,c3mdys
+	ld	(ix+1),28	
+mclp:	inc	b
+	ld	e,(ix+0)
+	inc	ix
+	ld	d,0	;DE = days in this month
+	and	a
+	sbc	hl,de
+	jr	nc,mclp
+	add	hl,de	;HL = day of month, B = month, C = years since 1976
+	ld	d,l
+	inc	d	;Make the days 1-based
+	ld	e,b
+	jr	fret	
+;
+f29:	ld	de,1D02h	;29 Feb
+fret:	ld	b,0		;BC = years since 1/1/1976
+	ld	hl,1976
+	add	hl,bc
+	pop	ix
+	pop	bc
+	pop	af
+	ret
+;
+	dseg
+c3mdys::
+	db	31,28,31,30,31,30,31,31,30,31,30,31
+	cseg
+
+	end
+

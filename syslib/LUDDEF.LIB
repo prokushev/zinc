@@ -1,0 +1,35 @@
+;
+; LULIB Module: LUDDEF.LIB
+; Author: Richard Conn
+; Date: 8 August 85
+; LULIB Version: 1.0
+; LULIB Module Version: 1.0
+;
+
+;
+; The LUD (Library Utility Descriptor) is defined as follows:
+;
+;	LUD:
+;		DS	2	; Length of LU Directory (filled by LUINIT)
+;		DS	2	; Index of current entry (filled by LU*)
+;		DS	2	; Length of current entry (filled by LU*)
+;		DS	11	; Name of current file
+;	LUD$FCB:
+;		DS	1	; Disk
+;		DS	8	; LU File Name (filled by user)
+;		DS	3	; LU File Type (should be LBR, filled by user)
+;		DS	24
+;
+
+tbuff	equ	80h	; temp buffer
+;
+luidx	equ	12	; offset to index in LU directory
+lulen	equ	14	; offset to length in LU directory
+;
+ludlen	equ	0	; offset to LUD dir length
+ludidx	equ	ludlen+2; offset to LUD current index
+ludcnt	equ	ludidx+2; offset to LUD current count
+ludfn	equ	ludcnt+2; offset to LUD current file
+ludfcb	equ	ludfn+11; offset to LUD FCB
+
+

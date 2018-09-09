@@ -1,0 +1,67 @@
+;
+; SYSLIB Module Name:  SFILL
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	fillb,fillbc,hfilb,hfilbc
+
+;
+;  FILLB and FILLBC, HFILB and HFILBC --
+;	Memory fill routines; fill the memory buffer pointed to by HL
+; with the byte in Register A; for FILLB and HFILB, B=number of bytes in
+; buffer, and for FILLBC and HFILBC, BC=number of bytes in buffer
+;	No registers are affected for FILL and FILLBC, HL pts to byte after
+;		last byte filled for HFILB and HFILBC
+;
+FILLB:
+	PUSH	BC	; SAVE BC
+	LD	C,B	; C=B
+	LD	B,0	; SET B=0
+	CALL	FILLBC	; USE FILLBC
+	POP	BC	; RESTORE BC
+	RET
+
+FILLBC:
+	PUSH	HL	; SAVE REGISTERS
+	PUSH	AF
+	PUSH	BC
+	PUSH	DE
+	LD	D,A	; BYTE IN D
+	CALL	FILL	; DO FILL
+	POP	DE	; RESTORE REGISTERS
+	POP	BC
+	POP	AF
+	POP	HL
+	RET
+
+HFILB:
+	PUSH	BC	; SAVE BC
+	LD	C,B	; C=B
+	LD	B,0	; SET B=0
+	CALL	HFILBC	; USE HFILBC
+	POP	BC	; RESTORE BC
+	RET
+
+HFILBC:
+	PUSH	AF	; SAVE REGISTERS
+	PUSH	BC
+	PUSH	DE
+	LD	D,A	; BYTE IN D
+	CALL	FILL	; DO FILL
+	POP	DE	; RESTORE REGISTERS
+	POP	BC
+	POP	AF
+	RET
+
+FILL:
+	LD	(HL),D	; STORE BYTE
+	INC	HL	; PT TO NEXT
+	DEC	BC	; COUNT DOWN
+	LD	A,B	; DONE?
+	OR	C
+	JP	NZ,FILL
+	RET
+
+	END
+

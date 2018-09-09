@@ -1,0 +1,90 @@
+;
+;    CPM3LIB library: An extension to SYSLIB for CP/M 3 features
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+
+	.z80
+	cseg
+
+	extrn	CIN, BOUT, C3SCBG, PRINT, C3BRK
+;
+;Initialise pager. 
+;
+;A = 0: No page
+;  = 1: Page
+;  = 2: Use SCB pager setting
+;
+C3PINI::
+	PUSH	AF	;Reset the line count
+	PUSH	HL
+	LD	L,1Ch
+	CALL	C3SCBG
+	LD	(PGLEN),A
+	XOR	A
+	LD	(PGLINE),A
+	POP	HL
+	POP	AF
+
+	LD	(PGFLAG),A
+	CP	2
+	RET	NZ
+	PUSH	HL
+	LD	L,2Ch
+	CALL	C3SCBG	;Get the page mode setting - 0=page, else nopage
+	CPL
+	LD	(PGFLAG),A
+	POP	HL
+	RET
+;
+; Output a character, with paging  
+;
+C3POUT::
+	CP	0Ah	;Not a linefeed
+	JP	NZ,BOUT
+	PUSH	AF
+	LD	A,(PGFLAG)
+	OR	A
+	JR	Z,NOPG	;Not in paged mode
+	PUSH	HL
+	LD	HL,PGLEN
+	LD	A,(PGLINE)
+	INC	A
+	LD	(PGLINE),A
+	CP	(HL)
+	JR	C,NOPG1
+	CALL	PRINT
+	DEFB	0Ah,"[More]",8,8,8,8,8,8,0
+	CALL	CIN
+	CALL	PRINT
+	DEFB	"      ",8,8,8,8,8,8,0
+	CALL	C3BRK	;Check for breaks
+NOBRK:	XOR	A
+	LD	(PGLINE),A
+NOPG1:	POP	HL
+NOPG:	POP	AF
+	JP	BOUT
+
+
+
+	dseg
+PGLINE:	defb	0	;Current line
+PGFLAG:	defb	0	;Paging mode
+PGLEN:	defb	0	;Page length, lines
+	cseg
+
+	end
+

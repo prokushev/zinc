@@ -1,0 +1,26 @@
+;
+; SYSLIB Module Name:  SPHL4HC
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.2
+
+	public	phl4hc
+
+;
+;  PHL4HC -- Print HL as 4 Hex Characters
+;	No Registers are to be affected.
+;
+
+	EXT	PA2HC	; PRINT A AS 2 HEX CHARACTERS
+
+PHL4HC:
+	PUSH	AF	; SAVE A
+	LD	A,H	; PRINT H
+	CALL	PA2HC
+	LD	A,L	; PRINT L
+	CALL	PA2HC
+	POP	AF	; RESTORE A
+	RET
+
+	END
+

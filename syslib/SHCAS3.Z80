@@ -1,0 +1,112 @@
+;
+; SYSLIB Module Name: HCASE3
+; Author: Richard Conn
+; SYSLIB Version Number: 3.6
+; Module Version Number: 1.1
+
+	public	hcase3
+
+;
+; HCASE3 is a case statement processor.  On input, register pair HL contains
+; a value to test against and register pair DE contains the address of the
+; case table.  Unlike HCASE1 and HCASE2, the return address after the call
+; to HCASE3 is preserved, so routines referenced by HCASE3 can resume
+; execution right after its call by doing a simple RET.
+;
+;	LXI	H,TEST	; test value
+;	LXI	D,TABLE	; case table address
+;	CALL	HCASE3
+;	< next instruction >	; control resumes here if routines do a RET
+;	...
+; TABLE:
+;	DW	NUM$ENT	; number of entries in CASE table
+;	DW	DEFAULT	; address to goto if no match in case
+;	DW	VAL1	; entry value 1 to test for
+;	DW	ADDR1	; address to goto if entry 1 matches
+;	DW	VAL2	; entry value 2 to test for
+;	DW	ADDR2	; address to goto if entry 2 matches
+;	...
+;	DW	VALN	; entry value N to test for (N = NUM$ENT)
+;	DW	ADDRN	; address to goto if entry N matches
+;
+; NUM$ENT is the number of values (VAL1 .. VALN) in the case table
+;
+hcase3:
+	ld	(value),hl	; save test value
+	push	af		; save regs
+	push	de
+	ex	de,hl		; case table address in HL
+	ld	e,(hl)
+	inc	hl
+	ld	d,(hl)		; DE = number of entries
+	inc	hl		; pt to default
+	ld	(default),hl	; save it
+	inc	hl		; pt to first entry
+	inc	hl
+;
+; Loop through case table entries, looking for a match
+;
+loop:
+	call	test		; compare
+	jp	z,match
+	inc	hl		; pt to next
+	inc	hl
+	inc	hl
+	inc	hl
+	dec	de		; count down
+	ld	a,d		; done?
+	or	e
+	jp	nz,loop
+;
+; No match found - use default
+;
+	ld	hl,(default)	; get default
+	jp	goto
+;
+; Match - use HL+1
+;
+match:
+	inc	hl		; point to address
+	inc	hl
+;
+; Get address in HL and run routine (original return address is still on
+; stack)
+;
+goto:
+	ld	a,(hl)		; get low
+	inc	hl
+	ld	h,(hl)		; get high
+	ld	l,a		; HL = address
+	pop	de		; restore regs
+	pop	af
+	push	hl		; return address on stack
+	ld	hl,(value)	; restore value
+	ret
+;
+; Test VALUE against two bytes pted to by HL
+; Return with ZERO FLAG SET if match
+;
+test:
+	push	de		; save DE
+	ex	de,hl		; DE has pointer
+	ld	hl,(value)	; get value
+	ld	a,(de)		; get low
+	cp	l		; match?
+	jp	nz,testx
+	inc	de		; pt to high
+	ld	a,(de)		; get high
+	dec	de		; pt back
+	cp	h		; match?
+testx:
+	ex	de,hl		; flags are set - restore regs
+	pop	de
+	ret
+;
+; Storage buffers
+;
+value:	ds	2	; original HL
+default:
+	ds	2	; default address
+
+	end
+

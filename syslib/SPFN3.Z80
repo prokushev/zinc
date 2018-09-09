@@ -1,0 +1,53 @@
+;
+; SYSLIB Module Name:  SPFN3
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	pfn3
+
+	ext	cout
+
+;
+;  Print FCB file name and type pted to by DE on CON:
+;  Format of Output:  xxxxxxxx.yyy <spaces> (0-8 x's, 0-3 y's, req'd spaces)
+;
+pfn3:
+	push	de	; save regs
+	push	bc
+	push	af
+	ld	c,11	; 11 chars total
+	ld	b,8	; 8 chars first
+	call	prfnx
+	ld	a,'.'	; dot
+	call	cout
+	ld	b,3	; 3 more chars
+	call	prfnx
+	ld	a,c	; get count of spaces
+	or	a	; 0=none
+	call	nz,spacer
+	pop	af	; restore regs
+	pop	bc
+	pop	de
+	ret
+prfnx:
+	ld	a,(de)	; get char
+	and	7fh	; mask out msb
+	cp	' '	; skip space
+	call	nz,prout	; print it
+	inc	de	; pt to next
+	dec	b	; count down
+	jp	nz,prfnx
+	ret
+prout:
+	dec	c	; count chars
+	jp	cout	; print char
+spacer:
+	ld	a,' '	; space over
+	call	cout
+	dec	c	; count down
+	jp	nz,spacer
+	ret
+
+	end
+

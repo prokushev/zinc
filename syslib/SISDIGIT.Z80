@@ -1,0 +1,34 @@
+;
+;  SYSLIB Module Name:  SISDIGIT
+;  Author:  Richard Conn
+;  SYSLIB Version Number:  3.6
+;  Module Version Number:  1.1
+
+	public	isdigit
+;
+;	ISDIGIT returns Zero Flag Set if char in A is numeric (0-9).
+; ISDIGIT returns NZ if not.
+;
+;	Char in A is unaffected.
+;
+ISDIGIT:
+	PUSH	BC	; SAVE BC
+	LD	C,A	; SAVE CHAR IN C
+	AND	7FH	; MASK OUT MSB
+	CP	'0'	; LESS THAN 0?
+	JP	C,NO
+	CP	'9'+1	; LESS THAN OR EQUAL TO 9?
+	JP	NC,NO
+	XOR	A	; SET FLAG
+	LD	A,C	; GET CHAR
+	POP	BC	; RESTORE BC
+	RET
+NO:
+	LD	A,0FFH	; SET FLAG
+	OR	A
+	LD	A,C	; GET CHAR
+	POP	BC	; RESTORE BC
+	RET
+
+	END
+

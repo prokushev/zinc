@@ -1,0 +1,55 @@
+;
+;  SYSLIB Module Name:  SISPUN
+;  Author:  Richard Conn
+;  SYSLIB Version Number:  3.6
+;  Module Version Number:  1.1
+
+	public	ispun
+;
+;	ISPUN returns Zero Flag Set if char in A is a punctuation
+; character (any non-alphanumeric greater than space and less than delete).
+; ISPUN returns NZ if not.
+;
+;	Char in A is unaffected.
+;
+
+;
+;  DEFINE CHARS
+;
+SPACE	EQU	' '
+DEL	EQU	7FH
+
+ISPUN:
+	PUSH	BC	; SAVE BC
+	LD	C,A	; SAVE CHAR IN C
+	AND	7FH	; MASK OUT MSB
+	CP	SPACE+1	; LESS THAN OR EQUAL TO SPACE?
+	JP	C,NO
+	CP	'0'	; LESS THAN '0'?
+	JP	C,YES
+	CP	'9'+1	; LESS THAN OR EQUAL TO '9'?
+	JP	C,NO
+	CP	'A'	; LESS THAN 'A'?
+	JP	C,YES
+	CP	'Z'+1	; LESS THAN OR EQUAL TO 'Z'?
+	JP	C,NO
+	CP	'a'	; LESS THAN 'a'?
+	JP	C,YES
+	CP	'z'+1	; LESS THAN OR EQUAL TO 'z'?
+	JP	C,NO
+	CP	DEL	; DELETE?
+	JP	Z,NO
+YES:
+	XOR	A	; SET FLAG
+	LD	A,C	; GET CHAR
+	POP	BC	; RESTORE BC
+	RET
+NO:
+	LD	A,0FFH	; SET FLAG
+	OR	A
+	LD	A,C	; GET CHAR
+	POP	BC	; RESTORE BC
+	RET
+
+	END
+

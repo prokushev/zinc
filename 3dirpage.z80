@@ -1,0 +1,98 @@
+;
+;    3DIR: Directory listing (GPLed clone of CP/M 3 DIR)
+;    Copyright (C) 2000  John Elliott <jce@seasip.demon.co.uk>
+;
+;    This program is free software; you can redistribute it and/or modify
+;    it under the terms of the GNU General Public License as published by
+;    the Free Software Foundation; either version 2 of the License, or
+;    (at your option) any later version.
+;
+;    This program is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;    GNU General Public License for more details.
+;
+;    You should have received a copy of the GNU General Public License
+;    along with this program; if not, write to the Free Software
+;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+;
+; An adaptation of the library pager routine that:
+; i)  doesn't output; it is called after a linefeed.
+; ii) exposes its variables so DIR can fiddle with them if it wants.
+;
+	extrn	CIN, C3SCBG, PRINT, C3BRK, C3PSTA
+;
+;Initialise pager. 
+;
+;A = 0: No page
+;  = 1: Page
+;  = 2: Use SCB pager setting
+;
+DIRPINI::
+	PUSH	AF	;Reset the line count
+	PUSH	HL
+	LD	L,1Ch
+	CALL	C3SCBG
+	LD	(PGLEN),A
+	XOR	A
+	LD	(PGLINE),A
+	POP	HL
+	POP	AF
+
+	LD	(PGFLAG),A
+	CP	2
+	RET	NZ
+	PUSH	HL
+	LD	L,2Ch
+	CALL	C3SCBG	;Get the page mode setting - 0=page, else nopage
+	CPL
+	LD	(PGFLAG),A
+	POP	HL
+	RET
+;
+; Called just before a linefeed is printed. Returns 0 if a [more] was 
+;displayed.
+;
+DIRLF::
+	CALL	C3PSTA
+	AND	2	;Is output going to a PIPEMGR stream?
+	RET	NZ	;If so, don't page.
+
+	LD	A,(PGFLAG)
+	OR	A
+	LD	A,1	;No paging
+	RET	Z
+	PUSH	HL
+	LD	HL,PGLEN
+	LD	A,(PGLINE)
+	INC	A
+	LD	(PGLINE),A
+	CP	(HL)
+	LD	A,1	;No paging
+	JR	C,NOPG1
+	CALL	PRINT
+	DEFB	0Ah,"[More]",8,8,8,8,8,8,0
+	CALL	CIN
+	CALL	PRINT
+	DEFB	"      ",8,8,8,8,8,8,0
+	CALL	C3BRK	;Check for breaks
+	XOR	A	;There was paging
+	LD	(PGLINE),A
+NOPG1:	POP	HL
+	RET
+
+
+	dseg
+PGLINE::
+	defb	0	;Current line
+PGFLAG::
+	defb	0	;Paging mode
+PGLEN::	defb	0	;Page length, lines
+	cseg
+
+	end
+	.z80
+

@@ -1,0 +1,40 @@
+;
+; SYSLIB Module Name:  SSFN1
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	sfn1
+
+	ext	sout
+
+;
+;  Print FCB file name and type pted to by DE on switched output
+;	(CON: or LST:)
+;  Format of Output:  xxxxxxxx.xxx
+;
+sfn1:
+	push	de	; save regs
+	push	bc
+	push	af
+	ld	b,8	; 8 chars first
+	call	prfnx
+	ld	a,'.'	; dot
+	call	sout
+	ld	b,3	; 3 more chars
+	call	prfnx
+	pop	af	; restore regs
+	pop	bc
+	pop	de
+	ret
+prfnx:
+	ld	a,(de)	; get char
+	and	7fh	; mask out msb
+	call	sout	; print it
+	inc	de	; pt to next
+	dec	b	; count down
+	jp	nz,prfnx
+	ret
+
+	end
+

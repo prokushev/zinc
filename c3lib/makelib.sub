@@ -1,0 +1,70 @@
+rem
+rem PIPEMGR support
+rem
+m80$1 =c3pmpage.z80
+m80$1 =c3pmpr.z80
+m80$1 =c3pmstr.z80
+m80$1 =c3pminit.z80
+m80$1 =c3pmin.z80
+m80$1 =c3pmout.z80
+m80$1 =c3pmerr.z80
+m80$1 =c3pmstat.z80
+m80$1 =c3pmpb.z80
+rem 
+rem Dates
+rem 
+m80$1 =c3stime.z80
+m80$1 =c3smin.z80
+m80$1 =c3gtime.z80
+m80$1 =c3a2time.z80
+m80$1 =c3a2date.z80
+m80$1 =c3day.z80
+m80$1 =c3dname.z80
+m80$1 =c3time2a.z80
+m80$1 =c3date2a.z80
+m80$1 =c3dmy.z80
+m80$1 =c3dfmt.z80
+rem 
+rem CP/M 3 Physical devices
+rem
+m80$1 =c3devl.z80
+m80$1 =c3devg.z80
+m80$1 =c3devc.z80
+rem
+rem CP/M 3 BIOS
+rem
+m80$1 =c3dtbl.z80
+m80$1 =c3dini.z80
+m80$1 =c3bios.z80
+rem 
+rem CP/M 3 BDOS
+rem
+m80$1 =c3page.z80
+m80$1 =c3scbput.z80
+m80$1 =c3scbget.z80
+m80$1 =c3err.z80
+m80$1 =c3cmod.z80
+m80$1 =c3brk.z80
+rem 
+rem Misc. utils
+rem 
+m80$1 =c3passwd.z80
+m80$1 =c3fbcd.z80
+m80$1 =c3tbcd.z80
+m80$1 =c3opt.z80
+m80$1 =c3dosopt.z80
+m80$1 =c3int.z80
+m80$1 =c3push.z80
+rem
+rem Construct the library
+rem 
+lib cpm3lib[i]=c3pmpage,c3pmpr,c3pmstr
+lib cpm3lib[i]=cpm3lib.irl,c3pminit,c3pmin,c3pmout,c3pmerr,c3pmstat,c3pmpb
+lib cpm3lib[i]=cpm3lib.irl,c3stime,c3smin,c3gtime
+lib cpm3lib[i]=cpm3lib.irl,c3a2time,c3a2date,c3day,c3dname
+lib cpm3lib[i]=cpm3lib.irl,c3date2a,c3time2a,c3dmy,c3dfmt
+lib cpm3lib[i]=cpm3lib.irl,c3devl,c3devg,c3devc
+lib cpm3lib[i]=cpm3lib.irl,c3dtbl,c3dini,c3bios
+lib cpm3lib[i]=cpm3lib.irl,c3page,c3scbput,c3scbget,c3brk,c3cmod,c3err
+lib cpm3lib[i]=cpm3lib.irl,c3passwd,c3fbcd,c3tbcd
+lib cpm3lib[i]=cpm3lib.irl,c3opt,c3dosopt,c3int,c3push

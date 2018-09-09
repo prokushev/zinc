@@ -1,0 +1,39 @@
+;
+; SYSLIB Module Name:  SPFN1
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	pfn1
+
+	ext	cout
+
+;
+;  Print FCB file name and type pted to by DE on CON:
+;  Format of Output:  xxxxxxxx.xxx
+;
+pfn1:
+	push	de	; save regs
+	push	bc
+	push	af
+	ld	b,8	; 8 chars first
+	call	prfnx
+	ld	a,'.'	; dot
+	call	cout
+	ld	b,3	; 3 more chars
+	call	prfnx
+	pop	af	; restore regs
+	pop	bc
+	pop	de
+	ret
+prfnx:
+	ld	a,(de)	; get char
+	and	7fh	; mask out msb
+	call	cout	; print it
+	inc	de	; pt to next
+	dec	b	; count down
+	jp	nz,prfnx
+	ret
+
+	end
+

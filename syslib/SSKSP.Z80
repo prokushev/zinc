@@ -1,0 +1,46 @@
+;
+;  SYSLIB Module Name:  SSKSP
+;  Author:  Richard Conn
+;  SYSLIB Version Number:  3.6
+;  Module Version Number:  1.1
+
+	public	sksp,sknsp
+
+;
+;	SKSP skips spaces in the string pointed to by HL until either
+; a non-space or null are encountered.  HL pts to the non-space or null
+; when done.
+;	SKNSP skips non-spaces in the string pointed to by HL until
+; either a space or a null are encountered.  HL pts to the space or null
+; when done.
+;
+
+	EXT	ISSP
+
+SKSP:
+	PUSH	AF	; SAVE PSW
+SKSP1:
+	LD	A,(HL)	; GET NEXT CHAR
+	INC	HL	; PT TO NEXT
+	OR	A	; DONE?
+	JP	Z,SKSP2
+	CALL	ISSP	; IS A SPACE?
+	JP	Z,SKSP1	; CONTINUE SKIP IF SO
+SKSP2:
+	DEC	HL	; PT TO OFFENDING CHAR
+	POP	AF	; GET PSW
+	RET
+
+SKNSP:
+	PUSH	AF	; SAVE PSW
+SKNSP1:
+	LD	A,(HL)	; GET NEXT CHAR
+	INC	HL	; PT TO NEXT
+	OR	A	; DONE?
+	JP	Z,SKSP2
+	CALL	ISSP	; IS A SPACE?
+	JP	NZ,SKNSP1
+	JP	SKSP2
+
+	END
+

@@ -1,0 +1,84 @@
+;
+;    STRLIB: String library for CP/M Plus
+;    Copyright (C) 2000,2001  John Elliott <jce@seasip.demon.co.uk>
+;
+;    This program is free software; you can redistribute it and/or modify
+;    it under the terms of the GNU General Public License as published by
+;    the Free Software Foundation; either version 2 of the License, or
+;    (at your option) any later version.
+;
+;    This program is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;    GNU General Public License for more details.
+;
+;    You should have received a copy of the GNU General Public License
+;    along with this program; if not, write to the Free Software
+;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+;
+; Split a command line up into several sections, each delimited by "]"
+; Enter with no parameters. Returns HL->parsed string and B=argc.
+; Uses AF C DE IX
+;
+; Parsed string goes:
+; DB len,<data>,0	;1st argument
+; DB len,<data>,0	;2nd argument
+; ...
+;
+lexcmd::
+	ld	de,80h
+	ld	a,(de)
+	inc	de	
+	ld	l,a
+	ld	h,d
+	add	hl,de	;DE->command line
+	ld	(hl),d	;0-terminate command line
+;
+; As LEXCMD, but takes address of a 0-terminated string in DE.
+;
+lexstr::
+	ld	hl,lexbuf
+	ld	b,0	;B = Count of sections 
+lexlp:	ld	(hl),0	;Reset length
+	push	hl
+	pop	ix	;IX -> count
+	inc	hl
+	inc	b	;B = no. of strings
+	ld	c,0	;C = 1 if in [brackets], else 0 
+cpylp:	ld	a,(de)
+	ld	(hl),a
+	inc	de
+	inc	hl
+	inc	(ix+0)
+	cp	'['
+	jr	nz,cpyl1
+	inc	c
+cpyl1:	or	a
+	jr	z,lexend
+	cp	','	;Is there a comma?
+	jr	nz,cpyl2
+	ld	a,c	;and are we outside [brackets]?
+	or	a
+	jr	z,split	;then split.
+	ld	a,','
+cpyl2:	cp	']'
+	jr	nz,cpylp	
+split:	dec	hl	;0-terminate what we got
+	ld	(hl),0
+	inc	hl
+	dec	(ix+0)
+	jr	lexlp
+;
+lexend:	ld	(hl),0
+	ld	hl,lexbuf
+	ret
+
+	dseg
+lexbuf:	defs	256
+	cseg
+
+	end
+

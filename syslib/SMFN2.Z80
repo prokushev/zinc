@@ -1,0 +1,42 @@
+;
+; SYSLIB Module Name:  SMFN2
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	mfn2
+;
+;  Print FCB file name and type pted to by DE to memory pted to by HL
+;  Format of Output:  xxxxxxxx.yyy (0-8 x's, 0-3 y's)
+;
+mfn2:
+	push	hl	; save regs
+	push	de
+	push	bc
+	push	af
+	ld	b,8	; 8 chars first
+	call	prfnx
+	ld	(hl),'.'
+	inc	hl
+	ld	b,3	; 3 more chars
+	call	prfnx
+	pop	af	; restore regs
+	pop	bc
+	pop	de
+	pop	hl
+	ret
+prfnx:
+	ld	a,(de)	; get char
+	and	7fh	; mask out msb
+	cp	' '	; skip spaces
+	jp	z,prfnx1
+	ld	(hl),a	; put char
+	inc	hl	; pt to next
+prfnx1:
+	inc	de
+	dec	b	; count down
+	jp	nz,prfnx
+	ret
+
+	end
+

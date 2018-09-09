@@ -1,0 +1,233 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.Z80
+	CSEG
+
+TDOS::	PUSH	BC	;Function no.
+	PUSH	DE	;FCB
+	PUSH	HL	;Timestamp - if byte 2 (minutes) is 0FFh, stamp is null.
+;
+;Check for null timestamp.
+;
+	INC	HL
+	INC	HL
+	LD	A,(HL)
+	INC	A
+	POP	HL
+	JR	Z,SFWD
+;
+;Move the time to our own buffer.
+;
+	LD	DE,NEWTOD
+	LD	BC,5
+	LDIR
+;
+;Store previous time.
+;
+	LD	C,69H
+	LD	DE,TOD
+	CALL	5
+	LD	(SEC),A
+;
+;2. Disable the BIOS TIME routine.
+;
+	LD	HL,(1)
+	LD	BC,4BH
+	ADD	HL,BC
+	LD	(TIME),HL
+	LD	A,(HL)
+	CP	0C3H
+	JR	Z,OKTIME
+	CP	0C9H
+	JR	Z,OKTIME
+;
+;  Invalid BIOS.
+;
+SFWD:	POP	DE
+	POP	BC
+	JP	5
+;
+OKTIME:	LD	(OTIME),A
+	LD	(HL),0C9h	;BIOS routine becomes RET.
+;
+;Set the new stamp.
+;
+	LD	C,31h
+	LD	DE,SCBPB
+	CALL	5
+	LD	L,0F4h
+	LD	(SCBADR),HL
+	LD	DE,NEWTOD
+	LD	BC,5
+	EX	DE,HL
+	CALL	DILDIR	;LDIR with interrupts disabled
+	POP	DE
+	POP	BC
+	CALL	5	;Execute function.
+	PUSH	AF	;Save results, preserve IX/IY as well.
+	PUSH	HL
+	PUSH	IX
+	PUSH	IY
+;
+;4. Get time now, subtract time as stamped.
+;
+	LD	HL,(SCBADR)
+	LD	DE,PTDTIME
+	PUSH	DE		;Get SCB time into user memory. Thus
+	POP	IX		;interrupts needn't be disabled while
+	LD	BC,5		;SUBTIME is being used.
+	CALL	DILDIR
+	LD	IY,NEWTOD
+	CALL	SUBTIME		;NEWTOD now contains difference.
+;
+;Add value obtained to previous time.
+;
+	LD	IX,TOD
+	CALL	ADDTIME		;NEWTOD now contains current time.
+	POP	IY
+	POP	IX
+;
+;Restore time in SCB.
+;
+	LD	HL,(SCBADR)
+	LD	DE,NEWTOD
+	LD	BC,5
+	EX	DE,HL
+	CALL	DILDIR		;SCB time is now accurate on interrupt systems.
+;
+;Restore TIME rtn in BIOS.
+;
+	LD	A,(OTIME)
+	LD	HL,(TIME)
+	LD	(HL),A
+;
+;Return.
+;
+	POP	HL
+	POP	AF
+	LD	B,H
+	RET
+;
+subtime:
+	xor	a
+	ld	a,(ix+4)
+	ld	b,(iy+4)
+	ld	c,60h
+	call	sbcd
+	ld	(iy+4),a
+	ld	a,(ix+3)
+	ld	b,(iy+3)
+	ld	c,60h
+	call	sbcd
+	ld	(iy+3),a
+	ld	a,(ix+2)
+	ld	b,(iy+2)
+	ld	c,24h
+	call	sbcd
+	ld	(iy+2),a
+	ld	l,(ix+0)
+	ld	h,(ix+1)
+	ld	e,(iy+0)
+	ld	d,(iy+1)
+	sbc	hl,de
+	ld	(iy+0),l
+	ld	(iy+1),h
+	ret
+;
+sbcd:
+;
+;BCD subtract B from A. If carry, BCD add C to result.
+;
+	sbc	a,b
+	daa
+	ret	nc
+	add	a,c
+	daa
+	scf
+	ret
+;
+addtime:
+	ld	a,(ix+4)
+	ld	b,(iy+4)
+	ld	c,60h
+	call	abcd
+	ld	(iy+4),a
+	ld	a,(ix+3)
+	ld	b,(iy+3)
+	ld	c,60h
+	call	abcd
+	ld	(iy+3),a
+	ld	a,(ix+2)
+	ld	b,(iy+2)
+	ld	c,24h
+	call	abcd
+	ld	(iy+2),a
+	ld	l,(ix+0)
+	ld	h,(ix+1)
+	ld	e,(iy+0)
+	ld	d,(iy+1)
+	adc	hl,de
+	ld	(iy+0),l
+	ld	(iy+1),h
+	ret
+;
+abcd:
+;
+;BCD add B to A. If carry set or result > C, BCD subtract C from result.
+;
+	adc	a,b
+	daa
+	jr	c,abcd1	;Carry set => result >100
+	cp	c
+	ccf
+	ret	nc	;If <C, OK.
+abcd1:	sub	c	;A=true result.
+	daa
+	scf
+	ret
+;
+DILDIR:
+;
+;Execute LDIR with interrupts disabled, restore previous interrupt status
+;afterwards.
+;
+	LD	A,I	;V:=IFF2.
+	PUSH	AF
+	DI		;Don't let clock change while we do this.
+	LDIR		;Time set.
+	POP	AF
+	RET	PE
+	EI
+	RET
+;
+	DSEG
+TIME:	DEFW	0	;Address of BIOS time routine
+OTIME:	DEFB	0	;Previous 1st byte of BIOS time routine
+TOD:	DEFS	4
+SEC:	DEFB	0
+NEWTOD:	DEFS	5
+PTDTIME:
+	DEFS	5
+SCBPB:	DEFW	003AH
+SCBADR:	DEFW	0
+	CSEG
+;
+	end
+
+

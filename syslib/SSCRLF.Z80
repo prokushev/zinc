@@ -1,0 +1,30 @@
+;
+; SYSLIB Module Name:  SSCRLF
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	scrlf
+
+	EXT	SCTLFL
+	EXT	CRLF,LCRLF
+
+;
+;  SCRLF -- 
+;	OUTPUT <CRLF> TO CON: OR LST:
+;	AFFECT NO REGISTERS OR FLAGS
+;
+SCRLF:
+	PUSH	AF	; SAVE PSW
+	LD	A,(SCTLFL)	; GET CONTROL FLAG
+	PUSH	AF	; SAVE CONTROL FLAG
+	AND	80H	; LST:?
+	CALL	NZ,LCRLF
+	POP	AF	; GET CONTROL FLAG
+	AND	1	; CON:?
+	CALL	NZ,CRLF
+	POP	AF	; RESTORE PSW
+	RET
+
+	END
+

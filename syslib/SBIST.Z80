@@ -1,0 +1,27 @@
+;
+; SYSLIB Module Name:  BIST
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	bist
+BDOS	EQU	5
+
+;
+;  GET CON CHAR STATUS IN A VIA BDOS CALL
+;	AFFECT ONLY PSW
+;
+BIST:
+	PUSH	HL	; SAVE REGS
+	PUSH	DE
+	PUSH	BC
+	LD	C,11	; GET STATUS
+	CALL	BDOS
+	OR	A	; SET FLAGS
+	POP	BC	; RESTORE REGS
+	POP	DE
+	POP	HL
+	RET
+
+	END
+

@@ -1,0 +1,225 @@
+;
+;    3DATE: Get/set system time (GPLed clone of CP/M 3 DATE)
+;    Copyright (C) 2000  John Elliott <jce@seasip.demon.co.uk>
+;
+;    This program is free software; you can redistribute it and/or modify
+;    it under the terms of the GNU General Public License as published by
+;    the Free Software Foundation; either version 2 of the License, or
+;    (at your option) any later version.
+;
+;    This program is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;    GNU General Public License for more details.
+;
+;    You should have received a copy of the GNU General Public License
+;    along with this program; if not, write to the Free Software
+;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+
+	INCLUDE	ZINCHEAD.INC
+
+	EXTRN	BDOS,BIST,BIN,BLINE,BOUT	;SYSLIB - BDOS
+	EXTRN	PSTR,PRINT,CONDIN,CRLF		;SYSLIB - BIOS character I/O
+	EXTRN	C3STIM,C3GTIM			;CPM3LIB - set/get clock
+	EXTRN	C3A2T,C3T2A,C3D2A,C3A2D,C3DNAM,C3DFMT	;CPM3LIB - dates
+	EXTRN	C3SCBG,C3EXIT			;CPM3LIB - BDOS
+
+	DSEG
+STAMP:	DEFS	5	;Current time
+NSTAMP:	DEFS	5	;New time
+DBUF:	DEFS	30
+	CSEG
+
+MAIN:	LD	A,(FCB+1)
+	CP	'S'
+	JP	Z,SMODE
+	CP	'C'
+	JP	Z,CMODE	
+
+NMODE:	LD	DE,80h
+	LD	A,(DE)
+	LD	L,A
+	LD	H,D
+	INC	DE
+	ADD	HL,DE
+	LD	(HL),D		;0-terminate command line
+SKSP:	LD	A,(DE)
+	INC	DE
+	OR	A
+	JR	Z,NOCMD
+	CP	' '
+	JR	Z,SKSP
+	DEC	DE
+	EX	DE,HL		;HL -> 1st parameter
+	CALL	C3A2D		;Parse date to day count
+	JP	NZ,PARERR
+	LD	(NSTAMP),DE	;DE = day count
+	LD	A,1
+	LD	(DATEV),A
+SKSP1:	LD	A,(HL)
+	INC	HL
+	OR	A
+	JP	Z,DSCMD	
+	CP	' '
+	JR	Z,SKSP1
+	DEC	HL
+	LD	A,1
+	LD	DE,NSTAMP
+	CALL	C3A2T
+	JP	NZ,PARERR
+	LD	A,1
+	LD	(TIMEV),A
+	JP	DSCMD
+
+NOCMD:	CALL	OPTIME		;Output date, & quit.
+	RST	0
+;
+CMODE:	CALL	OPTIME		;DATE C
+	LD	A,0Dh
+	CALL	BOUT
+
+CMWAIT:	CALL	CONDIN
+	JR	NZ,CMEND
+
+	LD	HL,NSTAMP
+	CALL	C3GTIM
+	LD	A,(NSTAMP+4)
+	LD	HL,STAMP+4
+	CP	(HL)
+	JR	Z,CMWAIT
+	JR	CMODE
+;
+CMEND:	CALL	CRLF
+	RST	0
+;
+OPTIME:	LD	HL,STAMP
+	CALL	C3GTIM
+	LD	HL,(STAMP)
+	LD	DE,DBUF
+	CALL	C3DNAM
+	LD	A,' '
+	LD	(DE),A
+	INC	DE
+	LD	HL,(STAMP)
+	CALL	C3D2A
+	LD	A,' '
+	LD	(DE),A
+	INC	DE
+	LD	HL,STAMP
+	LD	A,1
+	CALL	C3T2A
+	XOR	A
+	LD	(DE),A
+	LD	HL,DBUF
+	JP	PSTR	
+;
+SMODE:	CALL	PRINT
+	DEFB	cr,lf,"Enter today's date ",0
+	CALL	C3DFMT
+	LD	HL,PAT_US
+	CALL	Z,PSTR
+	DEC	A
+	LD	HL,PAT_UK
+	CALL	Z,PSTR
+	DEC	A
+	LD	HL,PAT_ISO
+	CALL	Z,PSTR
+	XOR	A
+	LD	HL,EBUF
+	CALL	BLINE		;Input line; it will be nul-terminated.
+	CALL	CRLF
+	LD	A,(EBUF+2)
+	OR	A		;No input
+	JR	Z,SKIPDS
+	LD	HL,EBUF+2
+	CALL	C3A2D		;Parse date to day count
+	JP	NZ,PARERR
+	LD	(NSTAMP),DE	;DE = day count
+	LD	A,1
+	LD	(DATEV),A
+
+SKIPDS:	CALL	PRINT
+	DEFB	"Enter current time (HH:MM:SS):   ",0
+	XOR	A
+	LD	HL,EBUF
+	CALL	BLINE		;Input line; it will be nul-terminated.
+	CALL	CRLF
+	LD	A,(EBUF+2)
+	OR	A		;No input
+	JR	Z,DSCMD
+	LD	DE,NSTAMP
+	LD	HL,EBUF+2
+	LD	A,1
+	CALL	C3A2T		;Parse time to BCD
+	JP	NZ,PARERR
+	LD	A,1
+	LD	(TIMEV),A
+DSCMD:	LD	HL,DATEV	;Command to do the setting
+	LD	A,(HL)
+	INC	HL
+	OR	(HL)
+	JP	Z,0		;No input!
+
+	LD	A,(TIMEV)
+	OR	A
+	JR	NZ,WTIME
+;
+;Setting date only
+;
+	LD	HL,STAMP
+	CALL	C3GTIM
+	LD	HL,(NSTAMP)
+	LD	(STAMP),HL
+	LD	HL,STAMP
+	CALL	C3STIM
+	RST	0
+
+WTIME:	CALL	STRIKEY
+	LD	HL,NSTAMP
+	CALL	C3STIM
+	RST	0
+;
+STRIKEY:
+	CALL	PRINT
+	DEFB	'Press RETURN to set the time',0
+SKLP:	LD	HL,STAMP
+	CALL	C3GTIM		;While waiting for the user to set the
+	LD	A,(DATEV)	;time, update the bits of the stamp that
+	OR	A		;aren't changing from the system clock.
+	JR	NZ,SKLP1
+	LD	HL,(STAMP)	;Update days
+	LD	(NSTAMP),HL
+SKLP1:	LD	A,(TIMEV)
+	OR	A
+	JR	NZ,SKLP2
+	LD	HL,STAMP+2	;Update hours, mins & secs.
+	LD	DE,NSTAMP+2
+	LD	BC,3
+	LDIR
+SKLP2:	CALL	CONDIN
+	JR	Z,SKLP
+	CALL	CRLF
+	RET
+;
+PARERR:	CALL	PRINT
+	DEFB	'Not a valid date.',cr,lf,0
+	LD	HL,0FF00h
+	JP	C3EXIT
+
+	DSEG
+DATEV:	DEFB	0	;Not setting date
+TIMEV:	DEFB	0	;Not setting time
+EBUF:	DEFB	10,0
+	DEFS	11
+PAT_US:	DEFB	'(MM/DD/YYYY): ',0
+PAT_UK:	DEFB	'(DD/MM/YYYY): ',0
+PAT_ISO:
+	DEFB	'(YYYY-MM-DD): ',0
+	CSEG
+
+	end
+
+

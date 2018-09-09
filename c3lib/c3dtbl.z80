@@ -1,0 +1,51 @@
+;
+;    CPM3LIB library: An extension to SYSLIB for CP/M 3 features
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; BIOS call to get device table.
+; This is self-modifying code. The bits marked <------------
+; make second and subsequent calls use a local copy of the pointer
+; that was returned by the first one. This saves on the overhead of
+; a BDOS call every time we want the address of the device table.
+;
+	.Z80
+	CSEG
+
+	EXT	C3BIOS
+
+C3DTBL::
+	LD	HL,0
+DEVRET:	NOP
+
+	PUSH	AF
+	PUSH	BC
+	PUSH	DE
+	LD	C,20	;DEVTBL
+	PUSH	BC
+	CALL	C3BIOS	
+	LD	(C3DTBL+1),HL		;<-------------
+	LD	A,0C9h
+	LD	(DEVRET),A		;<-------------
+	POP	DE
+	POP	BC
+	POP	AF	
+	RET
+;
+	END
+

@@ -1,0 +1,75 @@
+;
+;  SYSLIB Module Name: SGRR1
+;  Author:  Richard Conn
+;  SYSLIB Version Number:  3.6
+;  Module Version Number:  1.1
+;
+
+	public	getrr1,getfs1
+
+;
+;	This module provides two functions: GETRR1 and GETFS1.
+; With the file FCB pted to by DE, GETRR1 gets the random record
+; number (in HL) of the last record read or written sequentially from
+; the file.  GETFS1 gets the file size of the file in terms of records
+; in HL.  The FCB is affected by these routines, with the random record
+; number fields being set.  The FCB is not affects for GETRR and GETFS.
+;
+
+;
+;  Equates
+;
+GFS	EQU	35
+SRR	EQU	36
+BDOS	EQU	5
+
+;
+;  Macros
+;
+PUTRG	MACRO
+	PUSH	DE
+	PUSH	BC
+	ENDM
+
+GETRG	MACRO
+	POP	BC
+	POP	DE
+	ENDM
+
+;
+;  Get random record number of current record in HL
+;    A=0 and Z if OK, A=1 and NZ if overflow
+;
+GETRR1:
+	PUTRG
+	LD	C,SRR	; SET RANDOM RECORD NUMBER
+GET1:
+	PUSH	DE	; SAVE FCB PTR
+	CALL	BDOS
+	POP	DE	; GET PTR TO FCB
+	LD	HL,33	; OFFSET TO RANDOM RECORD NUMBER
+	ADD	HL,DE
+	LD	E,(HL)	; GET RANDOM RECORD NUMBER IN HL
+	INC	HL
+	LD	D,(HL)
+	INC	HL
+	LD	A,(HL)	; OVERFLOW
+	EX	DE,HL	; NUMBER IN HL
+	GETRG
+	OR	A	; SET ERROR CODE
+	RET
+
+;
+;  Get file size of file pted to by DE in HL
+;  This is the size of the file in records
+;	On input, DE = ptr to FCB
+;	On output, HL = file size in records
+;		A = Error flag (0 and Z = OK, 1 and NZ = overflow)
+;
+GETFS1:
+	PUTRG
+	LD	C,GFS	; GET FILE SIZE
+	JP	GET1
+
+	END
+

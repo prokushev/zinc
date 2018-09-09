@@ -1,0 +1,31 @@
+;
+; SYSLIB Module Name:  SMTH02
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	subhd
+
+;
+;  SUBHD -- SUBTRACT DE FROM HL, RESULT IN HL
+;	RETURN WITH HL=RESULT, CARRY SET IF HL<DE
+;
+SUBHD:
+	PUSH	AF
+	LD	A,L	; SUBTRACT LOW
+	SUB	E
+	LD	L,A
+	LD	A,H	; SUBTRACT HIGH
+	SBC	A,D
+	LD	H,A
+	JP	NC,OKRET
+	POP	AF	; GET PSW
+	SCF		; SET CARRY
+	RET
+OKRET:
+	POP	AF
+	OR	A	; CLEAR CARRY
+	RET
+
+	END
+

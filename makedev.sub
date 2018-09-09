@@ -1,0 +1,5 @@
+move c: makedev.sub 3device.z80 last.z80
+:m80$1 =3device.z80
+:m80$1 =last.z80
+:link 3device=3device,b:cpm3lib.irl[s],b:strlib.irl[s],b:syslib.irl[s],last
+

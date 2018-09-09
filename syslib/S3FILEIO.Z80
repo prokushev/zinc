@@ -1,0 +1,77 @@
+;
+; SYSLIB Module Name:  S3FILE
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.2
+
+	public	fi3$open,f3$get,fi3$close
+	public	fo3$open,f3$put,fo3$close
+
+;  Date:     2 May 85
+;  Revised: Al Dunsmuir
+;  Changes:	- Table organization completely changed.
+;		- Extensive code optimization performed.
+;			
+;   Previous Version:	1.0 (16 Jan 84)
+
+
+;  EXTERNAL DECLARATIONS
+;
+	EXT	FI$OPEN
+	EXT	FO$OPEN
+	EXT	FI$CLOSE
+	EXT	FO$CLOSE
+	EXT	F$GET
+	EXT	F$PUT
+
+;
+;  MAIN ROUTINES FOR F3
+;
+FI3$OPEN:
+	PUSH	HL		;Save user REG
+	LD	HL,FI3$TBL	;Get FI3 table address.
+	JP	FI$OPEN		;Perform function
+
+FO3$OPEN:
+	PUSH	HL		;Save user REG
+	LD	HL,FO3$TBL	;Get FO3 table address.
+	JP	FO$OPEN		;Perform function
+
+F3$GET:
+	PUSH	HL		;Save user REG
+	LD	HL,FI3$TBL	;Get FI3 table address.
+	JP	F$GET		;Perform function
+
+F3$PUT:
+	PUSH	HL		;Save user REG
+	LD	HL,FO3$TBL	;Get FO3 table address.
+	JP	F$PUT		;Perform function
+
+FI3$CLOSE:
+	PUSH	HL		;Save user REG
+	LD	HL,FI3$TBL	;Get FI3 table address.
+	JP	FI$CLOSE	;Perform function
+
+FO3$CLOSE:
+	PUSH	HL		;Save user REG
+	LD	HL,FO3$TBL	;Get FO3 table address.
+	JP	FO$CLOSE	;Perform function
+
+;  Init Table and Buffers for F3 Routines
+;
+FI3$TBL:
+I3$FLG:	DB	0		;Input file opened flag (0=NO)
+I3$CNT:	DS	1		;Input char count
+I3$PTR:	DS	2		;Input char ptr
+I3$FCB:	DS	36		;Input file FCB
+I3$BUF:	DS	128		;Input Buffer
+
+FO3$TBL:
+O3$FLG:	DB	0		;Output file opened flag (0=NO)
+O3$CNT:	DS	1		;Output char count
+O3$PTR:	DS	2		;Output char ptr
+O3$FCB:	DS	36		;Output file FCB
+O3$BUF:	DS	128		;Output Buffer
+
+	END
+

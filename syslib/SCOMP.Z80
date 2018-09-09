@@ -1,0 +1,53 @@
+;
+; SYSLIB Module Name:  SCOMP
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	compb,compbc
+
+;
+;  SCOMP --
+;	Vector Compare Routine.  Compare vector pointed to by HL with that
+; pointed to by DE.  Vector is B bytes long for COMPB and BC bytes long for
+; COMPBC.  On exit, Zero Flag Set indicates match, Carry Flag Set indicates
+; that vector pointed to by HL is binarily less than vector pointed to by DE.
+;	PSW is affected.  HL, DE, BC are not affected.
+;
+COMPB:
+	PUSH	BC	; SAVE BC
+	LD	C,B	; SET COUNT IN C
+	LD	B,0
+	CALL	COMPBC	; USE BC FOR COUNT
+	POP	BC	; RESTORE BC
+	RET
+
+COMPBC:
+	PUSH	HL	; SAVE REGISTERS
+	PUSH	DE
+	PUSH	BC
+
+;  COMPARE LOOP
+COMP:
+	LD	A,(DE)	; GET BYTE PTED TO BY DE
+	CP	(HL)	; COMPARE TO BYTE PTED TO BY HL
+	JP	NZ,COMPDN	; DONE IF NO MATCH
+	INC	HL	; PT TO NEXT
+	INC	DE
+	DEC	BC	; COUNT DOWN
+	LD	A,B	; DONE?
+	OR	C
+	JP	NZ,COMP
+
+;  DONE WITH COMPARE; Z=>MATCH, C=>(HL)>(DE)
+COMPDN:
+	JP	Z,CMPDN	; DON'T COMPLEMENT CARRY IF ZERO SET
+	CCF		; C=>(HL)<(DE)
+CMPDN:
+	POP	BC	; RESTORE REGISTERS
+	POP	DE
+	POP	HL
+	RET
+
+	END
+

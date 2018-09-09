@@ -1,0 +1,72 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+
+	extrn	cerror,cparse,cfind,COPFCB
+
+	ld	de,pfcb
+	call	cparse
+	jr	nc,error
+	ld	de,myfcb
+	ld	c,0
+dloop:	call	cfind
+	jr	nc,error
+	push	bc
+	push	de
+	ld	c,6
+	ld	de,0
+	ex	de,hl
+	call	copfcb
+	ld	c,2
+	ld	e,0dh
+	call	5
+	ld	c,2
+	ld	e,0ah
+	call	5
+	pop	de
+	pop	bc
+	inc	c
+	jr	dloop
+;
+error:	call	cerror
+	ld	de,80h
+	ld	h,d
+	ld	l,e
+	ld	(hl),84h
+	inc	hl
+	ld	(hl),0
+	inc	hl
+	inc	hl
+	ld	(hl),0
+	ld	c,6fh
+	call	5
+quit:	nop
+	rst	0
+;
+	dseg
+pfcb:	defw	81h,myfcb
+mybuf:	defs	80h
+myfcb:	defs	30h
+stmp:	defb	1,2,3,4,5
+	cseg
+
+	end
+
+

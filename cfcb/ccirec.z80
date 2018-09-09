@@ -1,0 +1,52 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+	
+	extrn	c@wrec
+
+c@irec::
+	push	iy
+	push	de
+	pop	iy
+	bit	7,(iy+47)	;Buffer dirty?
+	scf
+	jr	z,c@ir0
+	push	hl
+	ld	l,(iy+38)	;Buffer to write
+	ld	h,(iy+39)
+	call	c@wrec		;Write it, because we now need a different
+	pop	hl		;record in the buffer.
+
+c@ir0:	jr	nc,c@ir2
+	inc	(iy+41)
+	jr	nz,c@ir1
+	inc	(iy+42)
+	jr	nz,c@ir1
+	inc	(iy+43)
+	ld	a,(iy+43)
+	cp	4
+	defb	3eh	;LD A,n - to skip the SCF.
+c@ir1:	scf
+c@ir2:	pop	iy
+	ld	a,34	;EOF
+	ret
+
+	end
+

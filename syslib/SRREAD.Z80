@@ -1,0 +1,56 @@
+;
+; SYSLIB Module Name:  SRREAD
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	r$read
+
+;
+;  Equates
+;
+bdos	equ	5
+ranrec	equ	33	; offset to random record number
+readran	equ	33	; function code for random read
+
+;
+;  Macros
+;
+putrg	macro
+	push	hl
+	push	de
+	push	bc
+	endm
+getrg	macro
+	pop	bc
+	pop	de
+	pop	hl
+	endm
+
+;
+;	R$READ reads the random record whose number is given in HL of
+; the file whose FCB is pointed to by DE.  It is assumed that the file
+; has been previously opened by a routine like F$OPEN.
+;
+;	On exit, A=0 and Z if OK
+;
+r$read:
+	putrg		; save registers
+	push	de	; save FCB ptr
+	ex	de,hl	; HL pts to FCB, DE = record number
+	ld	bc,ranrec	; BC = offset to random record number
+	add	hl,bc	; HL pts to random record number
+	ld	(hl),e	; store low-order value
+	inc	hl
+	ld	(hl),d	; store high-order value
+	inc	hl
+	ld	(hl),0	; store 0
+	pop	de	; get FCB ptr
+	ld	c,readran	; function code
+	call	bdos	; perform function
+	getrg		; restore registers
+	or	a	; set flags
+	ret
+
+	end
+

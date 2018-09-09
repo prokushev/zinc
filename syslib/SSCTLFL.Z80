@@ -1,0 +1,18 @@
+;
+; SYSLIB Module Name:  SSCTLFL
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	sctlfl
+
+;
+;	SCTLFL is a data byte accessed by the SOUT and SCOUT routines.
+; If its MSB (Bit 7) is Set, output is sent to LST:; if its LSB (Bit 0)
+; is Set, output is sent to CON:.
+;
+SCTLFL:
+	DB	1	; CON: BY DEFAULT
+
+	END
+

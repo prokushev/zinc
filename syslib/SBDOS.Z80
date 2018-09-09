@@ -1,0 +1,24 @@
+;
+; SYSLIB Module Name:  SBDOS
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	bdos
+
+;
+;  BDOS -- STANDARD ROUTINE FOR CALLING THE CP/M BDOS
+;	DO NOT AFFECT REGISTERS BC OR DE
+;
+BDOSE	EQU	5	; ENTRY POINT FOR BDOS
+
+BDOS:
+	PUSH	BC	; SAVE BC
+	PUSH	DE	; SAVE DE
+	CALL	BDOSE	; MAKE CALL
+	POP	DE	; GET DE
+	POP	BC	; GET BC
+	RET
+
+	END
+

@@ -1,0 +1,164 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+
+	EXTRN	C@FIXF,C@ZFCB,C@DMA,CFDOS,CIFDEV,CIFNUL,C@PER
+
+COPEN::	PUSH	HL
+	PUSH	BC
+	PUSH	DE
+	PUSH	IX
+	PUSH	IY
+	CALL	COPEN0
+	POP	IY
+	POP	IX
+	POP	DE
+	POP	BC
+	POP	HL
+	RET
+;
+COPEN0:	CALL	CIFNUL	;Valid FCB?
+	LD	A,20
+	SCF
+	CCF
+	RET	Z
+	PUSH	DE
+	POP	IY	;IY -> UFCB
+	LD	A,(IY+38)
+	OR	(IY+39)
+	JR	Z,COPEN1
+	XOR	A
+	LD	A,30	;File already open.
+	RET
+;
+COPEN1:	PUSH	BC
+	PUSH	DE
+	LD	A,H
+	OR	L
+	JR	Z,NOPW
+	LD	DE,80h
+	PUSH	DE
+	LD	BC,8
+	LDIR
+	POP	DE
+	CALL	C@DMA		;Point DMA at password.
+NOPW:	POP	DE
+	CALL	C@FIXF
+	CALL	C@ZFCB		;Zeroise FCB
+	CALL	CIFDEV
+	JP	Z,OPNDEV
+	LD	(IY+32),0FFh	;Read byte counter
+	PUSH	IY		;FCB
+	PUSH	IX		;buffer
+NOPW0:	LD	C,0FH		;Open the file
+	CALL	CFDOS
+	JR	C,NOPW1
+	CP	37
+	SCF
+	CCF			;Must be NC
+	JR	NZ,NOPW1
+	CALL	C@PER		;Password error
+	JR	NC,NOPW1
+	PUSH	DE
+	LD	DE,80h		;Move new password
+	CALL	C@DMA
+	LD	BC,8
+	LDIR
+	POP	DE
+	JR	NOPW0
+;
+NOPW1:	POP	IX		;buffer
+	POP	IY		;FCB
+	POP	BC		;Access mode
+	RET	NC
+	INC	A
+	OR	A
+	LD	A,23
+	RET	Z		;File not found
+;
+;File open...
+;
+	LD	A,(IY+7)
+	OR	(IY+8)
+	OR	(IY+9)
+	AND	80h
+	JR	Z,OPENRW
+	BIT	1,C		;Write access required?
+	JR	Z,OPENRW
+	XOR	A
+	LD	A,28		;File is R/O
+	RET
+;
+OPENRW:	RES	7,C
+	LD	(IY+47),C
+	LD	A,(IY+32)
+	LD	(IY+36),A
+	XOR	A
+	LD	(IY+32),A
+	LD	(IY+40),0FFh	;Buffer empty.
+	LD	(IY+41),A
+	LD	(IY+42),A
+	LD	(IY+43),A
+	BIT	7,(IY+8)
+	JR	Z,OPENRO	;User 0 file?
+	LD	(IY+37),1
+OPENRO:	PUSH	IY
+	POP	DE
+	LD	C,23h
+	PUSH	IY
+	PUSH	IX
+	CALL	CFDOS
+	POP	BC
+	POP	IY
+	RET	NC
+	LD	(IY+38),C
+	LD	(IY+39),B
+	LD	A,(IY+33)
+	LD	(IY+44),A
+	LD	A,(IY+34)
+	LD	(IY+45),A
+	LD	A,(IY+35)
+	LD	(IY+46),A
+	SCF
+	RET	;File open
+;
+OPNDEV:	POP	BC
+	LD	(IY+47),C
+	PUSH	IX
+	POP	BC
+	LD	(IY+38),C
+	LD	(IY+39),B
+	LD	A,0FFh
+	LD	(IY+36),A
+	PUSH	IY
+	POP	DE
+	LD	HL,40
+	ADD	HL,DE
+	LD	D,H
+	LD	E,L
+	INC	DE
+	LD	BC,6
+	LD	(HL),A
+	LDIR
+	SCF
+	RET
+;
+	END
+

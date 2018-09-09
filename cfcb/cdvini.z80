@@ -1,0 +1,122 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+
+	.z80
+	cseg
+
+	EXTRN	CMKDEV
+
+CDVINI::
+	LD	DE,CON$
+	LD	BC,CONIN
+	LD	HL,CONOUT
+	CALL	CMKDEV
+	RET	NC
+	LD	DE,LST$
+	LD	BC,NULIN
+	LD	HL,LSTOUT
+	CALL	CMKDEV
+	RET	NC
+	LD	DE,AUX$
+	LD	BC,AUXIN
+	LD	HL,AUXOUT
+	CALL	CMKDEV
+	RET	NC
+	LD	DE,NUL$
+	LD	BC,NULIN
+	LD	HL,NULOUT
+	CALL	CMKDEV
+	RET	NC
+	LD	DE,RSX$
+	LD	BC,RSXIN
+	LD	HL,RSXOUT
+	CALL	CMKDEV
+	RET	
+;
+	DSEG
+CON$:	DEFB	'CON'
+LST$:	DEFB	'LST'
+AUX$:	DEFB	'AUX'
+NUL$:	DEFB	'NUL'
+RSX$:	DEFB	'RSX'
+	CSEG
+
+CONIN:	LD	C,1
+BDOSI:	CALL	5
+	LD	C,A	;Driver returns chr in C
+	SCF		;& corrupts anything it likes.
+	RET
+;
+CONOUT:	LD	E,C
+	LD	C,2
+BDOSO:	CALL	5
+	SCF
+	RET
+;
+NULIN:	XOR	A
+	LD	A,25	;EOF
+	RET
+;
+NULOUT:	SCF
+	RET
+;
+LSTOUT:	LD	E,C
+	LD	C,5
+	JR	BDOSO
+;
+AUXOUT:	LD	E,C
+	LD	C,4
+	JR	BDOSO
+;
+AUXIN:	LD	C,3
+	JR	BDOSI
+;
+RSXIN:	LD	DE,RSXI
+	LD	C,3Ch
+	CALL	5
+	LD	A,H
+	OR	A
+	LD	A,25
+	RET	Z	;EOF
+	SCF
+	LD	C,L
+	RET
+;
+RSXOUT:	LD	A,C
+	LD	(RSXO+2),A
+	LD	DE,RSXO
+	LD	C,3Ch
+	CALL	5
+	DEC	H
+	LD	A,H
+	AND	L	;RSX returns 00FF if not accepted character.
+	INC	A
+	SCF
+	RET	NZ
+	CCF
+	LD	A,1
+	RET
+
+	DSEG
+RSXO:	DEFB	7Dh,1,0,0
+RSXI:	DEFB	7Ch,0
+	CSEG
+
+	END
+

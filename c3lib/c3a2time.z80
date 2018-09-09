@@ -1,0 +1,102 @@
+;
+;    CPM3LIB library: An extension to SYSLIB for CP/M 3 features
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+
+	EXT	C3DAY,C3SCBG,EVAL10,C3MDYS,C3DFMT,C3TBCD
+;
+; Convert an ASCII string at HL to a CP/M 3 time stamp at DE.
+; A=0 to omit seconds, 1 to include them.
+;
+; Returns A=0 and Z set if date is OK; else A<>0 and Z clear.
+; Returns HL->next character after date.
+;
+; BC DE preserved.
+;
+C3A2T::	PUSH	BC
+	PUSH	DE	;DE -> new stamp
+	PUSH	AF
+
+	LD	B,D
+	LD	C,E		;BC -> stamp
+	INC	BC
+	INC	BC		;BC -> hours
+	CALL	PNUM		;E = day
+	JR	Z,ERRP1
+	LD	A,E	
+	CP	24
+	JR	NC,ERRP1	;Hour must be 0-23
+	CALL	C3TBCD
+	LD	(BC),A
+	INC	BC		;BC -> minutes
+	LD	A,(HL)
+	CP	':'
+	JR	NZ,ERRP1
+	INC	HL
+	CALL	PNUM		;E = month
+	JR	Z,ERRP1
+	LD	A,E
+	CP	60
+	JR	NC,ERRP1	;Minute must be 0-60
+	CALL	C3TBCD
+	LD	(BC),A
+	INC	BC		;BC -> seconds	
+	POP	AF
+	OR	A
+	JR	Z,PNE		;Not looking for seconds
+
+	LD	A,(HL)	
+	CP	':'
+	JR	NZ,ERROR
+	INC	HL
+	CALL	PNUM		;E = seconds
+	JR	Z,ERROR
+	LD	A,E
+	CP	60
+	JR	NC,ERROR
+	CALL	C3TBCD
+	LD	(BC),A
+PNE:	XOR	A
+	POP	DE
+	POP	BC
+	RET
+;
+ERRP1:	POP	DE	;Tidy up the stack
+ERROR:	XOR	A
+	DEC	A	;NZ
+	POP	DE
+	POP	BC
+	RET
+;
+; Parse a number. Returns NZ if the number is OK, Z if not a number.
+;
+PNUM:	PUSH	BC
+	PUSH	HL	;HL -> number
+	CALL	EVAL10	;DE = parsed number
+	POP	BC	;BC -> start of number; HL->end
+	LD	A,B
+	CP	H
+	JR	NZ,PNR
+	LD	A,C
+	CP	L
+PNR:	POP	BC
+	RET
+	
+	END
+

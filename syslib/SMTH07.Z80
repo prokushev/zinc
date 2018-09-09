@@ -1,0 +1,24 @@
+;
+; SYSLIB Module Name:  SMTH07
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	andhd
+
+;
+;  ANDHD -- AND HL WITH DE, RESULT IN HL
+;
+ANDHD:
+	PUSH	AF
+	LD	A,L	; DO LOW
+	AND	E
+	LD	L,A
+	LD	A,H	; DO HIGH
+	AND	D
+	LD	H,A
+	POP	AF
+	RET
+
+	END
+

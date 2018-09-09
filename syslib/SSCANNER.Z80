@@ -1,0 +1,70 @@
+;
+; SYSLIB Module Name:  SCANNER
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	scanner
+
+;
+;  SSCANNER --
+;	SCANNER scans the vector of bytes pointed to by HL for
+; the vector of bytes pointed to by DE.  The HL-byte vector is B bytes
+; long, and the DE-byte vector is C bytes long.
+;	On return, if found, HL points to the beginning location within
+; the original HL vector of the located vector and Zero Flag is set.
+; If not found, Zero Flag is not set and HL is unaffected.  DE and BC
+; are not affected by this routine.
+;
+SCANNER:
+	PUSH	BC	; SAVE REGISTERS
+	PUSH	HL
+
+; MAIN LOOP
+SCAN:
+
+; CHECK FOR DONE
+	LD	A,B	; DONE IF B<C
+	CP	C	; DONE?
+	JP	C,NOT$FOUND
+
+; SCAN HL FOR DE FOR C BYTES
+	PUSH	BC	; SAVE BC
+	PUSH	HL	; SAVE PTRS
+	PUSH	DE
+SCANL:
+	LD	A,(DE)	; GET DE BYTE
+	CP	(HL)	; MATCH?
+	JP	NZ,NEXT
+	INC	DE	; PT TO NEXT
+	INC	HL
+	DEC	C	; COUNT DOWN
+	JP	NZ,SCANL
+
+;  MATCH
+	POP	DE	; RESTORE PTRS
+	POP	HL
+	POP	BC	; OLD BC
+	POP	BC	; ORIGINAL HL -- DISCARD
+	POP	BC	; ORIGINAL BC
+	RET		; ZERO FLAG IS SET
+
+;  NOT FOUND YET
+NEXT:
+	POP	DE	; RESTORE PTRS
+	POP	HL
+	POP	BC	; GET COUNT
+	INC	HL	; PT TO NEXT IN SCANNED VECTOR
+	DEC	B	; COUNT DOWN
+	JP	NZ,SCAN	; CONTINUE SCANNING
+
+;  NO MATCH!
+NOT$FOUND:
+	POP	HL	; ORIGINAL HL
+	POP	BC	; ORIGINAL BC
+	LD	A,0FFH	; NOT FOUND
+	OR	A	; SET NOT ZERO
+	RET
+
+	END
+

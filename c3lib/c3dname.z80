@@ -1,0 +1,59 @@
+;
+;    CPM3LIB library: An extension to SYSLIB for CP/M 3 features
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+;
+;Write the name of a day to buffer at DE.
+;Enter with HL=day number
+;
+;Returns DE->next character after dayname.
+;
+	.z80
+
+	extrn	DIVHD, MULHD
+;
+C3DNAM::
+	PUSH	BC
+	PUSH	AF
+
+	PUSH	DE
+	PUSH	HL	;HL = daynumber
+	LD	DE,7
+	CALL	DIVHD
+	CALL	MULHD
+	POP	DE
+	EX	DE,HL
+	AND	A
+	SBC	HL,DE	;HL=daynumber mod 7 (ie: 0-6)
+	LD	D,H
+	LD	E,L
+	ADD	HL,DE	;*2
+	ADD	HL,DE	;*3
+	LD	DE,DBUF
+	ADD	HL,DE
+	POP	DE
+	LD	BC,3
+	LDIR
+	POP	AF
+	POP	BC
+	RET		
+
+	dseg
+DBUF:	DEFB	'SatSunMonTueWedThuFri'
+
+	END
+

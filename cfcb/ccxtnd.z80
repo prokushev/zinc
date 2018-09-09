@@ -1,0 +1,93 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+;
+;Extend a file - if the file pointer is beyond the end, move the end.
+;
+;DE -> CFCB.
+;
+	extrn	c@last
+;
+c@xtnd::
+	push	iy
+
+	push	de
+	pop	iy	;IY -> CFCB
+	
+	push	bc
+	push	de
+	push	hl
+	push	af
+
+	call	c@last		;At last record?
+	jr	c,popret	;No.
+	jr	nz,more		;Past last record.
+;
+;Current record is the last record. For the purposes of this
+;calculation, if (iy+40)=0ffh, assume it is 0.
+;
+	ld	a,(iy+40)	;Length of this record, 0-80h. 
+	or	a
+	jr	z,popret		;If A=0 or 0FFh, no bytes have been written
+	cp	0ffh		;to this record, so the file hasn't been
+	jr	z,popret	;extended.
+;
+;A=length of this record, bytes.
+;	
+	ld	b,a		;B=length of this record, bytes
+	ld	a,(iy+36)
+	or	a
+	jr	nz,blen2
+	ld	a,80h		;A=current length
+blen2:	cp	b
+	jr	nc,popret	;Record is shorter
+	ld	a,b		;Record has grown.
+	and	7fh
+	ld	(iy+36),a	
+popret:	pop	af
+	pop	bc
+	pop	de
+	pop	hl
+	pop	iy
+	ret
+;
+more:	ld	d,(iy+41)
+	ld	c,(iy+42)
+	ld	b,(iy+43)
+	ld	a,(iy+40)	;Have bytes been written to this record?
+	or	a
+	jr	z,more0		;If A=0 or 0FFh, no - so this record doesn't
+	inc	a		;really count.
+	jr	z,more0
+	inc	d
+	jr	nz,more0
+	inc	bc		;bcd=new file length (records).
+more0:	ld	(iy+44),d
+	ld	(iy+45),c
+	ld	(iy+46),b
+	ld	a,(iy+40)
+	bit	7,a
+	jr	z,more1
+	xor	a
+more1:	ld	(iy+36),a	;Set bytelen value for this new last record.
+	jr	popret
+;
+	end
+	

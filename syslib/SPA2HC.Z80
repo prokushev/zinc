@@ -1,0 +1,36 @@
+;
+; SYSLIB Module Name:  SPA2HC
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.2
+
+	public	pa2hc
+
+;
+;  PA2HC --
+;	PRINT REG A AS 2 HEXADECIMAL CHARACTERS ON CON:
+;
+	EXT	COUT
+
+PA2HC:
+	PUSH	AF	; SAVE A
+	PUSH	AF
+	RRCA		; EXCHANGE NYBBLES
+	RRCA
+	RRCA
+	RRCA
+	CALL	PAHC	; PRINT LOW-ORDER NYBBLE AS HEX
+	POP	AF	; GET A
+	CALL	PAHC	; PRINT LOW-ORDER NYBBLE AS HEX
+	POP	AF	; RESTORE A
+	RET
+PAHC:	AND	0FH	; MASK FOR LOW NYBBLE
+	CP	10	; LETTER OR DIGIT?
+	JP	C,PADIG	; DIGIT IF CARRY
+	ADD	'A'-10	; CONVERT TO 'A'-'F'
+	JP	COUT	; PRINT
+PADIG:	ADD	'0'	; CONVERT TO '0'-'9'
+	JP	COUT	; PRINT
+
+	END
+

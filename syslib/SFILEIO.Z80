@@ -1,0 +1,455 @@
+;
+; SYSLIB Module Name:  SFILEIO
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.2
+
+	public	fi$open
+	public	f$get
+	public	fi$clos
+	public	fo$open
+	public	f$put
+	public	fo$clos
+
+;  Date:     3 May 85
+;  Revised: Al Dunsmuir
+;  Changes:	- Table organization completely changed.
+;		- Extensive code optimization performed.
+;		- Actually close input file if it was open
+;		  (required by MP/M and others).
+;		- Use direct DMA vs DMA to TBUFF and software move.
+;		  Makes byte I/O a bit faster AND safer.
+;		- Eliminate F$PUT stack error on error 1
+;		- Eliminate F$CLOSE PUTS when output buffer is empty
+;		  (was suitable for text files only).
+;			
+;   Previous Version:	1.0 (16 Jan 84)
+
+;
+;  SFILEIO.MAC -- Byte-Oriented File I/O for SYSLIB
+;    Included routines are --  FILE INPUT OPEN,
+;			       GET,
+;			       FILE INPUT CLOSE,
+;			       FILE OUTPUT OPEN,
+;			       PUT,
+;			       FILE OUTPUT CLOSE
+
+;	Error Diagnostics are returned to the caller via the Zero Flag
+;		(Zero Flag Set - Z - ALWAYS Means No Error Occurred)
+;		and the A Register
+;	If the Zero Flag is Set (Z), then the A Register either contains
+;		a 0 or the required returned value if A is significant for
+;		the particular routine.
+;	If the Zero Flag is Clear (NZ), then the A Register contains the
+;		error code.  No other returned register value in HL, DE,
+;		or BC should be considered to be valid.  
+;		  The Returned Error Codes in A are:
+;			Code	Meaning
+;			  1	GET or PUT attempted on unopened file
+;			  2	Disk Full (Ran out of space)
+;			  3	Input File Not Found
+;			  4	Attempt to Read Past the EOF
+;			  5	Directory Full
+;			  6	Error in Closing a File
+;			  7	Attempt to Open a File which is already open
+;
+
+;
+;  EXTERNAL LIBRARY FILE DEFINITIONS
+;
+	EXT	F$OPEN		;Open File
+	EXT	F$MOPEN		;Open/Create file
+	EXT	INITFCB		;Init FCB
+	EXT	HMOVB		;Copy (HL) to (DE) for (B)
+
+
+;  CP/M Equates and ASCII Constants
+;
+TBUFF	EQU	80H		;Temporary file I/O Buffer
+EOF	EQU	1AH		; <EOF>
+
+BDOS	EQU	5		;BDOS entry point
+B$CL	EQU	16		; Close file
+B$RD	EQU	20		; Read next record
+B$WR	EQU	21		; Write next record
+B$DMA	EQU	26		; Set DMA address
+
+
+
+; **** Macro Routines for FILEIO ****
+;
+PUTRG	MACRO			;Save BC, DE
+	PUSH	BC
+	PUSH	DE
+	ENDM
+
+GETRG	MACRO			;Restore DE, BC, HL 
+	POP	DE
+	POP	BC
+	POP	HL		;(HL saved before entry)
+	ENDM
+
+
+; **** Support Routines for FILEIO ****
+;
+;
+;  Error Exits
+;
+E$FNOP:	LD	A,1		;"GET or PUT on unopened file" error
+	JP	F$EXIT		;Exit
+;
+E$DSKF:	LD	A,2		;"Disk Full - no space" error
+	JP	F$EXIT		;Exit
+;
+E$IFNF:	LD	A,3		;"Input file not found" error
+	JP	F$EXIT		;Exit
+;
+E$GEOF:	LD	A,4		;"GET past EOF" error
+	JP	F$EXIT		;Exit
+;
+E$DIRF:	LD	A,5		;"Directory Full" error
+	JP	F$EXIT		;Exit
+;
+E$CLOS:	LD	A,6		;"File Close" error
+	JP	F$EXIT		;Exit
+;
+E$FOPN:	LD	A,7		;"File already open" error
+
+
+;  F$EXIT -- Exit, restoring regs and setting flags
+;
+F$EXIT:	GETRG			;Restore registers
+	OR	A		;Set Flags
+	RET
+
+
+;  READ$BLOCK -- Read block from input file into input buffer
+;    on return,	Z  = OK
+;		NZ = not OK (Past EOF)
+;
+READ$BLOCK:
+	LD	HL,(FIO$TBL)	;Get address of Input control table
+	EX	DE,HL		; ... in DE
+	LD	HL,36+2+1+1	;Get buffer address.
+	ADD	HL,DE
+	EX	DE,HL		; ... in DE
+	LD	C,B$DMA		;Point BDOS DMA ptr to input buffer
+	CALL	BDOS
+;
+	LD	HL,(FIO$TBL)	;Get address of Input control table
+	INC	HL		;Get addr of Input FCB
+	INC	HL
+	INC	HL
+	INC	HL
+	EX	DE,HL		;... in DE
+	LD	C,B$RD		;Read block via BDOS
+	CALL	BDOS
+;
+	PUSH	AF		;Save return code (A)
+	LD	DE,TBUFF	;Reset DMA address (for compatability)
+	LD	C,B$DMA
+	CALL	BDOS
+	POP	AF		;Restore return code (A)
+;
+	OR	A		;Set Zero flag if OK
+	RET
+
+
+;  WRIT$BLOCK -- Write block from output buffer into output file
+;    on return,	Z  = OK
+;		NZ = not OK (Disk Full)
+;
+WRIT$BLOCK:
+	LD	HL,(FIO$TBL)	;Get address of Output control table
+	EX	DE,HL		; ... in DE
+	LD	HL,36+2+1+1	;Get buffer address.
+	ADD	HL,DE
+	EX	DE,HL		; ... in DE
+	LD	C,B$DMA		;Point BDOS DMA ptr to input buffer
+	CALL	BDOS
+;
+	LD	HL,(FIO$TBL)	;Get address of Output control table
+	INC	HL		;Get addr of output FCB
+	INC	HL
+	INC	HL
+	INC	HL
+	EX	DE,HL		;... in DE
+	LD	C,B$WR		;Write block via BDOS
+	CALL	BDOS
+;
+	PUSH	AF		;Save return code (A)
+	LD	DE,TBUFF	;Reset DMA address (for compatability)
+	LD	C,B$DMA
+	CALL	BDOS
+	POP	AF		;Restore return code (A)
+;
+	OR	A		;Set Zero flag if OK
+	RET
+
+
+
+; **** Base Routines for FILEIO ****
+;
+;
+;  FI$OPEN -- Open file whose FCB is pted to by DE for Input
+;    On entry   DE -> FCB
+;		HL -> Input control table
+;
+FI$OPEN:
+	PUTRG			;Save BC, DE
+	LD	A,(HL)		;Get open flag...
+	OR	A		; 0 = File not open.
+	JP	NZ,E$FOPN	;"File already open" error
+;
+	LD	(FIO$TBL),HL	;Save address of Input control table
+	INC	HL		;Pt to default open FCB
+	INC	HL
+	INC	HL
+	INC	HL
+;
+	PUSH	HL		;Save ptr to FCB
+	LD	B,36		;Copy User FCB to internal FCB
+	EX	DE,HL		;Hl -> user FCB, DE -> internal FCB
+	CALL	HMOVB		;Create new FCB		
+	POP	DE		;Get ptr to FCB
+	CALL	INITFCB		;Clear FCB fields
+;
+	CALL	F$OPEN		;Open file.
+	OR	A		;Zero means OK
+	JP	NZ,E$IFNF	;"Input File not found" error
+;
+	CALL	READ$BLOCK	;Read first block
+	JP	NZ,E$GEOF	;"GET past EOF" error
+;
+FOPEN1:	LD	HL,(FIO$TBL)	;Get address of Input/Output control table
+	LD	(HL),0FFH	;Set "file opened" flag
+	INC	HL		;Set char count.
+	LD	(HL),128
+;
+	INC	HL		;Pt to char pointer
+	EX	DE,HL		; ... in DE
+	LD	HL,36+2		;Get buffer address.
+	ADD	HL,DE
+	EX	DE,HL		; ... in DE
+;
+	LD	(HL),E		;Save buffer start address
+	INC	HL
+	LD	(HL),D
+;	
+	XOR	A		;File opened OK
+	JP	F$EXIT		;Restore regs and exit
+
+
+;  FO$OPEN -- Open file whose FCB is pted to by DE for Output
+;    On entry   DE -> FCB
+;		HL -> Input control table
+;
+FO$OPEN:
+	PUTRG			;Save BC, DE
+	LD	A,(HL)		;Get open flag...
+	OR	A		; 0 = File not open.
+	JP	NZ,E$FOPN	;"File already open" error
+;
+	LD	(FIO$TBL),HL	;Save address of Input control table
+	INC	HL		;Pt to default open FCB
+	INC	HL
+	INC	HL
+	INC	HL
+;
+	PUSH	HL		;Save ptr to FCB
+	LD	B,36		;Copy User FCB to internal FCB
+	EX	DE,HL		;Hl -> user FCB, DE -> internal FCB
+	CALL	HMOVB		;Create new FCB		
+	POP	DE		;Get ptr to FCB
+	CALL	INITFCB		;Clear FCB fields
+	CALL	F$MOPEN		;Open and/or create file
+	OR	A		;Zero means OK
+	JP	Z,FOPEN1	;Set up Output table if OK.
+	JP	E$DIRF		;Bad? - "Directory full" error
+
+
+;  F$GET -- Get byte from Input file
+;    On entry   HL -> Input control table
+;    On return, IF Zero = 1 (Z), then OK (Byte returned in A)
+;    		IF Zero = 0 (NZ), then past EOF
+;
+F$GET:
+	PUTRG			;Save BC, DE
+	LD	A,(HL)		;Get open flag...
+	OR	A		; 0 = File not open.
+	JP	Z,E$FNOP	;"File not yet opened" error
+;
+	LD	(FIO$TBL),HL	;Save address of Input control table
+	INC	HL		;Pt to char pointer
+	INC	HL
+	LD	E,(HL)		;Get char pointer
+	INC	HL
+	LD	D,(HL)
+	LD	A,D		;EOF was reached if pointer is Zero
+	OR	E
+	JP	Z,E$GEOF	;Indicate EOF, exit
+;
+	LD	A,(DE)		;GET data byte
+	LD	(BYTE),A	;Save byte for return
+;                  
+	INC	DE		;Pt to next input byte
+	LD	(HL),D		;Update current Input buffer address
+	DEC	HL
+	LD	(HL),E
+;
+	DEC	HL		;Pt to buffer data count
+	DEC	(HL)		;Decrement count
+	JP	NZ,F$GPXT	;Exit if data remains in buffer
+;
+;  Input buffer Empty - read next block & reset pointers and count
+;
+	LD	(HL),128	;Set char count.
+;
+	INC	HL		;Pt to char pointer
+	EX	DE,HL		; ... in DE
+	LD	HL,36+2		;Get buffer address.
+	ADD	HL,DE
+	EX	DE,HL		; ... in DE
+;
+	LD	(HL),E		;Save buffer start address
+	INC	HL
+	LD	(HL),D
+;	
+	CALL	READ$BLOCK	;Read next block
+	JP	Z,F$GPXT	;GET completed OK - Exit
+;
+	LD	HL,(FIO$TBL)	;Get address of Input/Output control table
+	INC	HL		;Pt to char pointer
+	INC	HL
+	LD	(HL),0		;Zero indicates EOF reached
+	INC	HL
+	LD	(HL),0
+;
+;  Normal Exit for GET or PUT
+;
+F$GPXT:	GETRG			;Restore registers
+	XOR	A		;Indicate GET/PUT was OK
+	LD	A,(BYTE)	;Get data byte to return
+	RET
+
+
+;  F$PUT -- Put Byte in A into Output File
+;    On entry   HL -> Input control table
+;    On return, IF Zero = 1 (Z), then OK (Byte returned in A)
+;    		IF Zero = 0 (NZ), then write error
+;
+F$PUT:
+	PUTRG			;Save BC, DE
+	LD	(BYTE),A	;Save byte to output
+	LD	A,(HL)		;Get open flag...
+	OR	A		; 0 = File not open.
+	JP	Z,E$FNOP	;"File not yet opened" error
+;
+	LD	(FIO$TBL),HL	;Save address of Output control table
+	INC	HL		;Pt to char pointer
+	INC	HL
+	LD	E,(HL)		;Get char pointer
+	INC	HL
+	LD	D,(HL)
+;
+	LD	A,(BYTE)	;Get byte to output
+	LD	(DE),A		;PUT data byte
+;                  
+	INC	DE		;Pt to next output byte
+	LD	(HL),D		;Update current Output buffer address
+	DEC	HL
+	LD	(HL),E
+;
+	DEC	HL		;Pt to buffer data count
+	DEC	(HL)		;Decrement count
+	JP	NZ,F$GPXT	;Exit if space remains in buffer
+;
+;  Output buffer Full - Write to disk & reset pointers and count
+;
+	LD	(HL),128	;Set char count.
+;
+	INC	HL		;Pt to char pointer
+	EX	DE,HL		; ... in DE
+	LD	HL,36+2		;Get buffer address.
+	ADD	HL,DE
+	EX	DE,HL		; ... in DE
+;
+	LD	(HL),E		;Save buffer start address
+	INC	HL
+	LD	(HL),D
+;	
+	CALL	WRIT$BLOCK	;Write next block
+	JP	Z,F$GPXT	;PUT completed OK - Exit
+	JP	E$DSKF		;Error - assume "Disk Full" error
+
+
+;  FI$CLOS -- Close file opened for Input
+;
+FI$CLOS:
+	PUTRG			;Save BC, DE
+	LD	A,(HL)		;Get open flag...
+	OR	A		; 0 = File not open.
+	JP	Z,F$EXIT	;Restore regs and exit if not.
+;
+	LD	(FIO$TBL),HL	;Save address of Input control table
+	JP	CLOSE2		;Close File if open.
+
+
+;
+;  FO$CLOS -- CLOSE FILE OPENED FOR OUTPUT
+;
+FO$CLOS:
+	PUTRG			;Save BC, DE
+	LD	A,(HL)		;Get open flag...
+	OR	A		; 0 = File not open.
+	JP	Z,F$EXIT	;Restore regs and exit if not.
+;
+	LD	(FIO$TBL),HL	;Save address of Output control table
+	INC	HL		;Pt to buffer Free space count
+	LD	A,(HL)		;Get # bytes remaining
+	CP	128		;Just close file if Output buffer is empty.
+	JP	Z,CLOSE2
+;
+	LD	A,EOF		;PUT CP/M text EOF
+	CALL	F$PUTI		;Internal call to F$PUT.
+;
+CLOSE1:	LD	A,(HL)		;Get # bytes remaining
+	CP	128		;Close if Block just written
+	JP	Z,CLOSE2
+;
+	XOR	A		;PUT Zero
+	CALL	F$PUTI		;Internal call to F$PUT.
+	JP	CLOSE1		;Loop while space remains in buffer
+;
+CLOSE2:	LD	HL,(FIO$TBL)	;Get address of Input/Output control table
+	LD	(HL),0		;Set file opened flag to NOT opened
+;
+	INC	HL		;Get addr of output FCB
+	INC	HL
+	INC	HL
+	INC	HL
+	EX	DE,HL		;... in DE
+	LD	C,B$CL		;Close file.
+	CALL	BDOS		;Via BDOS
+	CP	0FFH		;Error?
+	JP	Z,E$CLOS	;Yes - "Close file" error
+;
+	XOR	A		;Input/Output File opened OK
+	JP	F$EXIT		;Restore regs and exit
+
+
+;  F$PUTI - Internal call to F$PUT with stack management
+;
+F$PUTI:	PUSH	HL		;Save Caller's reg
+	LD	HL,(FIO$TBL)	;Get address of Output control table
+	JP	F$PUT		;Call F$PUT - Very carefully
+
+
+;  Storage for all Global Routines
+;
+FIO$TBL: DW	0		;Address of Input/Output control table
+
+BYTE:	 DB	0		;Data byte storage
+
+	END
+

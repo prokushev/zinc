@@ -1,0 +1,29 @@
+;
+; SYSLIB Module Name:  SDIRn
+; Author:  Richard Conn
+; Part of SYSLIB3 SDIR Series
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.5
+
+	public	blkshf,blkmsk,blkmax,dirmax,selflg,order,dirbuf
+
+;*
+;*  BUFFERS
+;*
+BLKSHF:
+	DB	0	; BLOCK SHIFT FACTOR
+BLKMSK:
+	DB	0	; BLOCK MASK
+BLKMAX:
+	DW	0	; MAX NUMBER OF BLOCKS
+DIRMAX:
+	DW	0	; MAX NUMBER OF DIRECTORY ENTRIES
+SELFLG:
+	DB	0	; FILE ATTRIBUTE FLAG
+ORDER:
+	DW	0	; POINTER TO ORDER TABLE
+DIRBUF:
+	DW	0	; POINTER TO DIRECTORY
+
+	END
+

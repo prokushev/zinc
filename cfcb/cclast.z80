@@ -1,0 +1,54 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+
+c@last::
+	push	bc	;Return C set if record < last.
+	push	iy	;Return Z set if record = last.
+	push	de
+	pop	iy
+	ld	c,a
+	push	de
+	push	hl
+	ld	a,(iy+41)	;dea=no. of current record
+	ld	e,(iy+42)	;dea+1 = no. of records handled
+	ld	d,(iy+43)
+	inc	a
+	jr	nz,clst1
+	inc	de
+clst1:	ld	l,a		;del=no. records handled.
+	ld	a,d
+	cp	(iy+46)
+	jr	nz,c@lend
+	ld	a,e
+	cp	(iy+45)
+	jr	nz,c@lend
+	ld	a,l
+	cp	(iy+44)
+c@lend:	pop	hl
+	pop	de
+	ld	a,c
+	pop	iy
+	pop	bc
+	ret
+;
+	end
+
+

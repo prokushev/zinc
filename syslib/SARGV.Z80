@@ -1,0 +1,118 @@
+;
+; SYSLIB Module Name: SARGV
+; Author: Richard Conn
+; SYSLIB Version Number: 3.6
+; Module Version Number: 1.1
+
+	public	argv
+
+;
+;	ARGV is a UNIX-style ARGC/ARGV string parser.  It is passed
+; a null-terminated string in HL and the address of a token pointer
+; table in DE as follows:
+;
+;		LXI	H,STRING
+;		LXI	D,ARGV$TABLE
+;		MVI	A,0		; do not mark token end
+;		CALL	ARGV
+;		JNZ	TOKEN$OVFL	; indicates more tokens than allowed
+;		...
+;	ARGV$TABLE:
+;		DB	MAX$ENT	; max number of entries permitted
+;		DS	1	; number of entries stored by ARGV
+;		DS	2	; pointer to token 1
+;		DS	2	; pointer to token 2
+;		...
+;		DS	2	; pointer to token MAX$ENT
+;
+;	Tokens are delimited by spaces and tabs.
+;	On input, if A=0, the end of each token is not marked with a null.
+; If A<>0, a null is placed after the last byte of each token.
+;	If all went well, return with A=0 and Zero Flag set.  If there
+; are possibly more tokens than pointers, return with A=0FFH and NZ.
+;
+argv:
+	push	bc	; save regs
+	push	de
+	push	hl
+	ld	c,a	; save mark flag
+	ex	de,hl
+	ld	b,(hl)	; get max entry count
+	push	hl	; save address of max entry count
+	inc	hl	; pt to token count
+	inc	hl	; pt to first pointer
+;
+; On each loop, DE = address of next char in string and HL = address of
+; next pointer buffer; B = number of pointer buffers remaining and C =
+; mark flag (0 = no mark)
+;
+loop:
+	call	sksp	; skip spaces and tabs in string pted to by DE
+	or	a	; end of string?
+	jp	z,done
+	ld	(hl),e	; store low
+	inc	hl
+	ld	(hl),d	; store high
+	inc	hl
+	dec	b	; count down
+	jp	z,loop2
+	call	sknsp	; skip until end of token
+	or	a	; done?
+	jp	z,done
+	ld	a,c	; get mark flag
+	or	a	; 0=no mark
+	jp	z,loop1
+	xor	a	; mark with null
+	ld	(de),a	; store null
+	inc	de	; pt to next char
+loop1:
+	ld	a,b	; check count
+	or	a
+	jp	nz,loop	; continue on
+loop2:
+	call	sknsp	; skip over token
+	call	sksp	; any tokens left?
+	or	a
+	jp	z,done	; none if EOL
+	or	0ffh	; make A = 0FFH to indicate more to come
+done:
+	pop	hl	; get address of max token count
+	push	af	; save return flags
+	ld	a,(hl)	; get max token count
+	sub	b	; subtract counter
+	inc	hl	; pt to return count
+	ld	(hl),a	; set return count
+	pop	af	; get return flag
+	pop	hl	; restore regs
+	pop	de
+	pop	bc
+	ret
+;
+;  Skip over space or tab characters
+;
+sksp:
+	ld	a,(de)	; get char
+	and	7fh	; mask
+	inc	de	; pt to next
+	cp	' '	; continue if space
+	jp	z,sksp
+	cp	9	; continue if tab
+	jp	z,sksp
+	dec	de	; pt to character
+	ret
+;
+;  Skip over non-space and non-tab characters
+;
+sknsp:
+	ld	a,(de)	; get char
+	and	7fh	; mask
+	ret	z		; done if null
+	cp	' '
+	ret	z		; done if space
+	cp	9
+	ret	z		; done if tab
+	inc	de	; pt to next
+	jp	sknsp
+
+	end
+

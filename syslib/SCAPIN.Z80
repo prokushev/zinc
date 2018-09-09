@@ -1,0 +1,26 @@
+;
+; SYSLIB Module Name:  SCAPIN
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	capin,capine
+
+	EXT	CIN,COUT,CAPS
+
+;
+;  INPUT CHAR FROM USER, CAPITALIZE IT, AND ECHO IT BACK
+;
+CAPINE:
+	CALL	CAPIN	; GET CHAR
+	JP	COUT
+
+;
+;  INPUT CHAR FROM USER AND CAPITALIZE IT
+;
+CAPIN:
+	CALL	CIN	; GET CHAR
+	JP	CAPS	; CAPITALIZE
+
+	END
+

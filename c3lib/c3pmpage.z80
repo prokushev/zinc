@@ -1,0 +1,71 @@
+;
+;    CPM3LIB library: An extension to SYSLIB for CP/M 3 features
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+
+	EXTRN	PRINT,PSTR,C3@PFL,C3PCHR,C3PERR,C3POUT,C3PUSH,C3POP
+	EXTRN	C3PSTA
+;
+	DSEG
+PMNORM:	DEFB	0
+	CSEG
+
+NCHK:	CALL	C3PUSH
+	LD	A,(C3@PFL)
+	OR	A
+	JR	Z,NCHK1
+	CALL	C3PSTA	;A = pipe status
+NCHK1:	AND	7
+	OR	8
+	LD	(PMNORM),A
+	JP	C3POP
+;
+PMEPG::
+	PUSH	HL
+	PUSH	DE
+	LD	E,4		;Check "stderr" bit
+	LD	HL,C3PERR
+	JR	PMCMN
+
+PMOPG::
+	PUSH	HL
+	PUSH	DE
+	LD	E,2
+	LD	HL,C3PCHR
+PMCMN:	LD	(PSTRF+1),HL
+
+	PUSH	AF
+	LD	A,(PMNORM)
+	OR	A
+	CALL	Z,NCHK
+	LD	A,(PMNORM)
+	AND	E
+	JR	Z,PSTRE
+	POP	AF
+	POP	DE
+	POP	HL	
+PSTRF:	JP	C3PCHR
+;
+PSTRE:	POP	AF
+	POP	DE
+	POP	HL
+	JP	C3POUT
+
+	END
+

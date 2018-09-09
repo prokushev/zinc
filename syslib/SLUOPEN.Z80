@@ -1,0 +1,142 @@
+;
+; LULIB Module: LUOPEN
+; Author: Richard Conn
+; Date: 8 August 85
+; LULIB Version: 1.0
+; LULIB Module Version: 1.0
+;
+	public	luopen
+
+;
+;	LUOPEN opens a file within a library for reading.  It locates
+; the file and loads the appropriate buffers in the LUD for following
+; reads.
+;	On input, DE = ptr to LUD and HL = ptr to FN.FT
+;	On output, A is return code:
+;		0     OK
+;		0FFH  File Not Found
+;
+;	Side Effect: DMA Address is set to TBUFF
+;
+
+;
+;	Externals
+;
+	ext	f$open,r$read
+bdose	equ	5
+
+	.in	luddef
+
+luopen:
+	push	hl		; save regs
+	push	de
+	push	bc
+	push	hl		; save key regs
+	push	de
+	ld	c,26		; set DMA address
+	ld	de,tbuff
+	call	bdose
+	pop	de		; get key regs
+	pop	hl
+	ld	(file),hl	; save ptr to file name
+	ld	hl,ludfcb	; offset to FCB
+	add	hl,de
+	ex	de,hl		; DE = FCB
+	push	hl		; save ptr to LUD
+	ld	c,(hl)		; get length of directory
+	inc	hl
+	ld	b,(hl)
+	ld	hl,0		; read directory in (record 0)
+loop:
+	call	r$read		; random read
+	jr	nz,error	; file not found if error
+	push	de		; save key regs
+	push	bc
+	call	scan		; scan for file name match
+	pop	bc		; restore key regs
+	pop	de
+	jr	z,match
+	inc	hl		; pt to next record
+	dec	bc		; count down length of dir
+	ld	a,b		; done?
+	or	c
+	jr	nz,loop
+error:
+	pop	hl		; restore LUD ptr
+	or	0ffh		; set 0FFH
+done:
+	pop	bc		; restore regs
+	pop	de
+	pop	hl
+	or	a		; set flags
+	ret
+;
+;  Match - HL pts to entry
+;	Copy index and length into LUD
+;
+match:
+	ld	(ludent),hl	; save ptr to LUD entry
+	ld	de,luidx	; offset to index
+	add	hl,de		; HL pts to index
+	pop	de		; DE pts to LUD
+	inc	de		; DE pts to index in LUD
+	inc	de
+	ld	bc,4		; copy index and length into LUD
+	ldir			; copy
+	ld	hl,(ludent)	; get ptr to LUD entry
+	inc	hl		; pt to file name
+	ld	bc,11		; 11 bytes to copy
+	ldir			; copy
+	xor	a		; A=0
+	jr	done
+;
+;  Scan TBUFF for file name
+;  If found, A=0 and HL pts to entry
+;  If not found, A=0FFH
+;
+scan:
+	push	hl		; save regs
+	ld	hl,tbuff	; pt to buffer
+	ld	c,4		; 4 entries possible
+scan1:
+	ld	a,(hl)		; check for active entry
+	or	a		; 0=yes
+	jr	nz,scanxt
+	push	hl
+	inc	hl		; pt to name
+	ld	de,(file)	; pt to file name
+	ld	b,11		; 11 bytes
+scanlp:
+	ld	a,(de)		; get name
+	and	7fh		; mask msb
+	cp	'?'		; match wild
+	jr	z,scanlp1
+	cp	(hl)		; compare to dir entry
+	jr	nz,scanlp2
+scanlp1:
+	inc	hl		; pt to next
+	inc	de
+	djnz	scanlp
+	pop	hl		; we have a match - pt to entry with HL
+	pop	af		; flush old HL
+	xor	a		; return with zero for match
+	ret
+scanlp2:
+	pop	hl		; pt to current
+scanxt:
+	ld	de,32		; pt to next
+	add	hl,de
+	dec	c		; count down
+	jr	nz,scan1
+	pop	hl		; restore HL
+	or	0ffh		; set no match
+	ret
+
+;
+;  Buffers
+;
+file:	ds	2		; pointer to FN.FT
+ludent:	ds	2		; pointer to LUD entry
+
+	end
+

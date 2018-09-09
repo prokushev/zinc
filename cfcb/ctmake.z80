@@ -1,0 +1,125 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+
+	EXTRN	C@FIXF,C@ZFCB,C@DMA,CFDOS,CIFDEV,CIFNUL,C@PER,TDOS,C@FVEC
+
+CTMAKE::
+	PUSH	HL
+	PUSH	BC
+	PUSH	DE
+	PUSH	IX
+	PUSH	IY
+	CALL	COPEN0
+	POP	IY
+	POP	IX
+	POP	DE
+	POP	BC
+	POP	HL
+	RET
+;
+COPEN0:	LD	(STAMP),HL
+	CALL	CIFNUL	;Valid FCB?
+	LD	A,20
+	SCF
+	CCF
+	RET	Z
+	PUSH	DE
+	POP	IY	;IY -> UFCB
+	LD	A,(IY+38)
+	OR	(IY+39)
+	JR	Z,COPEN1
+	XOR	A
+	LD	A,30	;File already open.
+	RET
+;
+COPEN1:	PUSH	BC
+	CALL	C@FIXF
+	CALL	C@ZFCB		;Zeroise FCB
+	CALL	CIFDEV
+	JP	Z,OPNDEV
+	PUSH	IY		;FCB
+	PUSH	IX		;buffer
+	LD	HL,TDRTN
+	LD	(C@FVEC+1),HL
+	LD	C,16H		;Create the file
+	CALL	CFDOS
+	LD	HL,5
+	LD	(C@FVEC+1),HL
+	POP	IX		;buffer
+	POP	IY		;FCB
+	POP	BC		;Access mode
+	RET	NC
+	INC	A
+	OR	A
+	LD	A,24
+	RET	Z		;File exists
+;
+;File open...
+;	
+OPENRW:	RES	7,C
+	LD	(IY+47),C
+	XOR	A
+	LD	(IY+36),A
+	LD	(IY+32),A
+	LD	(IY+40),0FFh
+	LD	(IY+41),A
+	LD	(IY+42),A
+	LD	(IY+43),A
+	PUSH	IX
+	POP	BC
+	LD	(IY+38),C
+	LD	(IY+39),B
+	LD	(IY+44),A
+	LD	(IY+45),A
+	LD	(IY+46),A
+	SCF
+	RET	;File open
+;
+OPNDEV:	POP	BC
+	LD	(IY+47),C
+	PUSH	IX
+	POP	BC
+	LD	(IY+38),C
+	LD	(IY+39),B
+	LD	A,0FFh
+	LD	(IY+36),A
+	PUSH	IY
+	POP	DE
+	LD	HL,40
+	ADD	HL,DE
+	LD	D,H
+	LD	E,L
+	INC	DE
+	LD	BC,6
+	LD	(HL),A
+	LDIR
+	SCF				
+	RET
+;
+TDRTN:	LD	HL,(STAMP)
+	JP	TDOS
+;
+	DSEG
+STAMP:	DEFB	0
+	CSEG
+
+	END
+

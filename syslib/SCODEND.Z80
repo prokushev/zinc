@@ -1,0 +1,37 @@
+;
+; SYSLIB Module Name:  SCODEN
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.2
+
+	public	codend,$memry
+
+;
+;  This module returns the address of the last element of code in
+;  in the user's object program.  This address should correspond to
+;  the first available block for scratch buffer area.
+;
+;  Thanks to Ron Fowler for pointing out the availability of the
+;  $MEMRY variable.  This value is filled in by LINK-80 when the
+;  external references are resolved.
+;
+;  Input Parameters:  None
+;  Output Parameters:  HL = Address of next page
+;
+CODEND:
+	PUSH	AF
+	LD	HL,($MEMRY)		; GET ADDRESS OF NEXT BYTE
+	LD	A,L		; DON'T WASTE SPACE IF AT 256-BYTE
+	OR	A		;   BLOCK BOUNDARY
+	JP	Z,CODE1
+	INC	H		; NEXT BLOCK
+	LD	L,0
+CODE1:
+	POP	AF
+	RET
+
+$MEMRY:
+	DS	2		; FILLED IN BY L80
+
+	END
+

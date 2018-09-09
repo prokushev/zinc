@@ -1,0 +1,95 @@
+;
+; SYSLIB Module Name:  SBLINE
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	bline
+
+;
+;  BLINE -- BDOS Input Line Editor
+;	BLINE provides a very convenient interface to the BDOS for input
+; line editor functions.  It uses a buffer supplied by the user for storage
+; of the input line, and it returns a pointer to the first byte of the line
+; upon return.  The line stored in this buffer is terminated by a binary zero.
+;	To use BLINE, the user need only call it, with a capitalization flag
+; stored in the A Register and HL pointing to the first byte of the user-
+; supplied buffer which will contain the line.  This buffer is structured
+; as follows:
+;		1st Byte - Size (filled in by user)
+;		2nd Byte - Char count (filled in by BLINE)
+;		3rd to nth Byte - Characters of Line (filled in by BLINE)
+;		n+1st Byte - Terminating Zero
+; The number of bytes allocated to the entire buffer is SIZE+3, where SIZE
+; is the buffer size as supplied by the user.
+;	If A = 0, BLINE does not capitalize the input line characters;
+; if A <> 0, BLINE capitalizes the input line characters
+; before returning to the caller.
+;	No error codes are returned by BLINE.  On return, HL points to the
+; first byte of the input line and A contains a count of the number of
+; characters in that line.
+;
+
+;
+;  EQUATES
+;
+BDOS		EQU	5
+B$RDLINE	EQU	10	; READ LINE FUNCTION
+
+;
+;  EXTERNAL DECLARATIONS
+;
+	EXT	CAPS
+
+;
+;  MAIN ROUTINE FOR BLINE
+;
+BLINE:
+	PUSH	DE		; SAVE DE, BC
+	PUSH	BC
+	LD	(CAPFLG),A	; SAVE CAPITALIZATION FLAG
+	LD	(LINEST),HL	; SAVE ADDRESS OF FIRST BYTE
+	EX	DE,HL		; DE PTS TO BUFFER
+	LD	C,B$RDLINE	; READ LINE FUNCTION IN BDOS
+	CALL	BDOS		; DO READ LINE FUNCTION
+	LD	HL,(LINEST)	; PT TO RETURNED CHAR COUNT
+	INC	HL
+	LD	A,(HL)		; GET IT
+	INC	HL		; PT TO FIRST CHAR
+	PUSH	HL		; SAVE PTR TO FIRST CHAR
+	ADD	A,L		; ADD CHAR COUNT
+	LD	L,A
+	LD	A,H
+	ADC	0
+	LD	H,A		; HL PTS TO AFTER LAST CHAR
+	LD	(HL),0		; STORE ENDING ZERO
+	POP	HL		; GET PTR TO FIRST CHAR
+	LD	A,(CAPFLG)	; CAPITALIZE?
+	OR	A		; 0=NO
+	JP	Z,DONE
+	PUSH	HL		; SAVE PTR TO FIRST CHAR
+CAPLP:
+	LD	A,(HL)		; GET CHAR
+	OR	A		; END OF LINE?
+	JP	Z,CAPDN
+	CALL	CAPS		; CAPITALIZE CHAR
+	LD	(HL),A		; PUT IT BACK
+	INC	HL		; PT TO NEXT
+	JP	CAPLP
+CAPDN:
+	POP	HL		; GET PTR TO FIRST CHAR
+DONE:
+	POP	BC		; RESTORE REGS
+	POP	DE
+	DEC	HL		; PT TO CHAR COUNT
+	LD	A,(HL)		; GET CHAR COUNT
+	INC	HL		; PT TO FIRST CHAR OF LINE
+	RET
+
+LINEST:
+	DW	0		; ADDRESS OF START OF LINE BUFFER
+CAPFLG:
+	DB	0		; CAPITALIZATION FLAG (0=NO CAP)
+
+	END
+

@@ -1,0 +1,143 @@
+;
+; SYSLIB Module Name:  SEVAL
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	eval
+
+;
+;  EVAL --
+;	On input, HL points to a string of ASCII binary, octal, decimal,
+; or hexadecimal characters to convert to binary; this string may take
+; any of the following forms --
+;
+;	bbbbbbbbbbbbbbbbB -- b=0 or b=1; binary string
+;	ttttt or tttttD -- 0<= t <= 9; decimal string
+;	hhhhH or hhhhX -- 0<= h <= F; hexadecimal string
+;	oooooooO or oooooooQ -- 0<= o <=7; octal string
+;
+;	On return, DE = value, HL points to next byte after
+; string, A=E; BC is not affected.
+;	On return, CARRY Set means error, and HL pts to byte after error
+;
+
+	EXT	CAPS	; CAPITALIZATION ROUTINE
+	EXT	EVAL16	; CONVERT HEX STRING
+	EXT	EVAL10	; CONVERT DEC STRING
+	EXT	EVAL8	; CONVERT OCT STRING
+	EXT	EVAL2	; CONVERT BIN STRING
+
+EVAL:
+	PUSH	BC	; SAVE BC
+	PUSH	HL	; SAVE PTR TO 1ST CHAR
+	XOR	A	; A=0
+	LD	(CFLAG),A	; SET CHARACTER FOUND FLAG TO NULL
+
+;  Find end of string
+FEND:
+	LD	A,(HL)	; GET BYTE
+	CALL	CAPS	; CAPITALIZE
+	SUB	'0'	; ASSUME HEX
+	JP	C,FEDONE	; DONE
+	CP	10	; 0-9?
+	JP	C,FECONT	; CONTINUE
+	SUB	7
+	CP	16	; A-F?
+	JP	NC,FEDONE
+
+;  Digit found -- set flag and point to next
+FECONT:
+	LD	A,1	; GET A 1
+	LD	(CFLAG),A	; SET FLAG
+	INC	HL	; PT TO NEXT
+	JP	FEND
+
+;  Found end of string
+FEDONE:
+	LD	A,(HL)	; GET OFFENDING CHAR
+	CALL	CAPS	; CAPITALIZE
+	LD	C,A
+	DEC	HL	; GET PREVIOUS CHAR (POSSIBLY BINARY OR DEC)
+	LD	A,(HL)	; GET IT
+	CALL	CAPS	; CAPITALIZE
+	LD	B,A
+	POP	HL	; RESTORE POINTER TO 1ST CHAR IN STRING
+	LD	DE,0	; SET ZERO VALUE (ERROR EXIT)
+	LD	A,(CFLAG)	; ANY CHARS?
+	JP	Z,DONE	; DONE IF NONE
+
+;  Determine type of string (H,X=hex; O,Q=oct; B=bin; D,other=dec)
+	LD	A,C	; GET TERMINATING CHAR
+	CP	'H'	; HEX
+	JP	Z,EHEX
+	CP	'X'
+	JP	Z,EHEX
+	CP	'O'	; OCTAL
+	JP	Z,EOCT
+	CP	'Q'
+	JP	Z,EOCT
+	LD	A,B	; GET PREVIOUS CHAR FOR BINARY CHECK
+	CP	'B'	; BINARY?
+	JP	Z,EBIN
+
+;  Evaluate string as decimal
+	CALL	EVAL10	; EVALUATE AS DECIMAL
+	LD	A,(HL)	; MAY PT TO D
+	CALL	CAPS
+	CP	'D'	; INCR HL IF SO
+	JP	NZ,DONE
+	INC	HL	; PT TO NEXT
+	JP	DONE
+
+;  Evaluate string as hexadecimal
+EHEX:
+	CALL	EVAL16	; EVAUATE AS HEXADECIMAL
+	LD	A,(HL)	; MUST PT TO H OR X
+	CALL	CAPS
+	INC	HL	; PT TO NEXT
+	CP	'H'
+	JP	Z,DONE
+	CP	'X'
+	JP	Z,DONE
+
+;  String Error -- set flag
+ERROR:
+	LD	A,E	; LOW-ORDER IN A
+	SCF		; SET CARRY FLAG FOR ERROR
+	POP	BC	; RESTORE BC
+	RET
+
+;  Evaluate string as octal
+EOCT:
+	CALL	EVAL8	; EVALUATE AS OCTAL
+	LD	A,(HL)	; MUST PT TO O OR Q
+	CALL	CAPS
+	INC	HL	; PT TO NEXT
+	CP	'O'
+	JP	Z,DONE
+	CP	'Q'
+	JP	Z,DONE
+	JP	ERROR	; ERROR OTHERWISE
+
+;  Flag buffer
+CFLAG:	DS	1	; 0 IF NO CHARS IN STRING, 1 OTHERWISE
+
+;  Evaluate string as binary
+EBIN:
+	CALL	EVAL2	; EVALUATE AS BINARY
+	LD	A,(HL)	; MUST PT TO B
+	CALL	CAPS
+	INC	HL	; PT TO NEXT
+	CP	'B'
+	JP	NZ,ERROR
+
+;  Done with evaluation -- no error
+DONE:
+	LD	A,E	; LOW-ORDER IN A
+	OR	A	; CLEAR CARRY FLAG
+	POP	BC	; RESTORE BC
+	RET
+
+	END
+

@@ -1,0 +1,86 @@
+;
+; SYSLIB Module Name:  SBBLIN
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	bbline
+
+;
+;  BBLINE -- Buffered BDOS Input Line Editor
+;	BBLINE provides a very convenient interface to the BDOS for input
+; line editor functions.  It contains its own internal buffer for storage
+; of the input line (200 bytes allocated), and it returns a pointer to
+; the first byte of the line upon return.  The line stored in this buffer
+; is terminated by a binary zero (0).
+;	To use BBLINE, the user need only call it, with a capitalization flag
+; stored in the A Register.  If A = 0, BBLINE does not capitalize the input
+; line characters; if A <> 0, BBLINE capitalizes the input line characters
+; before returning to the caller.
+;	No error codes are returned by BBLINE.  On return, HL points to the
+; first byte of the input line and A contains a count of the number of
+; characters in that line.
+;
+
+;
+;  EQUATES
+;
+BDOS		EQU	5
+B$RDLINE	EQU	10	; READ LINE FUNCTION
+
+;
+;  EXTERNAL DECLARATIONS
+;
+	EXT	CAPS
+
+;
+;  MAIN ROUTINE FOR BBLINE
+;
+BBLINE:
+	JP	START	; SKIP OVER BUFFER
+INLINE:
+	DB	200	; ALLOW 200 BYTES IN BUFFER
+CCNT:
+	DB	0	; CHARACTER COUNT
+LINE:
+	DS	200	; BUFFER SPACE
+	DB	0	; TERMINATING ZERO
+CAPFLG:
+	DS	1	; CAPITALIZATION FLAG (0=NO CAP)
+START:
+	PUSH	DE	; SAVE DE, BC
+	PUSH	BC
+	LD	(CAPFLG),A	; SAVE CAPITALIZATION FLAG
+	LD	DE,INLINE	; PT TO BUFFER
+	LD	C,B$RDLINE	; READ LINE FUNCTION IN BDOS
+	CALL	BDOS	; DO READ LINE FUNCTION
+	LD	HL,CCNT	; PT TO CHAR COUNT
+	LD	A,(HL)	; GET IT
+	INC	HL	; PT TO FIRST CHAR
+	ADD	A,L	; ADD CHAR COUNT
+	LD	L,A
+	LD	A,H
+	ADC	0
+	LD	H,A	; HL PTS TO AFTER LAST CHAR
+	LD	(HL),0	; STORE ENDING ZERO
+	LD	A,(CAPFLG)	; CAPITALIZE?
+	OR	A	; 0=NO
+	JP	Z,DONE
+	LD	HL,LINE	; MOVE THRU LINE
+CAPLP:
+	LD	A,(HL)	; GET CHAR
+	OR	A	; END OF LINE?
+	JP	Z,DONE
+	CALL	CAPS	; CAPITALIZE CHAR
+	LD	(HL),A	; PUT IT BACK
+	INC	HL	; PT TO NEXT
+	JP	CAPLP
+DONE:
+	POP	BC	; RESTORE REGS
+	POP	DE
+	LD	HL,LINE	; PT TO FIRST CHAR IN LINE
+	LD	A,(CCNT)	; GET CHAR COUNT
+	RET
+
+	END
+

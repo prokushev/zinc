@@ -1,0 +1,70 @@
+;
+; SYSLIB Module Name: DGOTO1
+; Author: Richard Conn
+; SYSLIB Version Number: 3.6
+; Module Version Number: 1.1
+
+	public	dgoto1
+
+;
+; DGOTO1 is a computed GOTO.  When called, register pair HL = index of
+; following address to branch to and register pair DE = maximum value
+; allowed, as indicated:
+;
+;	LXI	H,INDEX	; zero-relative
+;	LXI	D,2	; max value allowed
+;	CALL	DGOTO1
+;	DW	ADDR0	; IF HL=0
+;	DW	ADDR1	; IF HL=1
+;	DW	ADDR2	; IF HL=2
+;	<error instructions>	; IF HL > DE
+;	...
+; ADDR0:		; COME HERE IF HL=0
+;	...
+; ADDR1:		; COME HERE IF HL=1
+;	...
+; ADDR2:		; COME HERE IF HL=2
+;	...
+;
+dgoto1:
+	ld	(hlsave),hl	; save HL
+	push	af		; save regs
+	push	de
+	ld	a,d		; check for range error
+	cp	h
+	jp	c,rangerr	; H > D, so set max
+	jp	nz,goto
+	ld	a,e		; check for range error
+	cp	l
+	jp	nc,goto		; E >= L, H = D
+rangerr:
+	ex	de,hl		; HL = DE = return index
+	inc	hl		; return index + 1 for error return
+goto:
+	ld	(index),hl	; save index
+	pop	de		; get regs
+	pop	af
+	pop	hl		; get return address
+	push	de		; save regs
+	push	af
+	ex	de,hl		; return address in DE
+	ld	hl,(index)	; HL = index value
+	add	hl,hl		; HL = offset (index * 2)
+	add	hl,de		; point to jump in HL
+	ld	a,(hl)		; get low
+	inc	hl
+	ld	h,(hl)		; get high
+	ld	l,a		; HL = address to return to
+	pop	af		; get regs
+	pop	de
+	push	hl		; set address of routine
+	ld	hl,(hlsave)	; restore HL
+	ret
+;
+; Save buffers
+;
+hlsave:	ds	2	; original HL
+index:	ds	2	; index value
+
+	end
+

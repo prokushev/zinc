@@ -1,0 +1,2313 @@
+;
+;    3DIR: Directory listing (GPLed clone of CP/M 3 DIR)
+;    Copyright (C) 2000  John Elliott <jce@seasip.demon.co.uk>
+;
+;    This program is free software; you can redistribute it and/or modify
+;    it under the terms of the GNU General Public License as published by
+;    the Free Software Foundation; either version 2 of the License, or
+;    (at your option) any later version.
+;
+;    This program is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;    GNU General Public License for more details.
+;
+;    You should have received a copy of the GNU General Public License
+;    along with this program; if not, write to the Free Software
+;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+
+	INCLUDE	ZINCHEAD.INC
+	INCLUDE	3DIRFMT.INC
+;
+	EXTRN	DIRPINI,DIRLF			 ;3DIRPAGE
+	EXTRN	OPTIONS,OPTCODE,BPAT		 ;3DIROPT
+	EXTRN	L_DRVLIST,G_DRVLIST,G_USERLIST	 ;ditto
+	EXTRN	D_FMT,D_SORT,D_F1,D_EXCL	 ;ditto
+	EXTRN	D_MSG,D_PGLEN,D_PGMODE,D_FF	 ;ditto
+	EXTRN	D_ORDER				 ;ditto
+	EXTRN	CPARSE,COPFCB			 ;CFCB
+	EXTRN	C3OPT,C3EXIT,C3SCBG		 ;CPM3LIB
+	EXTRN	PMESTR,PMEPR,PMPSTR,PMOPR,C3PM00 ;CPM3LIB
+	EXTRN	C3D2A,C3T2A			 ;CPM3LIB
+	EXTRN	EVAL10,PA3DC,SORT,AGOTO1,MAFDC	 ;SYSLIB
+	EXTRN	DIVHD,MHLDC,MHL4DC,BDOS		 ;SYSLIB
+	EXTRN	@LAST				 ;LAST
+;
+; Code segment options area
+;
+	DEFW	D_FMT	;Address of options area
+SEPCHAR:
+	DEFB	':'	;Separator character in directory listings
+;
+FFSTR:	DEFB	0Ch,0
+	DEFS	6	;String to print for a form feed
+;
+; Main code
+;
+MAIN:	
+;
+; Deal with memory allocation
+;
+	LD	HL,(6)
+	LD	L,0		;HL = top of memory
+	LD	SP,HL
+	DEC	H
+	LD	(RAMTOP),HL
+
+	CALL	C3PM00		;Initialise PIPEMGR
+
+	LD	C,2Dh
+	LD	E,0FFh		;Deal with disk errors ourselves
+	CALL	BDOS
+
+	LD	C,19h		;Current drivespec
+	CALL	BDOS
+	LD	(CCP_DRV),A
+	LD	C,20h		;Current user number
+	LD	E,0FFH
+	CALl	BDOS
+	LD	(CCP_USR),A
+
+	LD	DE,80h		;0-terminate the command line.
+	LD	A,(DE)		;PIPEMGR did this if it loaded, but we
+	LD	L,A		;don't know if it did.
+	LD	H,D
+	INC	DE
+	ADD	HL,DE
+	LD	(HL),0			;0-terminate command line
+
+	EX	DE,HL			;HL->command line
+	LD	DE,OPTIONS
+	LD	IY,OPTCODE
+	CALL	C3OPT	
+
+	LD	A,(D_PGMODE)	
+	CALL	DIRPINI			;Initialise the pager
+					;nb: we are using a custom one
+					;so we can do headings.
+;
+; Now parse local filenames. There are at most 64 of these (you can 
+; only get 64 filenames into a 127-byte command line) and if we parse each
+; filename as 13 bytes, that gives us 832 bytes of storage maximum.
+;
+; Format of an argument filename is:
+;  Drive (0 for default, else 1-16)
+;  User  (0 for default, else 1-16)
+;  Filename
+;
+	LD	DE,@LAST
+	LD	HL,81h
+PLP:	LD	A,(HL)
+	OR	A
+	JR	Z,PLEND
+	CP	'['
+	JR	Z,PLOPT
+	CP	' '
+	JR	Z,PLNXT
+	CP	9
+	JR	Z,PLNXT
+;
+;Parse a filename
+;
+	LD	(PFCB),HL
+	PUSH	DE
+	LD	DE,PFCB
+	CALL	CPARSE	;Parse 
+	POP	DE
+	LD	A,H
+	AND	L
+	INC	A	;If A = 0, parse error
+	JP	Z,BADFNAME
+	PUSH	HL
+	LD	A,(PCFCB)	
+	LD	(DE),A
+	INC	DE
+	LD	A,(PCFCB+37)
+	CP	20h		;One of the "device special" filenames
+	JP	NC,BADFNAME
+	LD	(DE),A
+	INC	DE
+	PUSH	HL
+	LD	HL,PCFCB+1
+	LD	A,(HL)
+	CP	' '		;Convert "all spaces" filenames to "*.*"
+	JR	NZ,CFNAME
+	LD	HL,QFCB
+CFNAME:	LD	BC,11
+	LDIR
+	LD	HL,(ARGC)
+	INC	HL
+	LD	(ARGC),HL
+	POP	HL
+	LD	A,H
+	OR	L
+	JR	Z,PLEND
+	JR	PLP	;HL->terminating character
+
+PLOPT:	INC	HL
+	LD	A,(HL)
+	OR	A
+	JR	Z,PLEND
+	CP	']'
+	JR	NZ,PLOPT
+PLNXT:	INC	HL
+	JR	PLP
+;
+PLEND:	LD	(RAMBOT),DE	;End of command tail, start of workspace
+	LD	HL,(ARGC)
+	LD	A,H
+	OR	L		;Blank command tail?
+	JR	NZ,GOTCMD
+	LD	HL,STDCMD
+	LD	DE,@LAST
+	LD	BC,13
+	LDIR
+	LD	(RAMBOT),DE
+	LD	HL,1
+	LD	(ARGC),HL
+;
+; All arguments parsed. Now check for global/local mismatch (we can't have
+; both global and local drive letters)
+;
+GOTCMD:	LD	BC,(ARGC)
+	LD	DE,13	
+	LD	IY,@LAST	;IY -> filespec entry
+CHKLP:	LD	A,(IY+0)	;Driveletter
+	OR	A
+	JR	Z,CNODRV
+	PUSH	DE
+	DEC	A
+	CALL	BPAT		;DE = bit pattern for that letter	
+	LD	HL,(L_DRVLIST)
+	LD	A,L
+	OR	E
+	LD	L,A
+	LD	A,H
+	OR	D
+	LD	H,A
+	LD	(L_DRVLIST),HL	
+	POP	DE
+CNODRV:	LD	HL,(G_USERLIST)
+	LD	A,H
+	OR	L
+	JR	Z,CNOUSR
+	LD	A,(IY+1)
+	OR	A
+	JP	NZ,MISMU
+CNOUSR:	ADD	IY,DE
+	DEC	BC
+	LD	A,B
+	OR	C
+	JR	NZ,CHKLP	
+
+	CALL	ZAPTOTS	;Clear totals
+;
+; See if any drives were specified at all. If not, use the current drive
+;
+	LD	HL,(G_DRVLIST)
+	LD	DE,(L_DRVLIST)
+	LD	A,H
+	OR	L
+	OR	D
+	OR	E
+	JR	NZ,SOMEDRVS
+	LD	A,(CCP_DRV)	;A = current drive
+	CALL	BPAT
+	LD	(G_DRVLIST),DE	;Add a [DRIVE=this] for the current drive
+SOMEDRVS:
+;
+; Now check if there's a clash between G_DRVLIST and L_DRVLIST
+;
+	LD	HL,(G_DRVLIST)
+	LD	A,H
+	OR	L
+	LD	HL,(L_DRVLIST)
+	JR	Z,L_MODE	;A = 0: L_MODE
+	LD	A,H
+	OR	L
+	JP	NZ,MISMD
+G_MODE:	LD	HL,(G_DRVLIST)
+	LD	A,1		;A = 1: G_MODE
+L_MODE:	LD	(GLOBAL),A
+	LD	BC,1000h
+G_LOOP:	PUSH	HL
+	PUSH	BC
+	BIT	0,L
+	CALL	NZ,G_DRIVE
+	POP	BC
+	POP	HL
+	SRL	H
+	RR	L
+	INC	C
+	DJNZ	G_LOOP
+FINISH:	LD	HL,(FILECT)
+	LD	A,H
+	OR	L
+	JP	NZ,0
+	CALL	PMEPR
+	DEFB	'No file(s).',cr,lf,0
+	LD	DE,1
+	JP	C3EXIT
+;
+G_DRIVE:	
+	LD	A,C
+	LD	(CURDRV),A
+	ADD	A,'A'
+	LD	(SCAND$),A
+	LD	E,C	;Drive number
+	CALL	LOGDRV
+	RET	NC
+;
+; Scan directory
+;
+	LD	BC,0		;Start at file 0
+	LD	(DIRCNT),BC	;Count of directory entries we found
+	LD	(TDCNT),BC	;Count of time stamps we found
+SCDL1:	CALL	PMEPR
+SCAND$:	DEFB	'A: Scanning directory...',cr,lf,0
+	CALL	SCANDIR
+	PUSH	AF	;Returns Z set if at end of directory, else Z clear
+	PUSH	BC
+	LD	A,(D_SORT)
+	OR	A
+	CALL	NZ,SORTDIR
+	CALL	SHOWDIR
+	POP	BC
+	POP	AF
+	JR	NZ,SCDL1
+	RET
+;
+LOGDRV:	LD	C,0Eh
+	CALL	BDOS
+	CP	0FFH
+	JR	NC,LOGERR
+	LD	C,65h
+	CALL	BDOS	;Get dir. label byte
+	LD	(DIRLBL),A
+	LD	C,1Fh
+	CALL	BDOS
+	LD	DE,SPT
+	LD	BC,11h
+	LDIR		;Take a copy of the DPB
+	LD	HL,LBLNAME
+	LD	DE,LBLNAME+1
+	LD	(HL),' '
+	LD	BC,10
+	LDIR		;Blank directory label name
+	SCF
+	RET
+;
+LOGERR:	CALL	PMEPR
+	DEFB	'Could not access drive ',0
+	LD	A,(CURDRV)
+	ADD	A,'A'
+	LD	(LOGMS),A
+	CALL	PMEPR
+LOGMS:	DEFB	'X: - this drive will not be scanned.',cr,lf,0
+	XOR	A
+	RET
+;
+	DSEG
+CCP_DRV:
+	DEFB	0			;CCP drive
+CCP_USR:
+	DEFB	0			;CCP user number
+STDCMD:	DEFB	0,0,'???????????'	;*.* on current drive & user
+RAMBOT:	DEFW	0			;Start of free space
+RAMTOP:	DEFW	0			;End of free space
+RAMLEN:	DEFW	0			;Size of free space / 32
+ARGC:	DEFW	0			;Number of filenames passed
+
+PFCB:	DEFW	0			;Used while parsing filenames
+	DEFW	PCFCB
+PCFCB:	DEFS	48
+GLOBAL:	DEFB	0			;In global or local mode?
+CURDRV:	DEFB	0			;Current drive being scanned
+DIRLBL:	DEFB	0			;Directory label byte
+LBLNAME:
+	DEFS	11			;Disk label name
+;
+; Drive DPB
+;
+SPT:	DEFW	0
+BSH:	DEFB	0
+BLM:	DEFB	0
+EXM:	DEFB	0
+DSM:	DEFW	0
+DRM:	DEFW	0
+AL0:	DEFW	0
+CKS:	DEFW	0
+OFF:	DEFW	0
+PSH:	DEFB	0
+PHM:	DEFB	0
+
+	CSEG
+;
+; Report an incorrect filename
+;
+BADFNAME:
+	LD	HL,(PFCB)	;Start of the iffy filename
+	PUSH	HL
+PERRLP:	LD	A,(HL)
+	INC	HL		;Put in a zero after it (it should be followed
+	OR	A		;by a space or a [ )
+	JR	Z,PERRLE
+	CP	' '
+	JR	Z,PERRLZ
+	CP	'['
+	JR	NZ,PERRLP
+PERRLZ:	XOR	A
+	DEC	HL
+	LD	(HL),A
+PERRLE:	POP	HL
+	CALL	PMESTR
+	CALL	PMEPR
+	DEFB	' - not a valid filename.',cr,lf,0
+	LD	HL,0FF00h
+	JP	C3EXIT
+;
+; Report mismatch between local and global options
+;
+MISMU:	CALL	PMEPR
+	DEFB	'You have got user numbers in filenames and in [USER=] options.',cr,lf,0
+	JR	MISGEN
+;
+MISMD:	CALL	PMEPR
+	DEFB	'You have got drive letters in filenames and in [DRIVE=] options.',cr,lf,0
+MISGEN:	CALL	PMEPR
+	DEFB	'You must use one or the other, not both.',cr,lf,0
+	LD	HL,0FF00h
+	JP	C3EXIT	
+;
+;Statistics
+;
+	DSEG
+DIRCNT:	DEFW	0	;Number of dir entries (except time/date) on drive
+TDCNT:	DEFW	0	;Number of time/date entries found on drive
+FILECT:	DEFW	0	;Total number of files displayed
+	CSEG
+
+ZAPTOTS:
+	LD	HL,0
+	LD	(FILECT),HL
+	RET	
+;
+; Managing the directory buffer
+; Format of a buffer entry is:
+;
+	.comment %
+
+User number    (1 byte)	
+Filename       (8 bytes)
+Filetype       (3 bytes)
+Date stamps    (8 bytes)
+Password mode  (1 byte)
+Size           (4 bytes)
+Size in blocks (2 bytes)
+
+We will allow 32 bytes, in case.
+	%
+
+INITBUF:
+	PUSH	BC
+	LD	HL,(RAMTOP)
+	LD	DE,(RAMBOT)
+	AND	A
+	SBC	HL,DE	;HL = size of work area
+	PUSH	HL
+	LD	B,5
+INITB0:	SRL	H
+	RR	L
+	DJNZ	INITB0
+	DEC	HL	;Ensure the last buffer is always filled with
+			;0FFh bytes, as an end marker.
+	LD	(RAMLEN),HL
+	POP	BC	;BC = length of work area
+	LD	HL,(RAMBOT)
+	LD	D,H
+	LD	E,L
+	INC	DE
+	DEC	BC
+	LD	(HL),0FFh	;Fill the buffer with 0FFhes
+	LDIR
+	POP	BC
+	RET
+;
+SCANDIR:
+	CALL	INITBUF
+	CALL	SKIPBC
+	LD	DE,(RAMBOT)
+	LD	HL,(RAMLEN)
+SCDLP:	CALL	QFIND	;Find another directory entry
+	CP	0FFh
+	JR	Z,SCDEND
+	CALL	QADD	;Add the entry we just found to the database
+	LD	A,H
+	OR	L
+	JR	Z,SCDFUL
+	LD	A,12h
+	JR	SCDLP
+;
+; Buffer full. Return NZ.
+;
+SCDFUL:	XOR	A
+	DEC	A
+	LD	(FULLBUF),A
+	RET
+;
+; All entries retrieved.
+;
+; If time/date entries present, calculate how many there are in the whole
+;directory (since we may only have got some).
+;
+SCDEND:	LD	HL,(TDCNT)
+	LD	A,H
+	OR	L
+	JR	Z,SCDEN2
+	LD	HL,(DRM)
+	INC	HL
+	SRL	H
+	RR	L
+	SRL	H
+	RR	L
+	LD	(TDCNT),HL	;No. of dir entries / 4
+
+SCDEN2:	XOR	A
+	LD	(FULLBUF),A
+	RET
+;
+SKIPBC:	LD	A,B
+	OR	C
+	LD	A,11h	;Nothing to skip: A = 11h 
+	RET	Z
+	PUSH	BC
+SKIPL:	PUSH	BC
+	CALL	QFIND
+	POP	BC
+	DEC	BC
+	LD	A,B
+	OR	C
+	LD	A,12h	;Searchnext rather than searchfirst
+	JR	NZ,SKIPL	
+	POP	BC
+	RET
+;
+QFIND:	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+	PUSH	AF
+	LD	DE,80h
+	LD	C,1Ah
+	CALL	BDOS	;Set DMA to 80h
+	POP	AF
+	LD	C,A
+	LD	DE,QFCB
+	CALL	BDOS	;Do a search
+	CP	0FFh
+	JR	NZ,QFRET
+	LD	A,H
+	OR	A
+	LD	A,0FFh
+	JR	Z,QFRET
+;
+;Physical error. 
+;
+	CALL	PMEPR
+	DEFB	'Disk error: cannot continue.',cr,lf,0
+;
+QFRET:	POP	HL
+	POP	DE
+	POP	BC
+	RET
+;
+; A = 0,1,2, or 3. 
+;
+QADD:	PUSH	HL	;Add directory entry number A to the database
+	PUSH	BC
+	PUSH	DE
+
+	LD	HL,Y_USER
+	LD	DE,Y_USER+1
+	LD	BC,31
+	LD	(HL),B
+	LDIR
+;
+;Copy in the filename, user number and type
+;
+	LD	(ENO),A
+	RRCA		
+	RRCA		
+	RRCA		;A = 0 20 40 or 60
+	ADD	A,80h
+	LD	L,A
+	LD	H,0	;HL = address of the entry we found
+	LD	A,(HL)
+	CP	021h	;Count of timestamps
+	CALL	Z,TDINC
+	JR	Z,NTDINC
+	CP	0E5h
+	CALL	NZ,DIRINC	
+
+NTDINC:	CP	20h
+	JP	Z,CLBL
+	CP	10h
+	JP	NC,QASKIP
+	LD	DE,Y_USER
+	LD	BC,32
+	LDIR
+	CALL	WINNOW	;Compare to passed filenames
+	JP	NC,QASKIP
+
+	LD	HL,Y_USER
+	LD	DE,X_USER
+	LD	BC,12
+	LDIR		;Copy userid, filename & type to the Y_buffer
+	LD	IY,Y_USER	;Entry as it came off the disc
+	LD	IX,X_USER	;Entry as it will be added to the buffer
+;
+;Get the time stamps, if any 
+;
+	LD	A,(0E0h)
+	CP	21h
+	JR	NZ,NOTIME
+;
+; Stamps are at E1h + 10 * ENO. If they are present, copy them to X_DATE.
+;
+	LD	HL,0E1h
+	LD	BC,10
+	LD	A,(ENO)
+	OR	A
+	JR	Z,CPTIME
+CLTIME:	ADD	HL,BC
+	DEC	A
+	JR	NZ,CLTIME
+;
+CPTIME:	LD	DE,X_DATE
+	LD	BC,9		;Stamps and password mode
+	LDIR
+NOTIME:
+;
+; Now work out the size of this entry. 
+;
+	LD	A,(EXM)		;Extent mask for this drive
+	LD	B,A
+	LD	A,(Y_EXT)	;Extent number
+	AND	B
+	LD	H,A		;B  = no. of records in extent / 128
+	LD	L,0		;HL = (no. of records in extent / 128)*256
+	SRL	H
+	RR	L		;HL = (no. of record in extent / 128)*128 
+	LD	A,(Y_RC)
+	LD	C,A
+	LD	B,0
+	AND	A
+	ADD	HL,BC		;HL = no. of records in extent
+	LD	C,H
+	LD	H,L
+	LD	L,0		;CHL = 2 * no. of bytes in extent
+	SRL	C
+	RR	H
+	RR	L		;CHL = no. of bytes in extent
+;
+;Bytewise adjustment - only on extent 0
+;
+	XOR	A
+	LD	(ISEX0),A
+	LD	A,(EXM)
+	CPL
+	LD	B,A
+	LD	A,(Y_EXT)
+	AND	B
+	JR	NZ,NOTEX0
+	LD	A,(Y_S2)
+	AND	A
+	JR	NZ,NOTEX0
+;
+; OK, we're on extent 0
+;
+	LD	A,1
+	LD	(ISEX0),A
+	LD	A,(Y_S1)
+	AND	7Fh
+	JR	Z,NOTEX0	;No bytewise adjustment
+	LD	E,A	;E = no. of bytes in last record, 0 meaning 80h
+	LD	A,80h
+	SUB	E
+	LD	E,A
+	LD	D,0	;DE = no. of unused bytes in last record
+	AND	A
+	SBC	HL,DE
+	JR	NC,NOTEX0
+	DEC	C
+NOTEX0:
+;
+;CHL = length of this extent, to the byte
+;
+	LD	B,0
+	LD	(X_SIZE),HL
+	LD	(X_SIZE+2),BC
+;
+; Count blocks. 
+;
+	LD	A,(DSM+1)	;If A=0, block numbers are 8-bit. 
+	OR	A		;Otherwise they are 16-bit.
+	JR	Z,BLKC8
+	LD	B,8
+	LD	C,0
+	LD	HL,Y_BLKS
+BLKC16:	LD	A,(HL)
+	INC	HL
+	OR	(HL)
+	INC	HL
+	JR	Z,BLKC17
+	INC	C
+BLKC17:	DJNZ	BLKC16
+	JR	BLKC0
+;
+BLKC8:	LD	B,16
+	LD	C,0
+	LD	HL,Y_BLKS
+BLKC9:	LD	A,(HL)
+	INC	HL
+	OR	A
+	JR	Z,BLKCA
+	INC	C
+BLKCA:	DJNZ	BLKC9
+BLKC0:	LD	B,0
+	LD	(X_BLKS),BC
+;
+; We now have an X_* entry for this extent. See if there is an entry for
+; an earlier extent; and if so, merge them.
+;
+	LD	HL,X_USER
+	CALL	X_LOOKUP
+	JR	C,QAMERGE
+;
+; New entry
+;
+	POP	DE
+	LD	HL,X_USER
+	LD	BC,32
+	LDIR
+	POP	BC	;New entry; therefore bump the counters
+	POP	HL
+	INC	HL
+	DEC	BC
+	RET
+;
+;Merge with existing entry at BC.
+;
+QAMERGE:
+	PUSH	BC
+	POP	IX
+	LD	A,(ISEX0)	;If extent 0, copy time stamps & pwd mode
+	OR	A
+	JR	Z,QAMSK
+	PUSH	IX
+	LD	B,9		;Copy 9 bytes into the master entry
+	LD	HL,X_DATE
+QAMLP0:	LD	A,(HL)
+	LD	(IX+12),A
+	INC	HL
+	INC	IX
+	DJNZ	QAMLP0
+	POP	IX
+QAMSK:				;IX->entry we want
+	LD	C,(IX+19h)
+	LD	B,(IX+1Ah)	;Size in blocks
+	LD	HL,(X_BLKS)
+	ADD	HL,BC
+	LD	(IX+19h),L
+	LD	(IX+1Ah),H
+
+	LD	C,(IX+15h)	;Size in bytes: low
+	LD	B,(IX+16h)
+	LD	HL,(X_SIZE)
+	ADD	HL,BC
+	LD	(IX+15h),L
+	LD	(IX+16h),H
+
+	LD	C,(IX+17h)	;Size in bytes: high
+	LD	B,(IX+18h)
+	LD	HL,(X_SIZE+2)
+	ADC	HL,BC
+	LD	(IX+17h),L
+	LD	(IX+18h),H
+	JR	QASKIP
+
+CLBL:	INC	HL		;Entry is for the directory label.
+	LD	DE,LBLNAME	;Take a copy of it.
+	LD	B,11
+CLBL1:	LD	A,(HL)
+	AND	7Fh
+	CP	20h
+	JR	NC,CLBL2
+	LD	A,' '
+CLBL2:	LD	(DE),A
+	INC	HL
+	INC	DE
+	DJNZ	CLBL1
+QASKIP:	POP	DE
+	POP	BC
+	POP	HL
+	RET
+;
+	DSEG
+FULLBUF:
+	DEFB	0	;Buffer is full, statistics are partial.
+ENO:	DEFB	0	;Dir entry index in 80h-FFh
+ISEX0:	DEFB	0	;Is this the first extent of a file?
+;
+; Directory entry that will be added to the database
+;
+X_USER:	DEFB	0	;00 User number
+X_NAME:	DEFS	8	;01 Name
+X_TYPE:	DEFS	3	;09 Type
+X_DATE:	DEFS	8	;0C Date
+X_PWDM:	DEFB	0	;14 Password mode
+X_SIZE:	DEFW	0,0	;15 Exact size
+X_BLKS:	DEFW	0	;19 Size in blocks
+	DEFS	X_USER + 32 - $
+;
+; Copy of the directory entry as seen on the disc
+;
+Y_USER:	DEFB	0
+Y_NAME:	DEFS	8
+Y_TYPE:	DEFS	3
+Y_EXT:	DEFB	0
+Y_S1:	DEFB	0
+Y_S2:	DEFB	0
+Y_RC:	DEFB	0
+Y_BLKS:	DEFS	16
+;
+QFCB:	DEFB	'?????????????'
+	DEFS	23
+;
+DUMPBF:	DEFB	':xxxxxxxx.xxx ',0
+TBUF:	DEFS	64
+	CSEG
+;
+X_LOOKUP:
+;
+; HL->directory entry. See if there is such an entry in the list already.
+;
+	LD	BC,(RAMBOT)
+XLKLP:	LD	A,(BC)
+	CP	0FFh
+	RET	Z	;Carry clear. End of directory, item not found.
+	PUSH	HL
+	PUSH	DE
+	PUSH	BC
+	LD	D,12
+CP12:	LD	A,(BC)	;Strip off file attributes when comparing
+	AND	7Fh
+	LD	E,A
+	LD	A,(HL)
+	AND	7Fh
+	CP	E
+	JR	NZ,XLKN
+	INC	HL
+	INC	BC
+	DEC	D
+	JR	NZ,CP12
+	POP	BC	;We have a match! BC->entry.
+	POP	DE
+	POP	HL
+	SCF
+	RET
+
+XLKN:	POP	BC	;Entry did not match. Go to the next.
+	LD	HL,32
+	ADD	HL,BC
+	LD	B,H
+	LD	C,L
+	POP	DE
+	POP	HL
+	JR	XLKLP
+;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;See if the directory entry at Y_USER matches the criteria
+;passed in options.
+;
+WINNOW:	LD	HL,Y_USER+1	;F1
+	LD	DE,D_F1
+	LD	BC,0404h
+W_UOPT:
+	CALL	CKOPT
+	RET	NC
+	INC	DE
+	INC	HL	
+	DJNZ	W_UOPT
+;
+;BC is now 4
+;
+	ADD	HL,BC
+	LD	B,3
+W_SOPT:	CALL	CKOPT
+	RET	NC
+	INC	DE
+	INC	HL
+	DJNZ	W_SOPT
+;
+; End of option-based filter. If there was a global usernumber list, check
+; that.
+;
+	LD	HL,(G_USERLIST)
+	LD	A,H
+	OR	L
+	JR	Z,NO_GUSER
+	LD	A,(Y_USER)
+	CALL	BPAT	;DE = bitmap pattern
+	LD	A,H
+	AND	D
+	LD	D,A
+	LD	A,L
+	AND	E	
+	OR	D
+	RET	Z	;User number is not on the global list
+NO_GUSER:
+;
+;Match with arguments. 
+;
+	LD	A,(ARGC)	;There are at most 64 arguments
+	LD	B,A
+	LD	DE,13
+	LD	IX,@LAST
+	LD	A,(D_EXCL)	;Exclude option?
+	OR	A
+	JR	NZ,ACLPE
+ACLP:	CALL	ARGCP		;Got a match
+	RET	C
+	ADD	IX,DE
+	DJNZ	ACLP
+	AND	A		;No match - return NC
+	RET
+;
+ACLPE:	CALL	ARGCP
+	CCF
+	RET	NC		;If file matches, it's out
+	ADD	IX,DE
+	DJNZ	ACLP
+	SCF			;No match; include it.
+	RET
+;
+;Compare an argument at IX with the provided filename. Return Carry set if
+;it matches, else Carry clear.
+;
+ARGCP:	PUSH	BC
+	PUSH	DE
+	CALL	ARGCQ
+	POP	DE
+	POP	BC
+	RET
+;
+ARGCQ:	
+;
+;Does it apply to this drive?
+;
+	CALL	ARGD
+	RET	NC	
+;
+;Does it apply to this usernumber?
+;
+	CALL	ARGU
+	RET	NC
+
+	PUSH	IX
+	POP	DE
+	INC	DE
+	INC	DE	;DE->template
+	LD	HL,Y_NAME
+	LD	B,11
+ARGN:	LD	A,(DE)
+	AND	7Fh
+	CP	'?'	;'?' always matches
+	JR	Z,ARGN2
+	LD	C,A
+	LD	A,(HL)
+	AND	7Fh
+	CP	C	;No match
+	JR	NZ,ARGRNC
+ARGN2:	INC	HL
+	INC	DE
+	DJNZ	ARGN
+	SCF
+	RET
+;
+ARGRNC:	AND	A
+	RET
+;
+; Does argument IX apply to this drive? Return Carry clear if it doesn't.
+;
+ARGD:	LD	A,(GLOBAL)
+	OR	A
+	SCF
+	RET	NZ		;Using global drive list. All arguments apply
+				;to all drives. 
+	LD	A,(IX+0)
+	OR	A		;No drivespec given - use the CCP drive
+	JR	NZ,ARGDL
+	LD	A,(CCP_DRV)
+	INC	A
+ARGDL:	DEC	A
+	LD	E,A		;E = drive passed in argument
+	LD	A,(CURDRV)
+	CP	E
+	SCF
+	RET	Z		;Applies to this drive
+	CCF
+	RET			;Does not apply to this drive
+;
+;
+; Does argument IX apply to this drive? Return Carry clear if it doesn't.
+;
+ARGU:	LD	HL,(G_USERLIST)
+	LD	A,H
+	OR	L
+	SCF
+	RET	NZ		;Using global user list. All arguments apply
+				;to all usernames.
+	LD	A,(IX+1)
+	OR	A		;No drivespec given - use the CCP drive
+	JR	NZ,ARGUL
+	LD	A,(CCP_USR)
+	INC	A
+ARGUL:	DEC	A
+	LD	E,A		;E = drive passed in argument
+	LD	A,(Y_USER)
+	CP	E
+	SCF
+	RET	Z		;Applies to this drive
+	CCF
+	RET			;Does not apply to this drive
+;
+;Check if a file attribute is required to be there (or not to be there)
+;
+CKOPT:	LD	A,(DE)
+	OR	A
+	SCF
+	RET	Z		;Option was not specified
+;
+; A = 1 if option must be 1, 0FFh if it must be 0
+;	
+	CPL			;A = 0 if it must be 0, 0FEh if it must be 1
+	AND	80h		;A = 0 if it must be 0, 80h if it must be 1
+	PUSH	BC
+	LD	B,A
+	LD	A,(HL)
+	AND	80h		;A = option bit value
+	CP	B
+	POP	BC		;If A=B, OK.
+	SCF
+	RET	Z
+	CCF
+	RET
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+DIRINC:	PUSH	HL		;Increment the count of used directory 
+	LD	HL,(DIRCNT)	;entries.
+	INC	HL
+	LD	(DIRCNT),HL
+	POP	HL
+	RET
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Sort the directory buffer
+;
+SORTDIR:
+;
+;Count entries
+;
+	LD	HL,(RAMBOT)
+	LD	DE,32
+	LD	BC,0
+ECOUNT:	LD	A,(HL)
+	CP	0FFh
+	JR	Z,SORTE
+	INC	BC
+	ADD	HL,DE
+	JR	ECOUNT
+;
+SORTE:	LD	A,B
+	OR	C
+	RET	Z	;No entries
+	CALL	PMEPR
+	DEFB	cr,lf,'Sorting directory...',cr,lf,0
+	LD	(SSBCNT),BC
+
+	LD	A,(D_ORDER)	;Work out the correct order
+	LD	HL,SRT_TYPE
+	CP	'T'
+	JR	Z,SORTE1
+	LD	HL,SRT_SIZE
+	CP	'S'
+	JR	Z,SORTE1
+	LD	HL,SRT_CTIME
+	CP	'C'
+	JR	Z,SORTE1
+	CP	'A'
+	JR	Z,SORTE1
+	LD	HL,SRT_MTIME
+	CP	'U'
+	JR	Z,SORTE1
+	LD	HL,SRT_NAME
+SORTE1:	LD	(SSBORD),HL
+	LD	HL,(RAMBOT)
+	LD	(SSB),HL
+	LD	DE,SSB
+	JP	SORT
+;
+	DSEG
+SSB:	DEFW	0
+SSBCNT:	DEFW	0
+	DEFW	32
+SSBORD:	DEFW	SRT_NAME
+	DEFW	0,0	;Not using pointers
+	CSEG
+;
+; Sort directory entries by name. I might add future options to sort
+;by time and size.
+;
+SRT_NAME:
+	PUSH	HL
+	PUSH	DE
+	PUSH	BC
+	LD	B,12	;User number, name and type
+	CALL	CPTXT
+	JP	SNEND
+;
+; Sort by file type
+;
+SRT_TYPE:
+	PUSH	HL
+	PUSH	DE
+	PUSH	BC
+	LD	BC,9	;Add 9 to both, to point at file type field
+	ADD	HL,BC
+	EX	DE,HL
+	ADD	HL,BC
+	EX	DE,HL	
+
+	LD	B,3	;Type only
+	CALL	CPTXT
+	JP	NZ,SNEND
+SNSAME:	POP	BC	;If file types are the same, use the name
+	POP	DE
+	POP	HL
+	JP	SRT_NAME
+;
+SRT_SIZE:
+	PUSH	HL
+	PUSH	DE
+	PUSH	BC
+	LD	BC,18h
+	ADD	HL,BC
+	EX	DE,HL
+	ADD	HL,BC
+	EX	DE,HL	;DE & HL->MSB of size
+	LD	B,4
+SRT_SZ1:
+	LD	A,(DE)
+	CP	(HL)
+	JR	NZ,SNEND
+	DEC	DE
+	DEC	HL
+	DJNZ	SRT_SZ1	;Sizes are the same, use name
+	JR	SNSAME
+;
+SRT_CTIME:
+	LD	A,0Dh
+	JR	SRT_TIME
+;
+SRT_MTIME:
+	LD	A,11h
+SRT_TIME:
+	PUSH	HL
+	PUSH	DE
+	PUSH	BC
+	LD	C,A
+	LD	B,0
+	ADD	HL,BC
+	EX	DE,HL
+	ADD	HL,BC
+	EX	DE,HL	;->high byte of the date
+
+	LD	A,(DE)
+	CP	(HL)
+	JR	NZ,SNEND
+	DEC	HL
+	DEC	DE	;->low byte of date
+	LD	A,(DE)
+	CP	(HL)
+	JR	NZ,SNEND
+	INC	HL
+	INC	DE
+	INC	HL	;->time
+	INC	DE
+	LD	B,2
+	JR	SRT_SZ1
+
+SNEND:	POP	BC	;End of all comparisons. If sort is descending,
+	POP	DE	;reverse the Carry flag here.
+	POP	HL
+	RET	Z
+	PUSH	AF
+	LD	A,(D_SORT)
+	CP	-1
+	JR	NZ,SDEND
+	POP	AF
+	CCF
+	RET
+;
+SDEND:	POP	AF
+	RET
+
+CPTXT:	LD	A,(HL)
+	AND	7Fh
+	LD	C,A
+	LD	A,(DE)
+	AND	7Fh
+	CP	C
+	RET	NZ
+	INC	HL
+	INC	DE
+	DJNZ	CPTXT
+	XOR	A
+	RET
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	DSEG
+DSPUSR:	DEFB	0	;Current user number to list
+DOHEAD:	DEFB	0	;Set to 1 to print a heading
+COLUMN:	DEFB	0	;Current display column
+MAXCOL:	DEFB	0	;Maximum display column
+PGCUR:	DEFB	0	;Current line on page (for [LENGTH] option)
+TSIZE:	DEFW	0,0	;Total blocks used in this listing
+TXACT:	DEFW	0,0	;Total bytes used in this listing
+TRECS:	DEFW	0,0	;Total records used in this listing
+TKAY:	DEFW	0,0	;Total kbytes used in this listing
+TCOUNT:	DEFW	0	;Total entries in this listing
+	CSEG
+
+SHOWDIR:
+	CALL	PMOPR
+	DEFB	cr,lf,0
+	LD	BC,1000h
+SHOWLP:	LD	A,C
+	LD	(DSPUSR),A
+	PUSH	BC
+	CALL	SHOWUSR
+	POP	BC
+	INC	C
+	DJNZ	SHOWLP
+	RET
+;
+SHOWUSR:
+	LD	HL,0
+	LD	(TSIZE),HL
+	LD	(TSIZE+2),HL
+	LD	(TXACT),HL
+	LD	(TXACT+2),HL
+	LD	(TRECS),HL
+	LD	(TRECS+2),HL
+	LD	(TKAY),HL
+	LD	(TKAY+2),HL
+	LD	(TCOUNT),HL
+
+	LD	HL,(RAMBOT)
+	LD	DE,32
+	LD	A,2
+	LD	(DOHEAD),A
+
+SDLP:	LD	A,(HL)
+	CP	0FFh
+	JR	Z,DFOOT
+	LD	C,A
+	LD	A,(DSPUSR)
+	CP	C
+	PUSH	HL
+	PUSH	DE
+	CALL	Z,DENTRY
+	POP	DE
+	POP	HL
+	ADD	HL,DE
+	JR	SDLP
+;
+DFOOT:	LD	A,(COLUMN)	;If we are working in columns, finish
+	OR	A		;the last one.
+	CALL	NZ,X_CRLF
+	XOR	A
+	LD	(COLUMN),A
+
+	LD	HL,(TCOUNT)
+	LD	A,H
+	OR	L
+	JR	NZ,DOFOOT
+	LD	A,(D_MSG)
+	OR	A
+	RET	Z
+	LD	A,(DSPUSR)
+	CALL	BPAT
+	LD	HL,(G_USERLIST)
+	LD	A,H
+	AND	D
+	LD	D,A
+	LD	A,L
+	AND	E
+	OR	D
+	RET	Z
+	CALL	PMOPR
+	DEFB	'User ',0
+	CALL	PMUSER
+	CALL	PMOPR
+	DEFB	' no files found.',0
+	JP	X_CRLF
+
+DOFOOT:	LD	A,(D_FMT)	;Directory entry format
+	LD	B,D_LAST+1
+	CALL	AGOTO1
+	DEFW	F_FULL
+	DEFW	F_ATT
+	DEFW	F_SIZE
+	DEFW	F_DATE
+	DEFW	F_BARE
+	DEFW	F_COL
+	DEFW	F_LS
+	DEFW	F_DOS
+	DEFW	F_DOS
+	RET
+;
+F_FULL:
+F_ATT:
+F_SIZE:
+F_DATE:
+	CALL	X_CRLF
+	CALL	PMOPR
+	DEFB	'Total Space     = ',0
+	LD	HL,(TSIZE)
+	LD	DE,(TSIZE+2)
+	LD	A,(BSH)
+	SUB	3
+	JR	Z,OPTSZ
+BLK2K:	SLA	L
+	RL	H
+	RL	E
+	RL	D
+	DEC	A
+	JR	NZ,BLK2K
+OPTSZ:	LD	IY,80h
+	CALL	DEC9
+	LD	(IY+0),'k'
+	LD	(IY+1),0
+	LD	HL,80h
+	CALL	PMPSTR
+
+	CALL	PMOPR
+	DEFB	'  Total Bytes = ',0
+	LD	HL,(TXACT)
+	LD	DE,(TXACT+2)
+	CALL	PMDEHL
+
+	CALL	PMOPR
+	DEFB	'  Total Records = ',0
+	LD	HL,(TRECS)
+	LD	DE,(TRECS+2)
+	CALL	PMDEHL
+
+	CALL	X_CRLF
+	CALL	PMOPR
+	DEFB	'Total 1k Blocks =  ',0
+	LD	HL,(TKAY)
+	LD	DE,(TKAY+2)
+	CALL	PMDEHL
+
+	CALL	PMOPR
+	DEFB	'   Files Found =    ',0
+	LD	HL,(TCOUNT)
+	CALL	PMHLDC
+
+	LD	A,(FULLBUF)	;Directory has not been completely
+	OR	A		;analysed. Don't show directory entry
+	JP	NZ,X_CRLF	;counts because they will be wrong.
+	
+	CALL	PMOPR			;Print directory space
+	DEFB	'  Dir entries    ',0	;Only print it if there
+	LD	HL,(DIRCNT)		;was room to analyse the whole 
+	CALL	PMHL4DC			;directory and not just bits.
+	CALL	PMOPR
+	DEFB	'/',0
+	LD	DE,80h
+	LD	HL,(DRM)	;Available entries
+	INC	HL
+	LD	BC,(TDCNT)	;Less timestamp entries
+	AND	A
+	SBC	HL,BC
+	CALL	PMHL4DC
+	JP	X_CRLF
+;
+F_DOS:				;DOS-style footer
+	CALL	PMOPR
+	DEFB	'    ',0
+	LD	HL,(TCOUNT)
+	CALL	PMHLDC
+	CALL	PMOPR
+	DEFB	' file(s)    ',0
+	LD	HL,(TXACT)
+	LD	DE,(TXACT+2)
+	CALL	PMDEHL
+	CALL	PMOPR
+	DEFB	' bytes',0
+	CALL	X_CRLF
+;
+;nb: DMA is still 80h after the search operation
+;
+	LD	A,(CURDRV)
+	LD	E,A
+	LD	C,2Eh	;Find free space, records
+	CALL	BDOS
+	CP	0FFh	;Couldn't find free space
+	RET	Z
+	LD	B,21	;Trading speed for space here
+INDENT:	CALL	PMOPR
+	DEFB	' ',0
+	DJNZ	INDENT
+	LD	DE,(81h)
+	LD	A,(80h)
+	LD	H,A
+	LD	L,0
+	SRL	D
+	RR	E
+	RR	H
+	RR	L	;DEHL = free space, bytes
+	CALL	PMDEHL
+	CALL	PMOPR
+	DEFB	' bytes free',0
+	JP	X_CRLF
+;
+F_COL:
+F_LS:
+F_BARE:	RET
+
+	
+;
+; Print a heading
+;
+DHEAD:	CP	2		;A = 2 on first page, 1 on subsequent pages
+	CALL	Z,N_CRLF
+	LD	HL,D_FF
+	LD	A,(HL)
+	OR	A		;D_FF = 0 : No form feeds
+	JR	Z,NO_FF
+	CP	1		;D_FF = 1 : On first page, no form feed
+	JR	Z,NO_FFI
+	PUSH	HL
+	LD	HL,FFSTR
+	CALL	PMPSTR		;D_FF = 2 : On subsequent page, do form feed
+	POP	HL		;Formfeed
+	JR	NO_FF
+
+NO_FFI:	INC	(HL)
+NO_FF:	XOR	A		;Clear "heading required"
+	LD	(DOHEAD),A
+	LD	(PGCUR),A	;Current line on page
+	LD	(COLUMN),A	;Multicolumn listings: we are in the 1st column
+	LD	A,(D_FMT)	;Directory entry format
+	LD	B,D_LAST+1
+	CALL	AGOTO1
+	DEFW	H_FULL
+	DEFW	H_ATT
+	DEFW	H_SIZE
+	DEFW	H_DATE
+	DEFW	H_BARE
+	DEFW	H_COL
+	DEFW	H_LS
+	DEFW	H_DOS
+	DEFW	H_DOS2
+	RET
+;
+H_DOS2:	LD	DE,39
+	CALL	CALCCOL
+H_DOS:	LD	A,(CURDRV)
+	ADD	A,'A'
+	LD	(DOSDRV),A
+	CALL	PMOPR
+	DEFB	' Volume in drive '
+DOSDRV:	DEFB	'x: is ',0
+	LD	A,(DIRLBL)
+	AND	1
+	JR	Z,DOSNLBL
+
+	LD	HL,LBLNAME	;Print label
+	LD	DE,80h
+	PUSH	DE
+	LD	B,8
+	CALL	COPY7
+	INC	DE
+	LD	B,3
+	CALL	COPY7
+	XOR	A
+	LD	(DE),A
+	POP	HL
+	CALL	PMPSTR
+	JR	DOSLBL
+DOSNLBL:
+	CALL	PMOPR
+	DEFB	'untitled.',0
+DOSLBL:	CALL	X_CRLF
+	CALL	PMOPR
+	DEFB	' Directory of User ',0
+	CALL	PMUSER
+	CALL	X_CRLF
+	JP	X_CRLF	
+;
+H_DATE:	CALL	H_SGL
+	LD	DE,45
+	CALL	CALCCOL		;Can we get 2 columns in?
+	LD	A,(MAXCOL)
+	LD	B,A
+	PUSH	BC
+HALP:	CALL	HEAD_N
+	CALL	HEAD_T
+	DJNZ	HALP
+	CALL	X_CRLF	
+	POP	BC
+HBLP:	CALL	UL_N
+	CALL	UL_T
+	DJNZ	HBLP
+	JP	X_CRLF
+	
+
+H_FULL:	LD	A,(DIRLBL)
+	AND	1		;Is there a label byte?
+	JR	Z,H_ATT		;No. Act as if in [ATT] mode
+	CALL	H_SGL		;Directory for drive A: etc.
+	CALL	HEAD_L
+	CALL	HEAD_R
+	CALL	X_CRLF
+	CALL	UL_L
+	CALL	UL_R
+	JP	X_CRLF
+;
+H_ATT:	CALL	H_SGL
+	LD	DE,39
+	CALL	CALCCOL		;Can we get 2 columns in?
+	LD	A,(MAXCOL)
+	LD	B,A
+	PUSH	BC
+HCLP:	CALL	HEAD_L
+	DJNZ	HCLP
+	CALL	X_CRLF	
+	POP	BC
+HDLP:	CALL	UL_L
+	DJNZ	HDLP
+	JP	X_CRLF
+;
+H_COL:	LD	DE,15
+	CALL	CALCCOL
+	JR	H_SGL
+
+H_SIZE:	LD	DE,21
+	CALL	CALCCOL
+;;;	JR	H_SGL
+
+H_LS:
+H_SGL:	LD	A,(CURDRV)
+	ADD	A,'A'
+	LD	(MDRV),A
+	LD	HL,MHEAD
+	CALL	PMPSTR
+	LD	A,(DIRLBL)
+	AND	1
+	JR	Z,H_COL1
+	LD	HL,LBLNAME
+	LD	DE,MLBL+1
+	LD	B,8
+	CALL	COPY7
+	INC	DE
+	LD	B,3
+	CALL	COPY7
+	LD	HL,MLBL
+	CALL	PMPSTR
+H_COL1:	CALL	PMOPR
+	DEFB	'User ',0
+	CALL	PMUSER
+	CALL	X_CRLF
+	CALL	X_CRLF
+H_BARE:	RET
+;
+	DSEG
+MHEAD:	DEFB	'Directory for drive '
+MDRV:	DEFB	'X: ',0
+MLBL:	DEFB	'(xxxxxxxx.xxx) ',0
+	CSEG
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Generate the headings for [ATT] and [FULL] modes.
+;
+; nb: The original DIR used headings Name,Bytes,Recs,Attributes
+;    but:
+;         i) "Bytes" gave disc allocation, to the nearest K
+;        ii) We calculate file sizes to the byte, using "Length", 
+;           rather than to the record using "Recs"; if we are 
+;           using a bytewise size, saying "Bytes" on something
+;           that isn't will only cause confusion.
+;       iii) Attributes have been reduced to 7 characters to 
+;           make room for all the other fields.
+;
+HEAD_N:	CALL	PMOPR
+	DEFB	'    Name     ',0
+	RET
+
+;
+HEAD_L:	CALL	HEAD_N
+	CALL	PMOPR	
+	DEFB	'Space   Length    Attrib  ',0
+	RET
+;
+UL_N:	CALL	PMOPR
+	DEFB	'------------ ',0
+	RET
+;
+; Underline for above heading
+;
+UL_L:	CALL	UL_N
+	CALL	PMOPR
+	DEFB	'------ -------- --------- ',0
+	RET
+;
+; Time & date headings for the right-hand column
+;
+HEAD_R:
+	CALL	PMOPR
+	DEFB	' Prot  ',0
+HEAD_T:	CALL	PMOPR
+	DEFB	'      Update            ',0
+	LD	A,(DIRLBL)
+	AND	20h
+	JR	Z,HEAD_R1
+	CALL	PMOPR
+	DEFB	'Access',0
+	RET		
+
+HEAD_R1:
+	CALL	PMOPR
+	DEFB	'Create',0
+	RET
+
+
+UL_R:	CALL	PMOPR
+	DEFB	'------ ',0
+UL_T:	CALL	PMOPR
+	DEFB	'---------------- ----------------',0
+	RET
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Print an entry
+;
+DENTRY:	LD	A,(DOHEAD)
+	OR	A
+	PUSH	HL	
+	CALL	NZ,DHEAD
+	POP	HL
+;
+;Add entry to statistics
+;
+	PUSH	HL
+	LD	DE,15h
+	ADD	HL,DE
+	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)
+	INC	HL	
+	LD	C,(HL)
+	INC	HL
+	LD	B,(HL)	;BCDE = file size, bytes
+	INC	HL
+
+	LD	IX,(TXACT)
+	ADD	IX,DE
+	LD	(TXACT),IX
+	LD	IX,(TXACT+2)
+	ADD	IX,BC
+	LD	(TXACT+2),IX
+
+	LD	A,7
+	CALL	RRBCDE
+	LD	IX,(TRECS)
+	ADD	IX,DE
+	LD	(TRECS),IX
+	LD	IX,(TRECS+2)
+	ADD	IX,BC
+	LD	(TRECS+2),IX
+
+	LD	A,3
+	CALL	RRBCDE
+	LD	IX,(TKAY)
+	ADD	IX,DE
+	LD	(TKAY),IX
+	LD	IX,(TKAY+2)
+	ADD	IX,BC
+	LD	(TKAY+2),IX
+	
+	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)	;Size in blocks
+	LD	HL,(TSIZE)
+	ADD	HL,DE
+	LD	(TSIZE),HL
+	LD	DE,0
+	LD	HL,(TSIZE+2)
+	ADC	HL,DE
+	LD	(TSIZE+2),HL
+	LD	HL,(TCOUNT)
+	INC	HL
+	LD	(TCOUNT),HL
+	LD	HL,(FILECT)
+	INC	HL
+	LD	(FILECT),HL
+	POP	HL
+;
+; Display entry
+;
+	LD	A,(D_FMT)	;Directory entry format
+	LD	B,D_LAST+1
+	CALL	AGOTO1
+	DEFW	E_FULL
+	DEFW	E_ATT
+	DEFW	E_SIZE
+	DEFW	E_DATE
+	DEFW	E_BARE
+	DEFW	E_COL
+	DEFW	E_LS
+	DEFW	E_DOS
+	DEFW	E_DOS2
+	RET	
+;
+E_DOS:	CALL	E_DOSC
+	XOR	A
+	LD	(DE),A
+	LD	HL,80h
+	CALL	PMPSTR
+	JP	X_CRLF
+;
+E_DOS2:	CALL	E_DOSC
+	JP	E_COL1
+;
+E_DOSC:	EX	DE,HL
+	LD	HL,80h
+	LD	C,6
+	CALL	COPFCB
+	EX	DE,HL
+	CALL	CATSP
+	CALL	EC_XACT
+	CALL	CATSP
+	CALL	EC_UTIME
+	RET
+
+E_DATE:	EX	DE,HL
+	LD	HL,80h
+	LD	C,6
+	CALL	COPFCB
+	EX	DE,HL
+	CALL	CATSP
+	CALL	ENTRY_T
+	JP	E_COL1
+
+E_FULL:	LD	A,(DIRLBL)
+	AND	1		;Is there a label byte?
+	JR	Z,E_ATT		;No. Act as if in [ATT] mode
+	CALL	ENTRY_L
+	CALL	CATSP
+	CALL	ENTRY_R
+	LD	HL,80h
+	CALL	PMPSTR
+	JP	X_CRLF
+
+E_ATT:	CALL	ENTRY_L
+	JR	E_COL1
+
+;
+; Format for E_LS:
+;
+; rsa1234 rwe sizesize da/te/date ti:me name
+;
+E_LS:	LD	DE,80h
+	LD	A,'-'
+	CALL	EC_ATTR
+	CALL	CATSP
+	PUSH	HL
+	LD	BC,14h
+	ADD	HL,BC
+	LD	A,(HL)	;A = password mode
+	POP	HL
+	LD	BC,8052h
+	CALL	PWCHR
+	LD	BC,4057h	
+	CALL	PWCHR
+	LD	BC,2045h
+	CALL	PWCHR
+	CALL	CATSP
+	CALL	EC_XACT
+	CALL	CATSP
+	PUSH	HL
+	LD	BC,10h
+	ADD	HL,BC	;HL->update time stamp (mtime)
+	CALL	PTIME
+	POP	HL
+	CALL	CATSP
+;
+; End of line: Filename.
+;
+	LD	C,7	;No drive letter, don't pack filename with spaces
+	EX	DE,HL
+	CALL	COPFCB
+	EX	DE,HL
+	XOR	A
+	LD	(DE),A
+	LD	HL,80h
+	PUSH	HL	;Convert the whole line to lower case
+E_LS8:	LD	A,(HL)	;so it looks more Unixy.
+	INC	HL
+	OR	A
+	JR	Z,E_LS9
+	CP	'A'
+	JR	C,E_LS8
+	CP	'Z'+1
+	JR	NC,E_LS8
+	ADD	A,20h
+	DEC	HL
+	LD	(HL),A
+	JR	E_LS8
+;
+E_LS9:	POP	HL		;Display the line
+	CALL	PMPSTR
+	JP	X_CRLF
+
+E_SIZE:	PUSH	HL
+	CALL	EC_TEXT	;Output standard 
+	POP	HL
+	CALL	EC_SIZE	;Append size
+	JR	E_COL1	
+;
+E_COL:	CALL	EC_TEXT		;Generate the column text
+E_COL1:	XOR	A
+	LD	(DE),A
+	LD	HL,80h
+	CALL	PMPSTR		;Output it
+	LD	A,(COLUMN)
+	INC	A
+	LD	D,A
+	LD	(COLUMN),A
+	LD	A,(MAXCOL)
+	CP	D		;If maxcol <= column, wrap.
+	JR	C,RESCOL
+	RET	NZ
+RESCOL:	XOR	A
+	LD	(COLUMN),A
+	JP	X_CRLF
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Output a directory entry in the form used by the [ATT] option
+;
+;
+ENTRY_L:
+	PUSH	HL
+	LD	DE,80h
+	LD	C,6	;No drive letter, pack filename with spaces
+	EX	DE,HL
+	CALL	COPFCB
+	EX	DE,HL
+	CALL	CATSP		
+	POP	HL
+	CALL	EC_SIZE	;Space
+	CALL	CATSP
+;
+; Length
+;
+	CALL	EC_XACT
+	CALL	CATSP
+	CALL	CATSP
+;
+;Attrib
+;
+	LD	A,' '	;Blank attribute
+	CALL	EC_ATTR
+	CALL	CATSP
+	JP	CATSP
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Output time stamps & password mode
+;
+	DSEG
+S_READ:	DEFB	'Read  '
+S_WRITE:
+	DEFB	'Write '
+S_DEL:	DEFB	'Erase '
+S_SP:	DEFB	'      '
+	CSEG
+
+ENTRY_R:
+	PUSH	HL
+	LD	BC,14h
+	ADD	HL,BC	;HL->password mode
+	LD	A,(HL)
+	LD	BC,S_READ
+	BIT	7,A
+	JR	NZ,PWCOPY
+	LD	BC,S_WRITE
+	BIT	6,A
+	JR	NZ,PWCOPY
+	LD	BC,S_DEL
+	BIT	5,A
+	JR	NZ,PWCOPY
+	LD	BC,S_SP
+
+PWCOPY:	LD	H,B	;Copy password mode string
+	LD	L,C
+	LD	BC,6
+	LDIR
+	POP	HL
+
+ENTRY_T:
+	CALL	EC_UTIME
+	LD	BC,-4
+	ADD	HL,BC	;Update timestamp
+	CALL	PTIME
+	ADD	HL,BC
+	XOR	A
+	LD	(DE),A
+	RET
+;
+EC_UTIME:
+	LD	BC,10h
+	ADD	HL,BC
+	CALL	PTIME
+	JP	CATSP
+;
+; Output a timestamp at HL to ASCII at DE - 16 bytes needed. Returns
+; DE->next character after ASCII
+;
+PTIME:	PUSH	AF
+	PUSH	BC
+	PUSH	HL
+
+	LD	C,(HL)
+	INC	HL
+	LD	B,(HL)
+	DEC	HL
+	LD	A,B
+	OR	C
+	JR	Z,PNTIME
+	PUSH	HL
+	LD	H,B
+	LD	L,C
+	CALL	C3D2A
+	POP	HL
+	LD	A,' '
+	LD	(DE),A
+	INC	DE
+	XOR	A
+	CALL	C3T2A
+	JR	PTIEND
+;
+PNTIME:	LD	B,16
+PNTLP:	CALL	CATSP
+	DJNZ	PNTLP
+
+PTIEND:	POP	HL
+	POP	BC
+	POP	AF
+	RET
+;
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Output a "bare" directory entry, in the form ud:filename.typ
+;
+E_BARE:	CALL	PMUSER
+	LD	DE,80h
+	LD	A,(CURDRV)
+	ADD	A,'A'
+	LD	(DE),A		;Drive
+	INC	DE
+	LD	A,':'
+	LD	(DE),A		;Colon after the driveletter
+	INC	DE
+	EX	DE,HL
+	LD	C,7		;Don't pack with spaces; no driveletter
+	CALL	COPFCB		;Filename
+	EX	DE,HL
+	XOR	A
+	LD	(DE),A		;String terminator
+	LD	HL,80h
+	CALL	PMPSTR		;Output the line.
+	JP	X_CRLF	
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Generate a filename for COL and SIZE output formats.
+;
+EC_TEXT:
+	LD	DE,80h
+	LD	A,(COLUMN)
+	OR	A
+	LD	A,' '		;Columns other than the first are separated
+	JR	NZ,E_COL2	;by spaces
+	LD	A,(CURDRV)
+	ADD	A,'A'		;The first column gets a drive letter
+E_COL2:	LD	(DE),A
+	INC	DE
+	LD	A,(SEPCHAR)
+	LD	(DE),A
+	INC	DE
+	CALL	CATSP
+	LD	C,6		;Pack with spaces; no driveletter
+	EX	DE,HL
+	CALL	COPFCB
+	EX	DE,HL
+	RET
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;Concatenate file size to buffer at DE. For [SIZE] and [FULL] modes
+;
+EC_SIZE:
+	PUSH	HL
+	PUSH	DE
+	LD	DE,19h	
+	ADD	HL,DE	;HL->file size in disc blocks
+	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)
+	EX	DE,HL	;HL = file size in disc blocks
+	LD	A,(BSH)	;Block shift
+	SUB	3	;3 => 1k blocks 4=>2k blocks etc.
+	JR	Z,E_SZ1
+E_SZ0:	ADD	HL,HL	;HL := HL * 2^(BSH-3)
+	DEC	A
+	JR	NZ,E_SZ0
+E_SZ1:	POP	DE
+	CALL	MHLDC
+	LD	A,'k'	;Append a 'k' to the file size
+	LD	(DE),A
+	INC	DE
+	POP	HL
+	RET
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;Concatenate attributes to a buffer. For FULL and LS formats.
+;
+EC_ATTR:
+	LD	BC,5209h	;'R', 9
+	CALL	ECA1
+	CALL	ECA1		;'S',10
+	LD	B,'A'		;'A',11
+	CALL	ECA1
+	LD	BC,3101h	;'1', 1
+	CALL	ECA1	
+	CALL	ECA1
+	CALL	ECA1
+
+ECA1:	PUSH	HL
+	PUSH	BC
+	LD	B,0
+	ADD	HL,BC		;->the attribute in question.
+	BIT	7,(HL)
+	JR	Z,NOATT
+	POP	BC
+	EX	DE,HL
+	LD	(HL),B
+	EX	DE,HL
+	DEFB	21h		;LD HL, <next 2 opcodes>; then the POP HL
+NOATT:	LD	(DE),A		;means we haven't trashed anything.
+	POP	BC
+	POP	HL
+	INC	B
+	INC	C
+	INC	DE
+	RET
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Print a CR/LF; if there's a page break, handle it.
+;
+N_CRLF:	LD	A,(D_FMT)	;Print a CRLF only if not in BARE mode
+	CP	D_BARE
+	RET	Z
+X_CRLF:	CALL	PMOPR		;Print a CRLF anyway
+	DEFB	0Dh,0		;Print CR
+	CALL	DIRLF
+	PUSH	AF
+	CALL	PMOPR
+	DEFB	0Ah,0		;Print LF
+	POP	AF
+	AND	A
+	JR	NZ,NHEAD	;No special processing
+	LD	A,1
+	LD	(DOHEAD),A
+NHEAD:	LD	A,(D_PGLEN)
+	OR	A
+	RET	Z		;No [LENGTH=] specification
+	PUSH	HL
+	LD	L,A		;L = page length
+	LD	A,(PGCUR)
+	INC	A
+	LD	(PGCUR),A
+	CP	L		;If A < L, we are still in the page
+	JR	C,NHD1
+	LD	A,1
+	LD	(DOHEAD),A	;Insert a heading after [LENGTH] lines
+NHD1:	POP	HL	
+	RET
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; 7-bit memory copy
+;
+COPY7:	LD	A,(HL)
+	AND	7Fh
+	LD	(DE),A
+	INC	HL
+	INC	DE
+	DJNZ	COPY7
+	RET
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Given a column size, work out how many columns will fit on the screen.
+;
+CALCCOL:
+	PUSH	DE
+	LD	L,1Ah
+	CALL	C3SCBG		;A = Screen width, characters - 1
+	LD	H,0
+	POP	DE
+	CALL	DIVHD
+	LD	A,L
+	LD	(MAXCOL),A
+	OR	A
+	RET	NZ		;If 0 columns, assume 1
+	INC	A
+	LD	(MAXCOL),A
+	RET
+;
+CATSP:	LD	A,' '	;Concatenate a space to string being created at DE.
+	LD	(DE),A
+	INC	DE
+	RET
+;
+PWCHR:	PUSH	AF
+	AND	B
+	LD	A,'-'
+	JR	Z,PWC1
+	LD	A,C
+PWC1:	LD	(DE),A
+	INC	DE
+	POP	AF
+	RET
+;
+; Output exact file size. This uses 32-bit arithmetic.
+; 
+EC_XACT:
+	PUSH	HL
+
+	PUSH	DE	;IY->buffer
+	POP	IY
+
+	LD	BC,15h
+	ADD	HL,BC
+	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)
+	INC	HL
+	LD	A,(HL)
+	INC	HL
+	LD	H,(HL)	
+	LD	L,A
+	EX	DE,HL	;DEHL = file size, 0-32Mb
+
+	CALL	DEC8
+
+	PUSH	IY
+	POP	DE	;DE->buffer
+
+	POP	HL
+	RET
+;
+DEC9:	PUSH	IY	;Output 9-digit integer
+	LD	A,8
+	LD	(DCT+1),A
+	LD	BC,05F5h
+	LD	IX,0E100h
+	CALL	D8DIG
+	JR	DEC8A
+;
+DEC8:			;IY is where the output goes 
+	PUSH	IY
+	LD	A,7
+	LD	(DCT+1),A
+DEC8A:	LD	BC,98h
+	LD	IX,9680h	;10000000 
+	CALL	D8DIG
+	LD	C,0Fh
+	LD	IX,4240h	;1000000
+	CALL	D8DIG
+	LD	C,1
+	LD	IX,86A0h	;100000
+	CALL	D8DIG
+	LD	C,0
+	LD	IX,2710h	;10000
+	CALL	D8DIG
+	PUSH	IY
+	POP	DE		;DE->buffer for low 4 digits
+	CALL	MHL4DC
+	PUSH	DE
+	POP	IY		;IY->end of output
+	POP	HL		;HL->output buffer
+
+DCT:	LD	B,7		;Trim leading zeroes from this
+SPDEC1:	LD	A,(HL)		;rather big number
+	CP	'0'
+	RET	NZ
+	LD	(HL),' '
+	INC	HL
+	DJNZ	SPDEC1
+	RET
+;
+; Calculate DEHL / BCIX and DEHL % BCIX
+;
+D8DIG:	LD	(IY+0),'0'
+D8LOOP:	LD	A,D
+	CP	B
+	JR	C,D8DPT		;D < B, so DEHL < BCIX
+	JR	NZ,D8SUB	;D > B, so DEHL > BCIX
+	LD	A,E
+	CP	C
+	JR	C,D8DPT		;If DEHL < CIX then end
+	JR	NZ,D8SUB	;DEHL > CIX, do subtract
+	CALL	CPHLIX
+	JR	C,D8DPT		;DE=C and HL < IX 
+D8SUB:	AND	A
+	CALL	SUBHLIX
+	EX	DE,HL
+	SBC	HL,BC
+	EX	DE,HL		;DE -= BC (with carry)
+	INC	(IY+0)
+	JR	D8LOOP
+;
+D8DPT:	INC	IY
+	RET
+;
+
+CPHLIX:	PUSH	HL	;Compare HL to IX
+	CALL	SUBHLIX
+	POP	HL
+	RET
+;
+SUBHLIX:		;HL -= IX
+	PUSH	BC
+	PUSH	IX
+	POP	BC
+	AND	A
+	SBC	HL,BC
+	POP	BC
+	RET
+;
+RRBCDE:	PUSH	HL
+	LD	H,0
+RRLP:	SRL	B
+	RR	C
+	RR	D
+	RR	E
+	JR	NC,RRL1
+	LD	H,1	;H = 1 if any of the bits rotated out was 1
+RRL1:	DEC	A
+	JR	NZ,RRLP
+	LD	A,H
+	OR	A
+	JR	Z,RRL2
+	INC	DE	;If a rotated bit was 1, round up what we have left.
+	LD	A,D
+	OR	E
+	JR	NZ,RRL2
+	INC	BC	;INC BCDE
+RRL2:	POP	HL
+	RET
+;
+TDINC:	PUSH	AF
+	PUSH	HL
+	LD	HL,(TDCNT)
+	INC	HL
+	LD	(TDCNT),HL
+	POP	HL
+	POP	AF
+	RET
+;
+PMUSER:	LD	A,(DSPUSR)
+PMAFDC:	PUSH	HL
+	PUSH	DE
+	LD	DE,PMAF
+	PUSH	DE
+	CALL	MAFDC
+	XOR	A
+	LD	(DE),A
+	POP	HL
+	CALL	PMPSTR
+	POP	DE
+	POP	HL
+	RET
+;
+	DSEG
+PMAF:	DEFS	10
+	CSEG
+
+PMDEHL:	LD	IY,PMAF
+	CALL	DEC8
+	LD	(IY+0),0
+	LD	HL,PMAF
+	JP	PMPSTR
+;
+; Output HL as space-filled 4-digit int
+;
+PMHL4DC:
+	PUSH	AF
+	LD	A,23h	;INC HL
+	LD	(INCOP),A
+	CALL	PMHLDC
+	XOR	A
+	LD	(INCOP),A
+	POP	AF
+	RET
+;
+; Output HL as space-filled 5-digit int
+;
+PMHLDC:	PUSH	HL
+	PUSH	DE
+	LD	DE,PMAF
+	PUSH	DE
+	CALL	MHLDC
+	XOR	A
+	LD	(DE),A
+	POP	HL
+INCOP:	NOP
+	CALL	PMPSTR
+	POP	DE
+	POP	HL
+	RET
+;
+	END
+
+

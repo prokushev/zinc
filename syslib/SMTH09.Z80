@@ -1,0 +1,24 @@
+;
+; SYSLIB Module Name:  SMTH09
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	xorhd
+
+;
+;  XORHD -- XOR HL WITH DE, RESULT IN HL
+;
+XORHD:
+	PUSH	AF
+	LD	A,L	; DO LOW
+	XOR	E
+	LD	L,A
+	LD	A,H	; DO HIGH
+	XOR	D
+	LD	H,A
+	POP	AF
+	RET
+
+	END
+

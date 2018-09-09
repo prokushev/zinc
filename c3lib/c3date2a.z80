@@ -1,0 +1,111 @@
+;
+;    CPM3LIB library: An extension to SYSLIB for CP/M 3 features
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+
+	.z80
+	cseg
+
+	extrn	C3DMY,MA2HC,MAFDC,MHLFDC,C3PUSH,C3POP,C3SCBG,C3DFMT
+;
+;Render a CP/M datestamp at HL to memory at DE. You should
+;allow at least 24 bytes for the string.
+;	
+;A=1 to include seconds, 0 not to.
+;
+;Returns DE->next byte after string
+;
+C3D2A::	PUSH	AF
+	PUSH	BC
+	PUSH	HL
+	LD	(DEST),DE
+;
+;Pass in HL=day count
+;
+	CALL	C3DMY	;Returns HL=year, D=day, E=month
+	CALL	C3DFMT	;A = date format
+	JR	Z,USFMT
+	DEC	A
+	JR	Z,UKFMT
+;
+;Fall through. Note that currently 3 (undefined) maps to 2 (ISO).
+;
+ISOFMT:	CALL	D4DSH
+	LD	A,E
+	CALL	D2DSH
+	LD	A,D
+	CALL	D2
+	JR	DFC
+;
+USFMT:	LD	A,E
+	CALL	D2SLS
+	LD	A,D
+	JR	UKFMT1
+
+UKFMT:	LD	A,D
+	CALL	D2SLS
+	LD	A,E
+UKFMT1:	CALL	D2SLS
+	CALL	D4HL	
+DFC:	LD	DE,(DEST)
+	POP	HL
+	POP	BC
+	POP	AF
+	RET
+;
+D4DSH:	CALL	D4HL
+	JR	DDSH
+;
+D2DSH:	CALL	D2
+DDSH:	LD	A,'-'
+	JR	D2CHR
+;
+D2SLS:	CALL	D2
+	LD	A,'/'
+D2CHR:	PUSH	DE
+	LD	DE,(DEST)
+	LD	(DE),A
+	INC	DE
+	JR	D4E
+
+D2:	PUSH	DE
+	LD	DE,(DEST)
+	CP	10
+	JR	NC,D2A
+	CALL	MA2HC	;Can't use MAFDC, because it won't print 2 digits.
+	JR	D4E	;So print 2 hex digits, and because A < 10 this 
+			;does the same thing.
+
+D2A:	CALL	MAFDC	;This prints 2 decimal digits
+	JR	D4E
+
+
+D4HL:	PUSH	DE	;Print 4 decimal digits.
+	LD	DE,(DEST)
+	CALL	MHLFDC
+D4E:	LD	(DEST),DE
+	POP	DE
+	RET
+;	
+	dseg
+DEST:	DEFW	0
+	cseg
+
+	end
+
+
+

@@ -1,0 +1,55 @@
+;
+;  SYSLIB Module Name:  SCLINE
+;  Author:  Richard Conn
+;  SYSLIB Version Number:  3.6
+;  Module Version Number:  1.1
+
+	public	cline
+
+;
+;	CLINE -- Save the command line whose character count is pointed
+; to by HL away in an internal buffer as a string.  The line may be up to
+; 255 characters long and will be truncated if it is longer.  The string
+; will be terminated by a <NULL> as per the SYSLIB concept of strings.
+;
+;	Input Parameters:  HL = Address of Command Line Buffer
+;	Output Parameters:  HL = Address of Command Line String
+;			    A = 0 and Zero Flag Set (Z) if Buffer Truncated
+;			    A <> 0 and Zero Flag Clear (NZ) if Buffer OK
+;	Registers Affected:  HL
+;
+BSIZE	EQU	255	; SIZE OF BUFFER
+
+CLINE:
+	PUSH	DE	; SAVE REGS
+	PUSH	BC
+	LD	DE,INBUF	; ADDRESS OF BUFFER
+	LD	C,BSIZE	; BUFFER SIZE
+	LD	B,(HL)	; GET CHAR COUNT IN B
+	INC	HL	; PT TO FIRST CHAR
+CLINE1:
+	LD	A,B	; CHECK FOR DONE
+	OR	A	; 0=DONE
+	JP	Z,CLINE2
+	DEC	B	; COUNT DOWN
+	LD	A,(HL)	; GET BYTE
+	LD	(DE),A	; PUT BYTE
+	INC	HL	; PT TO NEXT
+	INC	DE
+	DEC	C	; COUNT DOWN BUFFER LIMIT
+	JP	NZ,CLINE1
+CLINE2:
+	XOR	A	; A=0
+	LD	(DE),A	; PUT ENDING ZERO
+	LD	A,C	; GET REMAINING CHAR COUNT
+	POP	BC	; RESTORE REGS
+	POP	DE
+	LD	HL,INBUF	; PT TO BUFFER
+	OR	A	; SET FLAGS
+	RET
+INBUF:
+	DS	BSIZE	; SIZE OF BUFFER
+	DS	1	; + 1 FOR ENDING ZERO
+
+	END
+

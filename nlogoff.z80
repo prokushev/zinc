@@ -1,0 +1,116 @@
+;
+;    NLOGOFF: Log off from server (GPLed clone of CP/NET LOGOFF)
+;    Copyright (C) 2018  Yuri Prokushev <yuri.prokushev@gmail.com>
+;
+;    This program is free software; you can redistribute it and/or modify
+;    it under the terms of the GNU General Public License as published by
+;    the Free Software Foundation; either version 2 of the License, or
+;    (at your option) any later version.
+;
+;    This program is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;    GNU General Public License for more details.
+;
+;    You should have received a copy of the GNU General Public License
+;    along with this program; if not, write to the Free Software
+;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+;
+CPM3	EQU	0		;Don't perform CP/M 3 check
+CPNET	EQU	1		;Perform CP/NET check
+Z80	EQU	1		;Perform Z80 check
+;
+	INCLUDE	ZINCHEAD.INC
+;
+	EXTRN	PRINT		; SYSLIB
+;
+
+BUFF	EQU	0080h
+
+LOGOFF	EQU	65
+CFGTBL	EQU	69
+
+ACTIVE	EQU	0001$0000b
+
+MAIN:	LD	E, 0
+	LD	HL, BUFF
+	LD	A, (HL)
+	OR	A
+	JR	Z, LOGOFF
+	LD	C, A
+	XOR	A
+
+SKIPSPACE:
+	INC	HL
+	LD	A, (HL)
+	CP	' '
+	JR	NZ, CHAR
+	DEC	C
+	JR	NZ, SKIPSPACE
+	JR	LOGOFF
+
+CHAR:
+	CP	'['
+	JR	NZ, ERROR
+
+GETID:
+	INC	HL
+	DEC	C
+	JR	Z, ERROR
+	LD	A,(HL)
+	CP	']'
+	JR	Z, LOGOFF
+	SUB	'0'
+	CP	10
+	JP	C,UPDATEID
+	ADD	('0'-'A'+10) and 0ffh
+	CP	16
+	JR	NC, ERROR
+
+UPDATEID:
+	PUSH	AF
+	LD	A,E
+	ADD	A
+	ADD	A
+	ADD	A
+	ADD	A
+	LD	E,A
+	POP	AF
+	ADD	E
+	LD	E,A
+	JR	GETID
+
+
+ERROR:
+        CALL	PRINT
+	DEFB	'Illegal LOGOFF command', 0
+	JR	EXIT
+
+LOGOFF:
+	LD	C,LOGOFF
+	CALL	BDOS
+	INC	A
+	JR	NZ, OK
+	CALL	PRINT
+	DEFB	'LOGOFF failed', 0
+	JR	EXIT
+
+OK:
+	LD	C,CFGTBL
+	CALL	BDOS
+	LD	A,(HL)
+	AND	NOT ACTIVE
+	LD	(HL),A
+
+EXIT:
+	RET
+
+;
+	DSEG
+;
+
+	END
+

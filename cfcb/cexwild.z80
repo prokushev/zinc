@@ -1,0 +1,381 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+
+	.z80
+	cseg
+
+	extrn	CPARSE,C@ZFCB,CFDOS,C@DMA,C@GET
+
+CEXWILD::
+;
+;Wildcard expansion of CFCB filenames.
+;
+;Entered with: IX->256-byte byffer for expansion
+;              HL->command line, first byte is length. Must have 80h bytes 
+;                  free.
+;	       BC->prompt to print (if command line ends with a \ and 
+;                                                 extended processing is on)
+;              DE->subroutine to call on each FCB found.
+;		A = extended processing flags:
+;
+;              Bit 0 set if line can end with a \
+;;             Bit 1 set if line can contain "@file".
+;	       Bit 2 set if error messages are to be sent to stderr.
+;	       Bit 3 set if error messages are to be sent to the console.
+;
+;Returns HL = no. of files processed, BC=no. filenames passed to the command.
+;
+;Subroutine will be called with DE->temporary CFCB. It should return Carry
+;set to continue, Carry clear to stop; A=1 if file processed successfully
+;or A=0 if not.
+;
+;Phrases in the command line surrounded by []s will be skipped.
+;
+	LD	(WSP),SP
+	LD	(OBUF),HL
+	LD	(PRMPT),BC
+	LD	BC,48		;The first 96 bytes of the buffer
+	LD	(QFCB),IX	;become CFCBs.
+	ADD	IX,BC
+	LD	(TFCB),IX
+	ADD	IX,BC		;And the remainder becomes input & DMA.
+	LD	(XINP),IX
+	LD	(IX+0),127
+	LD	(IX+1),0
+	PUSH	HL
+	PUSH	DE
+	LD	HL,(QFCB)	;Zero the FCB bits of the buffer
+	LD	D,H
+	LD	E,L
+	INC	DE
+	LD	BC,95
+	LD	(HL),B
+	LDIR
+	POP	DE
+	POP	HL
+	EX	DE,HL
+	LD	(EPF),A
+	LD	(DOIT1+1),HL
+	LD	HL,0
+	LD	(COUNT),HL
+	LD	(NCOUNT),HL
+RPARSE:	LD	A,(DE)
+	LD	L,A	;HL=length of command
+	INC	DE
+	ADD	HL,DE
+	LD	(HL),0	;Mark end of command
+	EX	DE,HL	;HL->command
+
+PCMD:	LD	A,(HL)
+	OR	A
+	JP	Z,ENDIT
+	CP	'['
+	JP	Z,SKIPOPT
+;;	CP	'@'
+;;	JR	Z,PROCAT
+	CP	'\'
+	JR	Z,PROCBKS
+	CALL	IFVALID
+	JP	NZ,PARSFN
+SKPSP:	INC	HL
+	JR	PCMD
+;
+PROCBKS:
+	LD	A,(EPF)
+	BIT	0,A
+	INC	HL
+	JR	Z,PCMD	;No special meaning for '\'
+	LD	DE,(PRMPT)
+	LD	C,9
+	CALL	5	;Print the prompt.
+	LD	DE,(XINP)
+	LD	C,0Ah
+	CALL	5
+	LD	DE,(OBUF)
+	LD	HL,(XINP)
+	INC	HL
+	LD	BC,128
+	LDIR
+	LD	DE,CRLF
+	LD	C,9
+	CALL	5
+	LD	DE,(OBUF)
+	LD	H,0
+	JP	RPARSE
+;
+PARSFN:	LD	DE,(QFCB)
+	LD	(PFCB+2),DE
+	LD	(PFCB),HL
+	LD	(LNAME),HL
+	PUSH	BC
+	LD	DE,PFCB
+	CALL	CPARSE
+	POP	BC
+	LD	A,H
+	AND	L
+	INC	A
+	JP	Z,INVFN
+	LD	(PFCB),HL
+	LD	HL,(NCOUNT)
+	INC	HL
+	LD	(NCOUNT),HL	;No. filenames successfully parsed.
+;
+;(QFCB) now holds a valid UFCB.
+;
+	LD	DE,(QFCB)
+	CALL	C@GET
+	CP	20h		;
+	JR	C,WILDEX1	;Not a DEV:
+	LD	HL,(QFCB)
+	LD	DE,(TFCB)
+	LD	BC,38
+	PUSH	DE
+	LDIR
+	POP	DE
+	CALL	DOIT		;Apply to DEV:
+NXTFN:	LD	HL,(PFCB)
+	LD	A,H
+	OR	L
+	JP	Z,ENDIT
+	JP	PCMD
+;
+WILDEX1:
+	LD	HL,0
+WILDEX2:
+	PUSH	HL
+	CALL	SEEKHL
+	JR	NC,ENDW1	;Wildcard pattern exhausted.
+	LD	A,C
+	RRCA
+	RRCA
+	RRCA
+	ADD	A,3	;2 bytes before buffer, 1 byte into dir entry
+	LD	L,A
+	LD	H,0
+	LD	BC,(XINP)
+	ADD	HL,BC
+	LD	DE,(TFCB)
+	INC	DE
+	LD	BC,11
+	LDIR			;Copy filename to (TFCB)
+	LD	DE,(QFCB)
+	LD	HL,(TFCB)
+	LD	A,(DE)
+	LD	(HL),A
+	CALL	C@GET
+	EX	DE,HL		;DE->TFCB
+	LD	HL,37
+	ADD	HL,DE
+	LD	(HL),A		;Store uid
+	CALL	C@ZFCB
+	CALL	DOIT
+	POP	HL
+	INC	HL
+	JR	WILDEX2
+
+ENDW1:	POP	HL
+	LD	A,H
+	OR	L
+	JR	NZ,NXTFN
+	LD	HL,NMATCH$
+	CALL	PRINT
+	LD	HL,(LNAME)
+	CALL	PUTNAM
+	JR	NXTFN
+;
+SEEKHL:	PUSH	HL
+	LD	DE,(XINP)
+	INC	DE
+	INC	DE
+	CALL	C@DMA
+	LD	C,11h
+SEEKH1:	LD	DE,(QFCB)
+	CALL	CFDOS
+	POP	HL
+	LD	C,A
+	INC	A
+	AND	A	;Reset carry
+	RET	Z
+	LD	A,H
+	OR	L
+	SCF
+	RET	Z
+	DEC	HL
+	PUSH	HL
+	LD	C,12h
+	JR	SEEKH1
+;
+
+
+INVFN:
+;
+;Filename is invalid.
+;
+	LD	A,(EPF)
+	LD	HL,INVF$
+	CALL	PRINT
+	LD	HL,(PFCB)
+	CALL	PUTNAM
+	LD	HL,(PFCB)
+SKIPN:	INC	HL
+	LD	A,(HL)
+	OR	A
+	JP	Z,ENDIT	;EOL
+	CP	':'
+	JR	Z,SKIPN
+	CP	';'
+	JR	Z,SKIPN
+	CP	'.'
+	JR	Z,SKIPN
+	CALL	IFVALID
+	JR	Z,SKIPN2
+	CP	'!'
+	JR	NC,SKIPN
+SKIPN2:	JP	PCMD	;Skip the filename and return on its terminator
+;
+SKIPOPT:
+	INC	HL
+	LD	A,(HL)
+	OR	A
+	JR	Z,ENDIT
+	CP	']'
+	JR	NZ,SKIPOPT	
+	INC	HL
+	JP	PCMD
+;
+DOIT:	LD	HL,(COUNT)
+DOIT1:	CALL	$-$
+	PUSH	AF
+	OR	A
+	JR	Z,DOIT2
+	LD	HL,(COUNT)
+	INC	HL
+	LD	(COUNT),HL
+DOIT2:	POP	AF
+	RET	C	;OK
+ENDIT:	LD	SP,(WSP)
+	LD	HL,(COUNT)
+	LD	BC,(NCOUNT)
+	RET
+;
+IFVALID:
+	PUSH	HL
+	PUSH	BC
+	LD	B,INVEND-INVAL
+	LD	HL,INVAL
+IFVAL1:	CP	(HL)
+	JR	Z,RTZ
+	INC	HL
+	DJNZ	IFVAL1
+	AND	A	;NZ since A>20h
+RTZ:	POP	BC
+	POP	HL
+	RET	
+;
+PUTNAM:	LD	DE,(XINP)
+	INC	DE
+	INC	DE
+	LD	BC,128
+	LDIR
+	LD	HL,(XINP)
+	INC	HL
+	INC	HL
+INVF1:	LD	A,(HL)
+	INC	HL
+	CP	':'
+	JR	Z,INVF1
+	CP	';'
+	JR	Z,INVF1
+	CP	'.'
+	JR	Z,INVF1
+	CALL	IFVALID
+	JR	Z,TRM2
+	CP	'!'
+	JR	NC,INVF1
+TRM2:	DEC	HL
+	LD	(HL),'$'
+	LD	HL,(XINP)
+	INC	HL
+	INC	HL
+	CALL	PRINT
+	LD	HL,CRLF
+;;;	JR	PRINT
+
+	DSEG
+INVAL:	DEFB	0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20
+	DEFB	21,22,23,24,25,26,27,28,29,30,31,' ;:<=>.:,[]/\|'
+INVEND:
+XINP:	DEFW	0
+LNAME:	DEFW	0
+PFCB:	DEFW	0,0
+QFCB:	DEFW	0
+TFCB:	DEFW	0
+COUNT:	DEFW	0
+NCOUNT:	DEFW	0
+EPF:	DEFB	0
+WSP:	DEFW	0
+PRMPT:	DEFW	0
+OBUF:	DEFW	0
+NMATCH$:
+	DEFB	'Warning: No files match $'
+INVF$:	DEFB	'Warning: Could not parse $'
+CRLF:	DEFB	13,10,'$'
+	cseg
+;
+print:	ld	a,(epf)
+	bit	2,a
+	call	nz,eprint
+	ex	de,hl
+	bit	3,a
+	ld	c,9
+	ret	z
+	jp	5
+;
+eprint:	push	hl
+	push	af
+opri0:	ld	a,(hl)
+	cp	'$'
+	jr	z,opri1
+	ld	e,a
+	push	hl
+	call	stderr
+	pop	hl
+	inc	hl
+	jr	opri0
+;
+opri1:	pop	af
+	pop	hl
+	ret
+;
+stderr:	push	de	;Output byte in E
+	ld	d,0
+	ld	(chr),de
+	ld	c,3Ch
+	ld	de,rsxpb
+	call	5
+	pop	de
+	ret
+;
+	dseg
+rsxpb:	defw	017ah
+chr:	defw	0
+	cseg
+
+	END
+

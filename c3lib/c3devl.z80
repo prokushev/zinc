@@ -1,0 +1,47 @@
+;
+;    CPM3LIB library: An extension to SYSLIB for CP/M 3 features
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+	.z80
+	cseg
+
+	EXT	C3DEVG,COMPB
+;
+; Look up physical device where DE->device name
+;
+C3DEVL::
+	PUSH	AF
+	PUSH	BC
+	LD	C,0
+C3DL1:	CALL	C3DEVG	;HL->device entry for device no. C
+	LD	A,H
+	OR	L
+	JR	Z,C3DLE	;HL=0: not found
+	LD	B,6
+	CALL	COMPB	;String compare HL with DE
+	JR	Z,C3DLE	;Matched. Return HL->device, C=device no.
+	INC	C
+	JR	C3DL1
+;
+C3DLE:	LD	A,C	;Return result in C, but restore B.
+	POP	BC
+	LD	C,A
+	POP	AF
+	RET	
+
+	END
+

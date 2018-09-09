@@ -1,0 +1,121 @@
+;
+;    CPM3LIB library: An extension to SYSLIB for CP/M 3 features
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+
+	.z80	
+	cseg
+;
+; This routine is intended to interface with CPWSET in the CFCB library.
+; It asks for a password, and returns HL->password and Carry set if one was 
+; given, or A=37 and Carry clear if no password was given.
+;
+	extrn	c3push,c3pop,cin,cout,print,crlf,copfcb,caps
+
+	dseg
+plen:	defb	0
+passwd:	defs	8
+	cseg
+;
+; Routine to ask for a password, with no echo.
+; Entered with DE->FCB
+;
+c3pwd::	call	c3push
+	ld	c,1		;Output option - omit spaces
+	ld	h,0
+	ld	l,h		;HL = 0 - output to screen
+	call	copfcb		;Print filename
+	call	print
+	defb	' password> ',0 
+	ld	hl,'  '
+	ld	(PASSWD),hl	; This is faster than the equivalent LDIR.
+	ld	(PASSWD+2),hl
+	ld	(PASSWD+4),hl
+	ld	(PASSWD+6),hl	; Initialise password to spaces.
+	xor	a
+	ld	(plen),a	; Length = 0
+;
+	ld	bc,passwd	; -> where to input the password
+	call	pwinp		; Special password input
+;        
+	call	crlf
+	ld	a,(plen)	; Is length = 0?
+	or	a
+	jr	z,nopw
+
+	ld	hl,passwd	; Render password into upper case
+	ld	b,8
+ucplp:	ld	a,(hl)
+	call	caps
+	ld	(hl),a
+	inc	hl
+	djnz	ucplp
+	pop	hl		;Return the password & Carry set.
+	pop	de
+	pop	bc
+	pop	af
+	ld	hl,passwd
+	scf
+	ret
+;
+nopw:	pop	hl		;No password given.
+	pop	de		;return Carry clear.
+	pop	bc
+	pop	af
+	and	a
+	ld	a,37		;Bad password
+	ret
+;
+pwinp:	call	cin		;Actual input routine. ^H, DEL, CR, LF
+	cp	0Dh		;are the only editing keys.
+	ret	z
+	cp	0Ah
+	ret	z		;CR & LF: finished
+	cp	127
+	jr	z,pwdel
+	cp	8
+	jr	z,pwdel		;^H and DEL: delete last character
+	ld	e,a
+	ld	a,(plen)
+	cp	8		;No room for more characters
+	jr	nc,pwinp
+	ld	l,a
+	ld	h,0
+	add	hl,bc
+	ld	(hl),e		;Store typed character
+	inc	a
+	ld	(plen),a	;increase length counter
+	ld	a,'*'
+	call	cout		;and echo "*"
+	jr	pwinp
+;
+pwdel:	ld	a,(plen)	;Delete a character. 
+	or	a		;Are there characters to delete?
+	jr	z,pwinp
+	dec	a
+	ld	(plen),a	;Decrement length
+	ld	l,a
+	ld	h,0
+	add	hl,bc		;HL->where the character was
+	ld	(hl),' '	;Character deleted, replace it with a space
+	call	print
+	defb	8,' ',8,'$'	;Echo a space to the screen
+	jr	pwinp
+
+
+	end
+	

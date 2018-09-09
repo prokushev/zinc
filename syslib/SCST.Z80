@@ -1,0 +1,43 @@
+;
+; SYSLIB Module Name:  SCST
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	cst
+
+;
+;  CST --
+;	CONSOLE STATUS ROUTINE
+;	INPUT STATUS OF CON: IN REG A
+;	RDA IF 0, NOT RDA IF 1
+;
+PUTRG	MACRO
+	PUSH	BC	; SAVE BC, DE, HL
+	PUSH	DE
+	PUSH	HL
+	ENDM
+GETRG	MACRO
+	POP	HL	; RESTORE HL, DE, BC
+	POP	DE
+	POP	BC
+	ENDM
+
+CST:
+	PUTRG			; SAVE REGISTERS
+	LD	HL,(JTABL)	; GET ADDRESS OF JUMP TABLE
+	LD	L,CS$OFF	; CONSOLE STATUS ADR
+CST1:	LD	DE,CST1R	; SET UP RET ADR
+	PUSH	DE		; ... ON STACK
+	JP	(HL)		; RUN ROUTINE
+CST1R:	CPL			; FLIP FLAGS
+	AND	1		; SET FLAGS -- 0 MEANS RDA
+	GETRG			; RESTORE REGISTERS
+	RET
+
+BOOT	EQU	0	; CP/M BOOT ADDRESS
+JTABL	EQU	BOOT+1	; CP/M JUMP TABLE ADDRESS
+CS$OFF	EQU	6	; CONSOLE STATUS OFFSET
+
+	END
+

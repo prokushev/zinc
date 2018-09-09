@@ -1,0 +1,21 @@
+;
+; SYSLIB Module Name:  SEN
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	en
+
+;
+;  EN -- 
+;	EXCHANGE NYBBLES OF REG A
+;
+EN:
+	RLCA		; 4 ROTATES
+	RLCA
+	RLCA
+	RLCA
+	RET
+
+	END
+

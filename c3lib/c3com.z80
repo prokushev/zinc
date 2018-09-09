@@ -1,0 +1,64 @@
+;
+;    CPM3LIB library: An extension to SYSLIB for CP/M 3 features
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+
+	.z80
+	cseg
+;
+;Skeleton for a ZINC program.
+;
+FDOS	EQU	5
+FCB	EQU	005Ch
+CR	EQU	0Dh
+LF	EQU	0Ah
+EOF	EQU	1Ah
+
+BASE:	DEFB	0EBh,04h	;DOS protection... JMPS LABE
+	EX	DE,HL
+	JP	BEGIN
+	DEFB	0B4h,09h	;DOS protection... MOV AH,9
+	DEFB	0BAh
+	DEFW	BVMES		;DOS protection... MOV DX,OFFSET BVMES
+	DEFB	0CDh,021h	;DOS protection... INT 21h.
+	DEFB	0CDh,020h	;DOS protection... INT 20h.
+;
+	DSEG
+BVMES:	DEFB	'This program requires CP/M 3 and a Z80 processor',cr,lf,'$'
+	CSEG
+
+BEGIN:	SUB	A
+	JP	PE,BADVER
+	LD	C,0Ch
+	CALL	FDOS
+	CP	30h
+	JP	NC,MAIN
+BADVER:	LD	DE,BVMES	
+	LD	C,9
+	JP	FDOS
+;
+	DEFS	BASE+40h-$	
+	DEFB	'ZINC v1.00 [3.1]'
+	DEFB	'Copyright 1999 J'
+	DEFB	'ohn Elliott. GPL'
+	DEFB	'151299'		;Date
+	DEFB	0,0,0,0			;Patchlevel
+	DEFB	'654321'		;Serial number
+
+MAIN:
+
+

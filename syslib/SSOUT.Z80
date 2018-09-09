@@ -1,0 +1,36 @@
+;
+; SYSLIB Module Name:  SSOUT
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	sout
+
+	EXT	SCTLFL
+	EXT	COUT,LOUT
+
+;
+;  SOUT -- 
+;	OUTPUT ROUTINE TO CON: OR LST:
+;	OUTPUT CHAR IN REG A
+;	AFFECT NO REGISTERS OR FLAGS
+;
+SOUT:
+	PUSH	AF	; SAVE REGS
+	PUSH	BC
+	LD	C,A	; CHAR IN C
+	LD	A,(SCTLFL)	; GET CONTROL FLAG
+	LD	B,A	; ... IN B
+	AND	80H	; LST:?
+	LD	A,C	; GET CHAR
+	CALL	NZ,LOUT
+	LD	A,B	; GET FLAG
+	AND	1	; CON:?
+	LD	A,C	; GET CHAR
+	CALL	NZ,COUT
+	POP	BC	; RESTORE REGS
+	POP	AF
+	RET
+
+	END
+

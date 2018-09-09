@@ -1,0 +1,454 @@
+;
+;    3DIR: Directory listing (GPLed clone of CP/M 3 DIR)
+;    Copyright (C) 2000  John Elliott <jce@seasip.demon.co.uk>
+;
+;    This program is free software; you can redistribute it and/or modify
+;    it under the terms of the GNU General Public License as published by
+;    the Free Software Foundation; either version 2 of the License, or
+;    (at your option) any later version.
+;
+;    This program is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;    GNU General Public License for more details.
+;
+;    You should have received a copy of the GNU General Public License
+;    along with this program; if not, write to the Free Software
+;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+
+CR	EQU	0Dh
+LF	EQU	0Ah
+
+	EXTRN	PMPSTR,PMESTR,PMOPR,PMEPR,EVAL10,C3EXIT
+
+	INCLUDE	3DIRFMT.INC
+
+	DSEG
+;
+; Note: The options have been trimmed to the shortest size that is
+;      unique. If you have two options starting with the same 
+;      substring (eg: DOS and DOS2) put the longer one first.
+;
+OPTIONS::
+	DEFB	'1',0	;1
+	DEFB	'2',0	;2
+	DEFB	'3',0	;3
+	DEFB	'4',0	;4
+	DEFB	'AR',0	;ARCV
+	DEFB	'AT',0	;ATT
+	DEFB	'B',0	;BARE
+	DEFB	'C',0	;COLUMNAR
+	DEFB	'DA',0	;DATE
+	DEFB	'DE',0	;DESCENDING
+	DEFB	'DI',0	;DIR
+	DEFB	'DOS2',0;DOS2
+	DEFB	'DO',0	;DOS
+	DEFB	'DR',0	;DRIVE = 
+	DEFB	'E',0	;EXCLUDE
+	DEFB	'FF',0	;FF
+	DEFB	'FU',0	;FULL
+	DEFB	'G',0	;GROUP
+	DEFB	'LE',0	;LENGTH	
+	DEFB	'LS',0	;LS
+	DEFB	'M',0	;MESSAGE
+	DEFB	'NOP',0	;NOPAGE
+	DEFB	'NO P',0;NO PAGE
+	DEFB	'NOS',0	;NOSORT
+	DEFB	'NO S',0;NO SORT
+	DEFB	'O',0	;ORDER
+	DEFB	'P',0	;PAGE
+	DEFB	'RO',0	;RO
+	DEFB	'RW',0	;RW
+	DEFB	'SI',0	;SIZE
+	DEFB	'SY',0	;SYS
+	DEFB	'U',0	;USER
+	DEFB	'XA',0	;XCLUDE ARCV
+	DEFB	'X1',0	;XCLUDE F1
+	DEFB	'X2',0	;XCLUDE F2
+	DEFB	'X3',0	;XCLUDE F3
+	DEFB	'X4',0	;XCLUDE F4
+	DEFB	0
+
+
+OPTCODE::
+	DEFW	O_F1,     O_F2,     O_F3,     O_F4,    O_ARCV 
+	DEFW	O_ATT,    O_BARE,   O_COL   
+	DEFW	O_DATE,   O_DESC,   O_DIR,    O_DOS2
+	DEFW	O_DOS,    O_DRIVE
+	DEFW	O_EXCL,   O_FF,     O_FULL   
+	DEFW	O_GROUP,  O_LENGTH, O_LS,     O_MESSAGE
+	DEFW	O_NOPAGE, O_NOPAGE
+	DEFW	O_NOSORT, O_NOSORT
+	DEFW	O_ORDER,  O_PAGE,   O_RO,     O_RW
+	DEFW	O_SIZE,   O_SYS,    O_USER
+	DEFW	O_XA,     O_X1,     O_X2,     O_X3,    O_X4
+;
+; The following three options are documented, since these are preferences
+; which a user might well want to change without going to the trouble of a 
+; recompile.
+;
+D_ORDER::	DEFB	'N'	;Sort order (name)
+D_FMT::		DEFB	0	;Format (full)
+D_SORT::	DEFB	1	;Sort option. 1 for normal, -1 for reversed
+				;and 0 for none
+;
+; Note: Elsewhere I rely on the fact that these are all in the same order!
+;
+D_F1::		DEFB	0	;Match files with user attributes F1-F4
+D_F2:		DEFB	0
+D_F3:		DEFB	0
+D_F4:		DEFB	0
+D_PROT:		DEFB	0	;Match R/O files
+D_SYS:		DEFB	0	;Match SYS files
+D_ARC:		DEFB	0	;Match ARC files 
+
+D_FF::		DEFB	0
+D_EXCL::	DEFB	0
+D_MSG::		DEFB	0
+D_PGLEN::	DEFB	0
+D_PGMODE::	DEFB	2
+;
+; G_ options set during parse of the option list.
+; L_ options set during syntax check of the command line.
+;
+G_DRVLIST::
+	DEFW	0	;Bitmap of drivenumbers to examine
+G_USERLIST::
+	DEFW	0	;Bitmap of usernumbers to examine
+L_DRVLIST::
+	DEFW	0	;Drivenumbers listed in command tail
+
+	CSEG
+;
+O_NOSORT:
+	XOR	A
+	LD	(D_SORT),A
+	RET
+;
+O_DESC:	LD	A,-1
+	LD	(D_SORT),A
+	RET
+;
+O_EXCL:	LD	A,1
+	LD	(D_EXCL),A
+	RET
+;
+O_FF:	LD	A,1
+	LD	(D_FF),A
+	RET
+;
+O_DRIVE:
+	LD	A,(HL)
+	INC	HL
+	CP	']'
+	RET	Z
+	OR	A
+	RET	Z
+	CP	'='
+	JR	NZ,O_DRIVE
+	LD	A,(HL)
+	INC	HL
+	CP	'('
+	JP	Z,DRVCSL
+	CP	'Q'
+	JR	NC,O_DRVE
+	CP	'A'
+	JR	C,O_DRVE
+	JR	NZ,SETSGL
+	LD	A,(HL)
+	CP	'L'	;DRIVE=ALL?
+	LD	A,'A'
+	JR	NZ,SETSGL
+	PUSH	HL
+	LD	C,18h
+	CALL	BDOS
+	LD	(G_DRVLIST),HL
+	POP	HL
+	RET
+;
+SETSGL:	SUB	'A'
+	CALL	BPAT
+	LD	(G_DRVLIST),DE
+	RET
+;
+DRVCSL:	LD	A,(HL)
+	INC	HL
+	OR	A
+	JR	Z,O_DRVE
+	CP	')'
+	RET	Z
+	CP	','
+	JR	Z,DRVCSL
+	CP	'A'
+	JR	C,O_DRVE
+	CP	'Q'
+	JR	NC,O_DRVE
+	SUB	'A'
+	CALL	BPAT
+	LD	BC,(G_DRVLIST)
+	LD	A,B
+	OR	D
+	LD	B,A
+	LD	A,C
+	OR	E
+	LD	C,A
+	LD	(G_DRVLIST),BC
+	JR	DRVCSL
+;
+O_DRVE:	CALL	PMEPR
+	DEFB	'Incorrect DRIVE= option. Correct option is one of:',cr,lf,lf
+	DEFB	'    DRIVE=(d,d,d)   DRIVE=d  or  DRIVE=ALL',cr,lf,0
+	LD	HL,0FF00h
+	JP	C3EXIT
+;
+O_USER:
+	LD	A,(HL)
+	INC	HL
+	CP	']'
+	RET	Z
+	OR	A
+	RET	Z
+	CP	'='
+	JR	NZ,O_USER
+	LD	A,(HL)
+	CP	'('
+	JP	Z,USRCSL
+	LD	A,(HL)
+	CP	'A'	;USER=ALL?
+	JR	NZ,SETSGU
+	LD	DE,0FFFFh
+	LD	(G_USERLIST),DE
+	RET
+;
+O_GROUP:
+SETSGU:	CALL	XEVAL10
+	JR	C,O_USRE
+	CP	16
+	JR	NC,O_USRE
+	CALL	BPAT
+	LD	(G_USERLIST),DE
+	RET
+;
+USRCSL:	LD	A,(HL)
+	INC	HL
+	OR	A
+	JR	Z,O_USRE
+	CP	'('
+	JR	Z,USRCSL
+	CP	')'
+	RET	Z
+	CP	','
+	JR	Z,USRCSL
+	DEC	HL
+	CALL	XEVAL10
+	JR	C,O_USRE
+	CP	16
+	JR	NC,O_USRE
+	CALL	BPAT
+	LD	BC,(G_USERLIST)
+	LD	A,B
+	OR	D
+	LD	B,A
+	LD	A,C
+	OR	E
+	LD	C,A
+	LD	(G_USERLIST),BC
+	JR	USRCSL
+;
+O_USRE:	CALL	PMEPR
+	DEFB	'Incorrect USER= option. Correct option is one of:',cr,lf,lf
+	DEFB	'    USER=(n,n,n)   USER=n  Gn   or  USER=ALL',cr,lf,0
+	LD	HL,0FF00h
+	JP	C3EXIT
+
+
+
+O_LENGTH:
+	LD	A,(HL)
+	CP	']'
+	JR	Z,O_LENE
+	OR	A
+	JR	Z,O_LENE
+	INC	HL	
+	CP	'='
+	JR	NZ,O_LENGTH
+	CALL	XEVAL10
+	JR	C,O_LENE
+	LD	(D_PGLEN),A
+	RET
+
+O_LENE:	CALL	PMEPR
+	DEFB	'Incorrect LENGTH= option. Correct usage is LENGTH=n',cr,lf,0
+	LD	HL,0FF00h
+	JP	C3EXIT
+;
+O_MESSAGE:
+	LD	A,1
+	LD	(D_MSG),A
+	RET
+;
+O_NOPAGE:
+	XOR	A
+	LD	(D_PGMODE),A
+	RET
+;
+O_PAGE:	LD	A,1
+	LD	(D_PGMODE),A
+	RET
+;
+; File attribute options
+;
+O_ARCV:	LD	A,1
+	LD	(D_ARC),A
+	RET
+;
+O_XA:	LD	A,-1
+	LD	(D_ARC),A
+	RET
+;
+O_F1:	LD	A,1
+	LD	(D_F1),A
+	RET
+;
+O_F2:	LD	A,1
+	LD	(D_F2),A
+	RET
+;
+O_F3:	LD	A,1
+	LD	(D_F3),A
+	RET
+;
+O_F4:	LD	A,1
+	LD	(D_F4),A
+	RET
+;
+O_X1:	LD	A,-1
+	LD	(D_F1),A
+	RET
+;
+O_X2:	LD	A,-1
+	LD	(D_F2),A
+	RET
+;
+O_X3:	LD	A,-1
+	LD	(D_F3),A
+	RET
+;
+O_X4:	LD	A,-1
+	LD	(D_F4),A
+	RET
+;
+O_RO:	LD	A,1
+	LD	(D_PROT),A
+	RET
+;
+O_RW:	LD	A,-1
+	LD	(D_PROT),A
+	RET
+;
+O_SYS:	LD	A,1
+	LD	(D_SYS),A
+	RET
+;
+O_DIR:	LD	A,-1
+	LD	(D_SYS),A
+	RET
+;
+; Format options
+;
+O_ATT:	LD	A,D_ATT
+	LD	(D_FMT),A
+	RET
+;
+O_FULL:	LD	A,D_FULL
+	LD	(D_FMT),A
+	RET
+;
+O_COL:	LD	A,D_COL
+	LD	(D_FMT),A
+	RET
+;
+O_LS:	LD	A,D_LS
+	LD	(D_FMT),A
+	RET
+;
+O_DOS:	LD	A,D_DOS
+	LD	(D_FMT),A
+	RET
+;
+O_DOS2:	LD	A,D_DOS2
+	LD	(D_FMT),A
+	RET
+;
+O_SIZE:	LD	A,D_SIZE
+	LD	(D_FMT),A
+	RET
+;
+O_DATE:	LD	A,D_DATE
+	LD	(D_FMT),A
+	RET
+;
+O_BARE:	LD	A,D_BARE
+	LD	(D_FMT),A
+	RET
+;
+O_ORDER:
+	LD	A,(HL)
+	CP	']'
+	JR	Z,O_ORDE
+	OR	A
+	JR	Z,O_ORDE
+	INC	HL	
+	CP	'='
+	JR	NZ,O_ORDER
+	LD	A,(HL)
+	CP	'N'
+	JR	Z,O_ORDO
+	CP	'T'
+	JR	Z,O_ORDO
+	CP	'S'
+	JR	Z,O_ORDO
+	CP	'C'	
+	JR	Z,O_ORDO
+	CP	'U'
+	JR	Z,O_ORDO
+	CP	'A'
+	JR	NZ,O_ORDE
+O_ORDO:	LD	(D_ORDER),A
+	RET
+;
+O_ORDE:	CALL	PMEPR
+	DEFB	'Incorrect ORDER= option. Correct usage is:',cr,lf
+	DEFB	'  ORDER=o  where o is one of NAME,TYPE,SIZE,CREATE,UPDATE,ACCESS',cr,lf,0
+	LD	HL,0FF00h
+	JP	C3EXIT
+;
+; As EVAL10, but returns with Carry set if what it has been asked to parse
+; is not a number.
+;
+XEVAL10:
+	LD	A,(HL)
+	CP	'0'
+	RET	C
+	CP	'9'+1
+	CCF
+	RET	C
+	CALL	EVAL10
+	AND	A
+	RET
+
+;
+; Encode an integer 0-15 (in A) in a bitmap pattern in DE.
+;
+BPAT::	LD	DE,1
+	OR	A
+BPAT1:	RET	Z
+	SLA	E
+	RL	D
+	DEC	A
+	JR	BPAT1
+;
+	END
+

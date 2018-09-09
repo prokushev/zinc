@@ -1,0 +1,51 @@
+;
+; SYSLIB Module Name: HGOTO1
+; Author: Richard Conn
+; SYSLIB Version Number: 3.6
+; Module Version Number: 1.1
+
+	public	hgoto1
+
+;
+; HGOTO1 is a computed GOTO.  When called, register pair HL = index of
+; following address to branch to, as indicated:
+;
+;	LXI	H,INDEX	; zero-relative
+;	CALL	HGOTO1
+;	DW	ADDR0	; IF HL=0
+;	DW	ADDR1	; IF HL=1
+;	DW	ADDR2	; IF HL=2
+;	...
+; ADDR0:		; COME HERE IF HL=0
+;	...
+; ADDR1:		; COME HERE IF HL=1
+;	...
+; ADDR2:		; COME HERE IF HL=2
+;	...
+;
+; No error or range checking is done
+;
+hgoto1:
+	ld	(hlsave),hl	; save HL
+	ex	(sp),hl		; get return address, save HL
+	push	de		; save regs
+	push	af
+	ex	de,hl		; return address in DE
+	ld	hl,(hlsave)	; HL = index value
+	add	hl,hl		; HL = offset (index * 2)
+	add	hl,de		; point to jump in HL
+	ld	a,(hl)		; get low
+	inc	hl
+	ld	h,(hl)		; get high
+	ld	l,a		; HL = address to return to
+	pop	af		; get regs
+	pop	de
+	ex	(sp),hl		; restore HL, set address of routine
+	ret
+;
+; Save buffer
+;
+hlsave:	ds	2
+
+	end
+

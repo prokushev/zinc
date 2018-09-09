@@ -1,0 +1,46 @@
+;
+;  SYSLIB Module Name:  SSKPUN
+;  Author:  Richard Conn
+;  SYSLIB Version Number:  3.6
+;  Module Version Number:  1.1
+
+	public	skpun,sknpun
+
+;
+;	SKPUN skips punctuation in the string pointed to by HL until
+; a non-punctuation char is encountered.  HL pts to the non-punctuation char
+; when done.
+;	SKNPUN skips non-punctuation chars in the string pointed to by HL until
+; either a punctuation char or a null are encountered.  HL pts to the
+; punctuation char or null when done.
+;
+
+	EXT	ISPUN
+
+SKPUN:
+	PUSH	AF	; SAVE PSW
+SKP1:
+	LD	A,(HL)	; GET NEXT CHAR
+	INC	HL	; PT TO NEXT
+	OR	A	; DONE?
+	JP	Z,SKP2
+	CALL	ISPUN	; IS A PUNCTUATION CHAR?
+	JP	Z,SKP1	; CONTINUE SKIP IF SO
+SKP2:
+	DEC	HL	; PT TO OFFENDING CHAR
+	POP	AF	; GET PSW
+	RET
+
+SKNPUN:
+	PUSH	AF	; SAVE PSW
+SKNP1:
+	LD	A,(HL)	; GET NEXT CHAR
+	INC	HL	; PT TO NEXT
+	OR	A	; DONE?
+	JP	Z,SKP2
+	CALL	ISPUN	; IS A PUNCTUATION CHAR?
+	JP	NZ,SKNP1
+	JP	SKP2
+
+	END
+

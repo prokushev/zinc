@@ -1,0 +1,6 @@
+move c: 3type.z80 3dump.z80 maketype.sub last.z80
+:m80$1 =LAST.Z80
+:m80$1 =3type.z80
+:link 3type,b:cfcb.irl[s],b:cpm3lib.irl[s],b:syslib.irl[s],last
+:m80$1 =3dump.z80
+:link 3dump,b:cfcb.irl[s],b:cpm3lib.irl[s],b:syslib.irl[s],last

@@ -1,0 +1,47 @@
+;
+; SYSLIB Module Name: AIF1
+; Author: Richard Conn
+; SYSLIB Version Number: 3.6
+; Module Version Number: 1.1
+
+	public	aif1
+
+;
+; AIF1 is an arithmetic IF facility.  A key value is passed in the B register
+; and a test value is passed in the A register:
+;
+;	MVI	B,5	; key value
+;	MVI	A,TEST	; test value
+;	CALL	AIF1
+;	DW	ALTB	; go here if A < B
+;	DW	AEQB	; go here if A = B
+;	DW	AGTB	; go here if A > B
+;
+aif1:
+	ex	(sp),hl	; get return address
+	push	af	; save regs
+	push	de
+	cp	b	; compare
+	jp	c,less
+	jp	z,equal
+	ld	de,4	; A > B, so add 4
+	add	hl,de
+	jp	less
+equal:
+	ld	de,2	; A = B, so add 2
+	add	hl,de
+;
+;  A < B, so HL contains the address pointer (no change)
+;
+less:
+	ld	a,(hl)	; get low
+	inc	hl
+	ld	h,(hl)	; get high
+	ld	l,a	; HL = address to return to
+	pop	de	; restore regs
+	pop	af
+	ex	(sp),hl
+	ret
+
+	end
+

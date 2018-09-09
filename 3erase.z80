@@ -1,0 +1,223 @@
+;
+;    3ERASE: Delete files (GPLed clone of CP/M 3 ERASE)
+;    Copyright (C) 2001  John Elliott <jce@seasip.demon.co.uk>
+;
+;    This program is free software; you can redistribute it and/or modify
+;    it under the terms of the GNU General Public License as published by
+;    the Free Software Foundation; either version 2 of the License, or
+;    (at your option) any later version.
+;
+;    This program is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;    GNU General Public License for more details.
+;
+;    You should have received a copy of the GNU General Public License
+;    along with this program; if not, write to the Free Software
+;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+
+	INCLUDE	ZINCHEAD.INC
+
+	extrn	cparse,cerror,cexwild,@LAST
+	extrn	c3opt,c3pwd,cpwset,copfcb,c3exit,cout,cin
+	extrn	print,cdel
+
+MAIN:	LD	HL,(6)
+	LD	L,0
+	LD	SP,HL		;Put stack at the top
+	LD	HL,MYPWD	;Install default password handler
+	CALL	CPWSET
+
+	LD	C,2Dh	
+	LD	E,0FFh		;Use CFCB to handle errors
+	CALL	BDOS
+;
+; Check for entirely blank command tail. If it is blank, convert it to 
+; one ending in \
+;
+	LD	HL,80h
+	LD	A,(HL)
+	INC	HL
+	OR	A
+	JR	Z,ISBLK
+	LD	B,A
+BLKLP:	LD	A,(HL)
+	INC	HL
+	CP	' ' 
+	JR	NZ,NOTBLK
+	DJNZ	BLKLP
+ISBLK:	LD	(HL),'\'	;Append a \ to the end of the line
+	LD	HL,80h
+	INC	(HL)
+NOTBLK:	LD	DE,OPTS		;Check for CONFIRM option
+	LD	HL,80h
+	LD	IY,OPTCS
+	CALL	C3OPT
+
+	LD	HL,80h		;Copy command line out of the way of
+	LD	DE,@LAST+400h	;the error reporter, which uses the buffer
+	LD	BC,128		;at 80h as workspace.
+	LDIR
+	LD	HL,@LAST+480h	
+	LD	(LPTR),HL	;Set up buffer for deletion
+
+	LD	HL,@LAST+400h	;Expand wildcards in the command line.
+	LD	DE,ERAF		;Subroutine to call if wildcards found
+	LD	BC,PRMPT
+	LD	IX,@LAST	;Buffer to use for expansion
+	LD	A,9
+	CALL	CEXWILD		;Do the expansion...
+	LD	A,H
+	OR	L		;No. of files added to the list.
+	JP	NZ,DO_IT	;then return number of files successfully 
+				;erased.
+	CALL	PRINT
+	DEFB	'No files found.',13,10,0
+	LD	HL,0FF00h
+	JP	C3EXIT
+;
+; We can't delete files while in the wildcard expander; it gets confused.
+;So just record their names, and actually delete here.
+;
+DO_IT:	LD	B,H
+	LD	C,L
+	LD	DE,@LAST+480h	;First FCB to delete
+DO_LP:	PUSH	BC
+	PUSH	DE
+	CALL	ERASE
+	POP	DE
+	POP	BC
+	LD	HL,48
+	ADD	HL,DE
+	EX	DE,HL
+	DEC	BC
+	LD	A,C
+	OR	B
+	JR	NZ,DO_LP
+	RST	0	;Okay.
+;
+confon:	ld	a,1		;[C]
+	ld	(confirm),a
+	ret
+;
+	dseg
+CONFIRM:
+	defb	0		;Don't confirm
+OPTS:	defb	'C',0,0		;"Confirm" option
+OPTCS:	defw	confon
+prmpt:	defb	'File to erase: $'
+PCFCB:	defw	0
+LPTR:	DEFW	0
+	cseg
+;
+; Called from wildcard expansion. Adds file to the hit list.
+;
+ERAF:	LD	HL,0
+	ADD	HL,SP
+	DEC	H
+	AND	A
+	LD	BC,(LPTR)
+	SBC	HL,BC
+;
+; See if we're running low on memory
+;
+	LD	A,0	;Carry will be set if we're between
+	RET	C	;256 and 208 bytes of the stack.
+	LD	H,B
+	LD	L,C
+	LD	BC,48
+	EX	DE,HL
+	LDIR
+	EX	DE,HL	
+	LD	(LPTR),HL
+
+	SCF
+	LD	A,1
+	RET
+;
+; Deletes a file on the hit list. DE->FCB.
+;
+ERASE:	LD	HL,@last
+	INC	H
+	INC	H
+	EX	DE,HL
+	PUSH	DE
+	LD	BC,48
+	LDIR	
+	POP	DE	;DE -> FCB
+	LD      HL,0
+	LD	C,H
+	CALL	COPFCB
+	LD	A,(CONFIRM)
+	OR	A
+	JR	Z,DELF
+	
+CNFDEL:	CALL	PRINT
+	DEFB	' (Y/N)? ',0
+CILP:	CALL	CIN
+	CP	'Y'
+	JR	Z,DELF1
+	CP	'y'
+	JR	Z,DELF1
+	CP	'N'
+	JR	Z,DELSKP
+	CP	'n'
+	JR	NZ,CILP
+DELSKP:	CALL	COUT
+	CALL	CRLF
+	XOR	A
+	SCF
+	RET
+
+DELF1:	CALL	COUT
+DELF:	LD	HL,0	;No password
+	CALL	CDEL
+	JR	NC,CERR1
+	CALL	CRLF
+	LD	A,1	;File processed
+	SCF
+	RET
+;
+
+;
+; Call this if the ERASE call (which we aren't making yet) falls over.
+;
+CERR1:	call	print
+	defb	' - ',0
+	ld	de,@last
+	inc	d
+	inc	d
+	call	cerror
+	ld	hl,84h
+	ld	(80h),hl
+	dec	hl
+	ld	(hl),0
+	ld	de,80h
+	ld	c,6Fh
+	call	5
+	CALL	CRLF
+	XOR	A	;File not processed
+	scf
+	ret
+;
+;Reset the pager before asking for a password; since the password 
+;input routine can print as many lines as it likes.
+;
+CRLF:	LD	A,0Dh		;Print a CR, LF.
+	CALL	COUT
+	LD	A,0Ah
+	JP	COUT
+;
+MYPWD:	CALL	CRLF
+	JP	C3PWD
+
+	end
+
+
+
+
+
+

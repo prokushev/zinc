@@ -1,0 +1,79 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+
+	EXTRN	CFDOS,CIFDEV,CIFNUL,C@PER,C@DMA
+
+CDEL::	PUSH	HL
+	PUSH	BC
+	PUSH	DE
+	PUSH	IX
+	PUSH	IY
+	CALL	CDEL0
+	POP	IY
+	POP	IX
+	POP	DE
+	POP	BC
+	POP	HL
+	RET
+;
+CDEL0:	CALL	CIFNUL	;Valid FCB?
+	LD	A,20
+	SCF
+	CCF
+	RET	Z
+	CALL	CIFDEV
+	RET	Z
+;
+; If there's a password provided, flag it.
+;
+	PUSH	DE
+	LD	A,H
+	OR	L
+	JR	Z,NOPW
+LOOP:	LD	DE,80h
+	PUSH	DE
+	LD	BC,8
+	LDIR
+	POP	DE
+	CALL	C@DMA		;Point DMA at password.
+	
+NOPW:	POP	DE
+	LD	C,13H		;Delete the file
+	CALL	CFDOS
+	JR	NC,ISERR	;Carry reset: Hardware error code, 
+	CP	0FFh		;already translated.
+	RET	C		;Return Carry set, successful
+	LD	A,23		;File not found
+	RET
+;
+; Delete failed.
+;
+ISERR:	CP	37		;If not a password error, return NC.
+	SCF
+	CCF			;Must be NC
+	RET	NZ	
+	CALL	C@PER		;Password error
+	RET	NC
+	PUSH	DE
+	JR	LOOP		;Copy new password in
+				;and try again.
+	END
+

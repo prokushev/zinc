@@ -1,0 +1,37 @@
+;
+; SYSLIB Module Name:  SSCOUT
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	csout
+
+;
+;  CSOUT --
+;	CONSOLE OUTPUT ROUTINE WITH CONTROL CHARACTER PROCESSING
+;		TO CON: OR LST:
+;	OUTPUT CHAR IN REG A
+;	AFFECT NO REGISTERS OR FLAGS
+;
+	EXT	SCTLFL
+	EXT	CCOUT,CLOUT
+
+CSOUT:
+	PUSH	AF	; SAVE REGS
+	PUSH	BC
+	LD	C,A	; SAVE CHAR IN C
+	LD	A,(SCTLFL)	; GET FLAG
+	LD	B,A	; ... IN B
+	AND	80H	; LST:?
+	LD	A,C	; GET CHAR
+	CALL	NZ,CLOUT	; CHAR TO LST:
+	LD	A,B	; GET FLAG
+	AND	1	; CON:?
+	LD	A,C	; GET CHAR
+	CALL	NZ,CCOUT	; CHAR TO CON:
+	POP	BC	; RESTORE REGS
+	POP	AF
+	RET
+
+	END
+

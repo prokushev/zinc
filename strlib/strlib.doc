@@ -1,0 +1,32 @@
+
+Lexical routines
+================
+TOKENL
+  TOKENL  Compare a passed string to a list of keywords. If it matches,
+          returns the index of the keyword in A (0,1,2,3 etc.) with Carry set.
+          If it fails, it returns Carry reset.
+          There are two matching modes: exact and prefix. In exact mode, the
+          passed string must be followed by a non-alpha character. In prefix
+          mode, there is no check for this (so passed string "PREFIX" matches 
+          keyword "PRE"). 
+
+          Enter: B=match mode 0=prefix 1=exact
+                 DE->string
+                 HL->token table: DB 'Word1',0,'Word2',0, ... ,0,0
+                
+                 Returns result in A, success in Carry flag; all other 
+                 registers intact. Other flags corrupt.
+ 
+TOKENG
+  TOKENG  Pull token no. C out of a token table. Returns HL=address of token
+          or HL=0 if there aren't that many tokens in the table.
+
+String routines
+===============
+STRLEN
+  STRLEN  Return length in A of 0-terminated string at HL. Uses AF.
+STRCHR
+  STRCHR  If character in A is contained in string at HL, return Carry set
+         and HL->first instance of character. Else return Carry clear 
+         and HL=0
+

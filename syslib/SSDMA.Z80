@@ -1,0 +1,30 @@
+;
+; SYSLIB Module: SETDMA
+; AUTHOR: RICHARD CONN
+; SYSLIB Version Number: 3.6
+; Module Version Number: 1.1
+; Previous Versions: None
+;
+	public	setdma
+
+;
+;	SETDMA sets the DMA address in HL.  No registers are affected.
+;
+bdos	equ	5
+
+setdma:
+	push	hl	; save all regs
+	push	de
+	push	bc
+	push	af
+	ld	c,26	; SET DMA function
+	ex	de,hl	; DE=address
+	call	bdos
+	pop	af	; restore registers
+	pop	bc
+	pop	de
+	pop	hl
+	ret
+
+	end
+

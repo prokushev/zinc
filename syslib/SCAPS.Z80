@@ -1,0 +1,22 @@
+;
+; SYSLIB Module Name:  SCAPS
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	caps
+
+;
+;  CAPS -- Capitalize ASCII Character in A
+;
+CAPS:
+	AND	7FH	; MASK OUT MSB
+	CP	61H	; LESS THAN SMALL LETTER A?
+	RET	C
+	CP	7AH+1	; BETWEEN SMALL A AND SMALL Z?
+	RET	NC
+	AND	5FH	; REMOVE BIT 5 TO CAPITALIZE (0X0X XXXX)
+	RET
+
+	END
+

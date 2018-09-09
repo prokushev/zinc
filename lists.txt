@@ -1,0 +1,89 @@
+General ideas
+-------------
+
+1. If exists more new tool then in ZINC implemented later version with support older OS. 
+In table marked as link to correspond version.
+
+kernel
+======
+
+
+
+cp/m 2.2		ZINC
+========		====
+
+			(ASM) 2CCP
+			(ASM) 2BDOS
+
+STAT			(ASM) 2STAT
+ASM			(C) 2ASM
+LOAD			(C) 2LOAD
+PIP			(C) 2PIP
+ED			cp/m 3.0
+SYSGEN
+SUBMIT			(ASM) 2SUBMIT
+DUMP			cp/m 3.0
+MOVCPM
+DDT
+
+cp/m 3.0		ZINC
+========		====
+
+CCP			
+COPYSYS
+DATE			(ASM) 3DATE
+DEVICE			(ASM) 3DEVICE
+DIR			(ASM) 3DIR
+DUMP			(ASM) 3DUMP
+ED
+ERASE			(ASM) 3ERASE
+GENCOM
+GENCPM
+GET
+HELP
+HEXCOM
+PATCH
+PIP			
+PUT
+RENAME
+SAVE
+SET
+SETDEF			(ASM) 3SETDEF
+SHOW			(ASM) 3SHOW
+SUBMIT
+TYPE			(ASM) 3TYPE
+
+GSX			ZINC
+===			====
+
+GENGRAF
+
+CP/NET 1.0		ZINC
+==========		====
+
+LOGIN                   cp/net 1.2
+LOGOFF                  cp/net 1.2
+NETWORK
+CPNETLDR
+CPNETSTS
+ENDLIST                 cp/net 1.2
+
+CP/NET 1.1		ZINC
+==========		====
+
+LOGIN                   cp/net 1.2
+LOGOFF                  cp/net 1.2
+NETWORK
+CPNETLDR
+CPNETSTS
+ENDLIST                 cp/net 1.2
+
+CP/NET 1.2		ZINC
+==========		====
+
+LOGIN                   (ASM) NLOGIN
+LOGOFF                  (ASM) NLOGOFF
+NETWORK
+CPNETLDR
+CPNETSTS
+ENDLIST                 (ASM) NENDLIST

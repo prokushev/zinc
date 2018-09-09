@@ -1,0 +1,76 @@
+;
+; SYSLIB Module Name:  SBIOS
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	bios
+
+;
+;  SBIOS -- Direct BIOS I/O Routine
+;	This routine provides the user with a direct interface into the
+; CP/M BIOS.  It is called with the A Reg containing the index offset into
+; the BIOS JMP table.  No registers are preserved by this routine.  The
+; contents of HL, DE, and BC are passed to the BIOS unchanged.
+;
+;	The following table summarizes the BIOS JMP Table Entries --
+;
+;     Offset	Function
+;	 0	Cold Start
+;	 1	Warm Start
+;	 2	Console Status; Returns A=0FFH if char ready, A=0 if not
+;	 3	Console Input; Returns char in A
+;	 4	Console Output; Char passed in C
+;	 5	List Output; Char passed in C
+;	 6	Punch Output; Char passed in C
+;	 7	Reader Input; Returns char in A
+;
+;	 8	Home Disk Head (Return Version Number); Returns Version Number
+;			in HL
+;	 9	Select Disk; Disk Number (A=0, etc) passed in C
+;	10	Set Track Number; Track Number passed in C
+;	11	Set Sector Number; Sector Number passed in C
+;	12	Set DMA Address; DMA address passed in BC
+;	13	Read Disk; Returns A=0 if OK, A=1 if error
+;	14	Write Disk; Returns A=0 if OK, A=1 if error
+;
+;	15	List Status; Returns A=0FFH if ready to output, A=0 if not
+;	16	Sector Translation; Logical-to-Physical Sector Translation;
+;			Logical Sector Number passed in BC and Translate
+;			Table Address passed in DE; Returns Physical Sector
+;			Number in HL
+;
+
+;
+;  EQUATES
+;
+WBADR	EQU	1	; WARM BOOT ADDRESS
+
+BIOS:
+	PUSH	DE	; SAVE DE
+	LD	(HLBUF),HL	; SAVE HL
+	LD	HL,(WBADR)	; GET ADDRESS OF WARM BOOT
+	DEC	HL	; BACK UP TO POINT TO COLD BOOT
+	DEC	HL
+	DEC	HL
+	LD	DE,3	; PT TO ENTRY
+BIOSL:
+	OR	A	; DONE?
+	JP	Z,BIOSD
+	ADD	HL,DE	; PT TO NEXT
+	DEC	A	; COUNT DOWN
+	JP	BIOSL
+;
+;  HL NOW POINTS TO BIOS JMP TO BE PERFORMED
+;
+BIOSD:
+	POP	DE	; GET DE
+	PUSH	HL	; PLACE ROUTINE ADDRESS ON STACK
+	LD	HL,(HLBUF)	; RESTORE HL
+	RET		; "CALL" INTO BIOS (RET ADR IS CALLER OF BIOS)
+
+HLBUF:
+	DS	2	; BUFFER IN WHICH TO SAVE HL
+
+	END
+

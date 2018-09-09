@@ -1,0 +1,31 @@
+;
+; SYSLIB Module Name:  SMTH01
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	addhd
+
+;
+;  ADDHD -- ADD DE TO HL, RESULT IN HL
+;	RETURN WITH HL=RESULT, CARRY SET IF OVFL
+;
+ADDHD:
+	PUSH	AF
+	LD	A,E	; ADD L AND E
+	ADD	A,L
+	LD	L,A
+	LD	A,D	; ADD H AND D
+	ADC	A,H
+	LD	H,A
+	JP	NC,OKRET
+	POP	AF	; GET PSW
+	SCF		; SET CARRY
+	RET
+OKRET:
+	POP	AF
+	OR	A	; CLEAR CARRY
+	RET
+
+	END
+

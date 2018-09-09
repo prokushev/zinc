@@ -1,0 +1,100 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+;
+; Read a byte from an open CFCB file. Enter with DE->CFCB; returns C=byte.
+;
+	extrn	cfdos,c@rrrc,c@last,c@blen,c@irrc,cifdev,cdevi,cifnul
+
+crbyti::
+	push	iy
+
+	push	de
+	pop	iy	;IY -> CFCB.
+	push	de
+	push	hl
+	ld	h,b
+	push	hl
+	call	crr0
+	pop	hl
+	ld	b,h
+	pop	hl
+	pop	de
+	pop	iy
+	ret
+;
+crr0:	call	cifnul
+	jr	nz,crr0a
+	xor	a
+	ld	a,29
+	ret
+;
+crr0a:	call	cifdev
+	jp	z,cdevi
+;
+;Is there a record currently loaded?
+;
+crr1:	bit	7,(iy+40)	;>7fh => buffer empty
+	scf
+	call	nz,fillbuf
+	ret	nc
+;
+	call	c@blen		;A:=no. of bytes remaining in current buffer
+	ret	nc		;EOF error.
+	or	a		;If A=0, at EOF.
+	jr	z,ateof		;Carry clear if they're all in the buffer.
+	ld	l,(iy+38)
+	ld	h,(iy+39)
+	ld	e,(iy+40)
+	ld	d,0	;DE=offset
+	add	hl,de	;HL=addr of bytes
+	ld	c,(hl)	;C=byte
+	inc	(iy+40)
+	scf
+	ret
+;
+ateof:	xor	a
+	ld	a,25
+	ret
+;
+fillbuf:
+	ld	a,(iy+40)
+	cp	0ffh		;Load current record - else, load next.
+	scf
+	call	nz,c@irrc
+	ret	nc
+fillb1:	push	hl
+	ld	l,(iy+38)
+	ld	h,(iy+39)	;HL -> record buffer
+	ld	a,h
+	or	l
+	ld	a,29
+	scf
+	ccf
+	call	nz,c@rrrc	;Load current record.
+	pop	hl		;Retrieve load address.
+	ret	nc
+	ld	(iy+40),0
+	ret
+
+	end
+
+
+

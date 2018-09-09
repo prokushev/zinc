@@ -1,0 +1,88 @@
+;
+;    CPM3LIB library: An extension to SYSLIB for CP/M 3 features
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+
+	ext	DIVHD,MULHD,C3MDYS
+
+;
+;C3DAY: Convert day in D, month in E, 4-digit year in HL to CP/M day count.
+;
+C3DAY::
+	PUSH	AF
+	PUSH	BC
+	PUSH	DE
+	PUSH	DE	;Save day & month for later.
+	LD	DE,1976	;Start at 0 Jan 1976
+	AND	A
+	SBC	HL,DE	;HL = years since 1976
+	LD	DE,4
+	PUSH	HL
+	CALL	DIVHD	;HL = no. of 4-year cycles since 1976
+	PUSH	HL
+	LD	DE,1461
+	CALL	MULHD
+	LD	B,H	;BC will contain running total.
+	LD	C,L	;BC = day count to start of cycle
+	POP	HL
+	LD	DE,4
+	CALL	MULHD	;HL = years to start of cycle
+	POP	DE	;DE = years since 1976
+	EX	DE,HL
+	AND	A
+	SBC	HL,DE	; L = years since start of cycle
+	LD	A,L
+	OR	A	; No years since start of cycle; this is a leap year.
+	LD	A,29
+	JR	Z,NOYEAR
+	INC	BC	; At least one year has passed, so add (L*365) + 1
+	LD	DE,365	; (+1 for the leap day in the first year)
+	CALL	MULHD
+	ADD	HL,BC
+	LD	B,H
+	LD	C,L		;BC = days to start of year
+	LD	A,28
+NOYEAR:	LD	(C3MDYS+1),A	;Set correct day count for February
+	POP	DE		;E  = month D = day
+	LD	L,D
+	LD	H,0		;HL = days in current month
+	DEC	HL
+	ADD	HL,BC		;Add days on to count.
+	LD	B,H
+	LD	C,L	
+	LD	HL,C3MDYS
+YMON:	DEC	E		;For each completed month, add its length
+	JR	Z,NOMON		;to total days.
+	LD	A,(HL)
+	INC	HL
+	ADD	A,C
+	LD	C,A
+	JR	NC,YMON
+	INC	B
+	JR	YMON
+;	
+NOMON:	LD	HL,-730	;Rebase on 1 Jan 1978
+	ADD	HL,BC
+	POP	DE
+	POP	BC
+	POP	AF
+	RET
+
+	END
+

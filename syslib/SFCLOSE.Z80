@@ -1,0 +1,31 @@
+;
+; SYSLIB Module Name:  SFCLOSE
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	f$close
+
+;
+;  F$CLOSE -- CLOSE FILE WHOSE FCB IS PTED TO BY DE
+;	RET W/A=0 IF OK
+;
+	EXT	BDOS
+
+F$CLOSE:
+	PUSH	HL	; SAVE HL
+	PUSH	BC	; SAVE BC
+	LD	C,B$CLOS
+	CALL	BDOS
+	CP	255	; ERROR?
+	JP	Z,FCLSDN
+	XOR	A	; A=0
+FCLSDN:
+	POP	BC	; RESTORE BC
+	POP	HL	; RESTORE HL
+	RET
+
+B$CLOS	EQU	16	; CLOSE FILE
+
+	END
+

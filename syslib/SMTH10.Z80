@@ -1,0 +1,32 @@
+;
+; SYSLIB Module Name:  SMTH10
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	negh,cmph
+
+;
+;  NEGH -- NEGATE (2'S COMP) HL
+;
+NEGH:
+	CALL	CMPH	; 1'S COMP OF HL
+	INC	HL	; ADD 1 FOR 2'S COMP
+	RET
+
+;
+;  CMPH -- COMPLEMENT (1'S COMP) HL
+;
+CMPH:
+	PUSH	AF
+	LD	A,L	; COMPLEMENT LOW
+	CPL
+	LD	L,A
+	LD	A,H	; COMPLEMENT HIGH
+	CPL
+	LD	H,A
+	POP	AF
+	RET
+
+	END
+

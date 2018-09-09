@@ -1,0 +1,135 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+;
+;
+;
+	extrn	cfdos,c@rrec,c@wrec,c@last,c@blen,c@irec,cifdev,cdevo,cifnul
+	extrn	c@xtnd
+;
+cbyto::	push	iy
+	push	de
+	pop	iy	;IY -> CFCB.
+	push	de
+	push	bc
+	push	hl
+	call	crr0
+	pop	hl
+	pop	bc
+	pop	de
+retl1:	pop	iy
+	ret
+;
+crr0:	call	cifnul		;Check for bad FCB
+	jp	nz,crr0a
+crr0c:	xor	a
+	ld	a,29
+	ret
+;
+crr0a:	bit	1,(iy+47)
+	jr	z,crr0c
+	call	cifdev	;Is it for a device?
+	jp	z,cdevo
+
+;
+;1. Are there any free bytes left in the buffer?
+;
+crr1:	
+;
+;Buffer will hold this byte. So check it's loaded.
+;
+	bit	7,(iy+40)
+	scf
+	call	nz,fillbuf
+	ret	nc
+;
+;Buffer is loaded and has space for at least one byte. Find out where they 
+;should go.
+;	
+	ld	l,(iy+38)
+	ld	h,(iy+39)
+	push	de		;HL=buffer addr.
+	ld	e,(iy+40)
+	ld	d,0		;DE=offset within buffer
+	add	hl,de		;HL=addr of space in buffer
+	pop	de
+	ld	(hl),c
+	inc	(iy+40)
+	set	7,(iy+47)	;"Dirty" flag.
+	push	iy
+	pop	de
+	call	c@xtnd		;Check for file extensions.
+	scf
+	ret
+;
+fillbuf:
+;
+;Do a pre-read. IY+40 is either 80h or 0FFh. 
+;
+	ld	a,(iy+40)
+	cp	0ffh		;If A=0FFh, load current record 
+	scf			; - else, load next.
+	push	iy
+	pop	de
+	call	nz,c@irec
+	ret	nc
+fillb1:	push	hl
+	ld	l,(iy+38)
+	ld	h,(iy+39)	;HL -> record buffer
+	ld	a,h
+	or	l		;Resets Carry
+	ld	a,29
+	jr	z,fillb2
+	push	iy
+	pop	de
+	call	c@rrec		;Load current record.
+	jr	c,fillb2
+;
+;Possible failure if this record is beyond the end of the file - in which 
+;case, we get error 25 (EOF). 
+;
+	cp	25
+	scf
+	ccf
+	jr	nz,fillb2
+;
+;We got no. 25. So fill the buffer with ^Zs and report "OK".
+;
+	push	de
+	push	bc
+	ld	l,(iy+38)
+	ld	h,(iy+39)
+	ld	d,h
+	ld	e,l
+	inc	de
+	ld	bc,7fh
+	ld	(hl),1ah
+	ldir
+	pop	bc
+	pop	de		;OK!
+	scf
+fillb2:	pop	hl		;Retrieve load address.
+	ret	nc
+	ld	(iy+40),0
+	ret
+;
+	end
+
+

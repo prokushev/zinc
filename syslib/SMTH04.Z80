@@ -1,0 +1,26 @@
+;
+; SYSLIB Module Name:  SMTH04
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	rotrh
+
+;
+;  ROTRH -- ROTATE RIGHT HL 1 BIT POSITION
+;
+ROTRH:
+	PUSH	AF
+	LD	A,L	; GET LSB INTO CARRY
+	RRA
+	LD	A,H	; SHIFT HIGH
+	RRA		; ROTATE 9-BIT ACC RIGHT
+	LD	H,A
+	LD	A,L	; SHIFT LOW
+	RRA
+	LD	L,A
+	POP	AF
+	RET
+
+	END
+

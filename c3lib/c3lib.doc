@@ -1,0 +1,165 @@
+
+Routines in CPM3LIB (req. SYSLIB):
+
+PIPEMGR routines
+================
+C3PMPA
+   PMEPG   Output character in A, using C3POUT or stderr
+   PMOPG   Output character in A, using C3POUT or stdout
+C3PMPR
+   PMEPR   Like PRINT, but to the PIPEMGR "stderr" pipe 
+   PMOPR   Like PRINT, but to the PIPEMGR "stdout" pipe
+C3PMST
+   PMESTR  Like PSTR, but to the PIPEMGR "stderr" pipe
+   PMPSTR  Like PSTR, but to the PIPEMGR "stdout" pipe
+
+ These routines will output to the screen if PIPEMGR is not present. The
+"low-level" routines below will not; they will simply swallow the character.
+
+C3PMIN
+   C3PM00  Initialise PIPEMGR. All registers preserved.
+C3PMI
+   C3PINP  Return HL = result of reading from PIPEMGR stdin pipe.
+C3PMOU
+   C3PCHR  Output byte in A to PIPEMGR stdout pipe.
+C3PMER
+   C3PERR  Output byte in A to PIPEMGR stderr pipe.
+C3PMST
+   C3PSTA  Get PIPEMGR status in A.
+C3PMVE
+   C3PVER  Get PIPEMGR version in HL.
+C3PMPB
+   C3@PFL  PIPEMGR flag. 0 if PIPEMGR is absent, 1 if present.
+   C3@PPB  RSX parameter block for PIPEMGR calls.
+   C3@PPN  8 bytes reading 'PIPEMGR '
+   C3@PCL  Make a PIPEMGR call with A=function number, HL=parameter.
+           Preserves BC and DE.
+
+Date and time routines
+======================
+
+C3STIM
+   C3STIM  Set the current time as a 5-byte CP/M timestamp, at HL. All
+           registers preserved.
+C3SMIN
+   C3SMIN  Set the current time as a 4-byte CP/M timestamp (seconds=0). All
+           registers preserved. Smaller code than C3STIM.
+C3GTIM
+   C3GTIM  Get the current time as a 5-byte CP/M timestamp, at HL. All
+           registers preserved.
+C3DAY
+   C3DAY   Given HL=4-digit year, E=month, D=day return HL=CP/M day count.
+           All other registers preserved.
+C3DNAM
+   C3DNAM  Get the day name from a CP/M 3 day count. Writes three ASCII bytes
+           at DE; returns DE incremented by 3 and all others preserved.
+C3A2DA
+   C3A2D   Convert an ASCII string at HL to a CP/M day count in DE. Returns
+           either:
+                    A=0  Z set:   Date OK, HL->end of date, DE=day count.
+               or:  A<>0 Z reset: Bad format, HL DE corrupt.
+
+            BC preserved.
+C3A2TI
+   C3A2T   Convert an ASCII string at HL to a CP/M BCD time stamp at DE+2.
+           Enter with A=0 to omit seconds, 1 to include them. 
+           Returns either:
+                    A=0  Z set:   Time OK, HL->end of string.
+               or:  A<>0 Z reset: Bad format, HL corrupt.
+
+            BC DE preserved.
+C3DATE
+   C3D2A   Convert a CP/M 3 day count in HL to 0-terminated ASCII at DE. 
+           Returns DE->next character, all other registers preserved.     
+C3TIME
+   C3T2A   Convert CP/M 3 timestamp at HL to hour:min or hour:min:sec at
+           DE. Returns DE->next character, all other registers preserved;
+           pass A = 0 to omit seconds.
+C3DMY 
+   C3DMY   Convert a CP/M 3 day count in HL to 
+           D=Day, E=month, HL=4-digit year. Uses HL & DE. 
+   C3MDYS  Lengths of the 12 months. You should set the second (February)
+           byte manually, as it may be 28 or 29 depending what year the 
+           last date handled was in.
+C3DFMT
+   C3DFMT  Get the date format currently in use on the system, into A.
+           Returns A=0 for US, 1 for UK, 2 for ISO. Other values may be
+           assigned in future, so don't crash if you get them.
+           Flags reflect A (ie, Z if A=0); all other registers preserved.
+
+Physical I/O devices
+====================
+C3DEVL
+   C3DEVL  Look up a device by name. DE->6-byte name, uppercase, space filled.
+           Returns HL->physical device record; C = device number 0-15; A B DE
+           preserved. If failed returns HL=0, C corrupt, A B DE preserved. 
+C3DEVG
+   C3DEVG  Return address of physical device record for device C (0 <= C < 15)
+           or 0 if the device can't be found. Returns HL=record; AF BC DE
+           preserved.
+C3DEVC
+   C3DEVC  Count physical devices in the system. 0 if there is no DEVTBL; 
+           1-15 otherwise.
+
+CP/M 3 BIOS
+===========
+
+C3DTBL
+   C3DTBL  Return address of the CP/M 3 device table in HL, 0 if there
+           is no such table. AF BC DE preserved, others as the BIOS left them.
+C3DINI
+   C3DINI  Re-initialise CP/M device number C. AF BC DE HL preserved, others
+           as the BIOS left them.
+C3BIOS
+   C3BIOS  Call the BIOS via BDOS function 50. All registers as for the
+           BIOS call, and the call number should be on the stack. C3BIOS
+           will remove it from the stack.
+
+Misc code
+=========
+
+C3PAGE     
+   C3PINI  Initialise the pager. A=0 for NOPAGE, 1 for PAGE, 2 to use SCB.
+   C3POUT  Output a character in A. If it's a linefeed, check for paging.
+
+C3BRK
+   C3BRK   Called after a character has been input. If character is 3, 
+           checks bit 3 of console mode to see if program should terminate.
+C3CMOD
+   C3CMOD  Either: Set console mode in HL, or retrieve it into HL, in the
+           same way as C3ERR.
+C3ERR
+   C3ERR   Either: Set error code in HL (HL < 0FFFFh); corrupts AF HL.
+               or: Retrieve error code into HL (HL = 0FFFFh). A=low 8 bits.
+           BC DE preserved.
+   C3EXIT  Quit with error in HL.
+
+C3SCBP 
+   C3SCBW  Write a word in DE to SCB entry L. } All regs preserved. 
+   C3SCBB  Write a byte in  E to SCB entry L. }
+C3SCBG 
+   C3SCBG  Read SCB entry L. Returns HL=word value, A=byte value.
+           BC & DE preserved. Flags reflect A.
+   C3SCPB  4-byte SCB parameter block 
+C3TBCD
+   C3TBCD  Convert A from binary to packed BCD
+C3FBCD
+   C3FBCD  Convert A from packed BCD to binary
+C3OPT 
+   C3OPT   Parse a 0-terminated command line for CP/M-style options.
+           DE -> list of words: DB len1,word1,len2,word2,...,0
+           HL -> 0-terminated command line
+           IY -> list of subroutines, to be called if a word is matched.
+                Subroutines: entered with HL->next char after word
+                            should return HL->next char to parse
+                can use all other registers. 
+C3DOSO 
+   C3DOPT  Parse a 0-terminated command line for DOS/Unix-type options.
+           Interface is as C3OPT.
+C3INT
+   ZPUSHI  Save interrupt enabled/disabled status on the stack.
+   ZPOPI   Restore interrupt status from the stack.
+C3PUSH
+   C3PUSH  Push AF,BC,DE,HL onto the stack.
+   C3POP   Pop AF,BC,DE,HL. Can only be jumped to, not CALLed.
+ 

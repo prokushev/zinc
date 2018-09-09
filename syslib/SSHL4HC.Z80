@@ -1,0 +1,26 @@
+;
+; SYSLIB Module Name:  SSHL4HC
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	shl4hc
+
+;
+;  SHL4HC -- Print HL as 4 Hex Characters on CON: or LST:
+;	No Registers are to be affected.
+;
+
+	EXT	SA2HC	; PRINT A AS 2 HEX CHARACTERS ON CON: OR LST:
+
+SHL4HC:
+	PUSH	AF	; SAVE A
+	LD	A,H	; PRINT H
+	CALL	SA2HC
+	LD	A,L	; PRINT L
+	CALL	SA2HC
+	POP	AF	; RESTORE A
+	RET
+
+	END
+

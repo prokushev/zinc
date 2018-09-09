@@ -1,0 +1,473 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+
+FDOS	EQU	5
+FCB	EQU	005Ch
+;
+;BYTELEN: Find a file's exact length in bytes, and save this length in the
+;        CP/M+ directory.  
+;
+;Syntax is : BYTELEN filename METHOD 
+;
+;where METHOD is:
+;
+;TEXT  - load last record, search for ^Z.
+;3DOS  - load 1st record, read file length
+;SET   - pack last record with EOFs.
+;
+
+	EXTRN	STDVER,UDPCMD,UFCB,UFCB1,UFCB2,UIFNUL,UDFDOS,H$ERR,OPCCB,WRAPR,SCRW
+	EXTRN	UOPFCB,SETDMA,OPDEC3,PRINT,PNUM,CRLF
+	EXTRN	OPHEX4,OPCHAR,ZFCB,CP$
+;
+	JP	BEGIN
+	DEFB	'BYTELEN v1.00 - supports bytewise file lengths under CP/M +',13,10
+	DEFB	'(c) J. Elliott  Date: 00/00/00',13,10,26
+BEGIN:	CALL	STDVER
+	LD	C,2Dh
+	LD	E,0FFh
+	CALL	FDOS
+	LD	HL,80h
+	CALL	UDPCMD
+	LD	DE,UFCB
+	CALL	UIFNUL
+	JP	NC,HELP
+	LD	A,(UFCB+37)
+	CP	20h
+	JP	NC,HELP
+	CALL	ZFCB
+	LD	HL,UFCB
+	LD	DE,UFCB3
+	LD	BC,38
+	LDIR
+	CALL	MATCHME
+	XOR	A
+	LD	(NFP),A
+LLOOP:	LD	DE,80h
+	CALL	SETDMA
+	CALL	NFIND
+	INC	A
+	JP	Z,DONE
+	DEC	A
+	ADD	A,A	;*2
+	ADD	A,A	;*4
+	ADD	A,A	;*8
+	ADD	A,A	;*16
+	ADD	A,A	;*32
+	ADD	A,81h	
+	LD	L,A
+	LD	H,0
+	LD	DE,UFCB3+1
+	LD	BC,11
+	LDIR
+	INC	HL	;HL points to S1
+	LD	A,(HL)
+	LD	(UFCB3+36),A
+	CALL	DOLEN
+	LD	A,(NFP)
+	INC	A
+	LD	(NFP),A
+	JP	LLOOP
+;
+NFIND:	LD	A,(NFP)
+	LD	C,11h
+	LD	H,A
+NFIN1:	PUSH	HL
+	LD	DE,UFCB
+	CALL	UDFDOS
+	CALL	H$ERR
+	JP	NC,CCBERR
+	POP	HL
+	LD	L,A
+	LD	A,H
+	OR	A
+	LD	A,L
+	RET	Z
+	DEC	H
+	LD	C,12h
+	JR	NFIN1
+;
+DOLEN:	LD	HL,(METHOD)
+	JP	(HL)
+;
+DONE:	CALL	CRLF
+	CALL	CRLF
+	LD	A,(NFP)
+	OR	A
+	JR	NZ,DONE1
+	LD	DE,NFSP$
+	JP	ERRPR
+;
+DONE1:	LD	L,A
+	LD	B,0
+	LD	H,B
+	CALL	OPDEC3
+	CP	1
+	LD	DE,FSP$
+	CALL	NZ,PRINT
+	LD	DE,FP$
+	CALL	Z,PRINT
+	RST	0
+;
+MATCHME:
+	LD	B,4
+	LD	HL,METHODS
+MATCHM1:
+	LD	DE,UFCB2+1
+	CALL	CP7
+	JR	Z,MATCHST
+	DJNZ	MATCHM1
+	LD	HL,UFCB2+1
+	CALL	PNUM
+	RET	C
+	LD	HL,SETNUM
+	LD	(METHOD),HL
+	LD	A,E
+	AND	7FH
+	LD	(NUMBER),A
+	RET
+;
+	DSEG
+P3DSIG:	DEFB	'PLUS3DOS',26
+MATTB:	DEFW	SETTXT,SETP3D,GETDIR,GET000
+	CSEG
+;
+MATCHST:
+	LD	A,4
+	SUB	B
+	ADD	A,A
+	LD	E,A
+	LD	D,0
+	LD	HL,MATTB
+	ADD	HL,DE
+	LD	E,(HL)
+	INC	HL
+	LD	D,(HL)
+	LD	(METHOD),DE
+	RET
+;
+CP7:	LD	C,11
+CP7B:	LD	A,(DE)
+	AND	7FH
+	CP	(HL)
+	JR	NZ,CP7A
+	INC	HL
+	INC	DE
+	DEC	C
+	RET	Z
+	JR	CP7B
+
+CP7A:	INC	HL
+	DEC	C
+	JR	NZ,CP7A
+	XOR	A
+	DEC	A
+	RET
+	
+SETTXT:	CALL	GET001
+	LD	HL,(UFCB3+21h)
+	LD	A,(UFCB3+23h)
+	PUSH	HL
+	PUSH	AF
+	LD	DE,UFCB3
+	CALL	ZFCB
+	LD	C,0FH
+	CALL	UDFDOS	;Open the file
+	CALL	H$ERR
+	JP	NC,CCBERR
+	POP	AF
+	LD	E,A
+	POP	HL
+	OR	H
+	OR	L
+	JR	Z,LZREC
+	DEC	HL	;Load last record
+	LD	A,H
+	AND	L
+	INC	A
+	JR	NZ,XX001
+	DEC	E
+XX001:	LD	A,E
+	LD	(UFCB3+21h),HL	;Load last record 
+	LD	(UFCB3+23h),A
+	LD	DE,80h
+	CALL	SETDMA
+	LD	DE,UFCB3
+	LD	C,21h
+	CALL	UDFDOS
+	CALL	H$ERR
+	JP	NC,CCBERR
+	PUSH	AF
+	LD	DE,UFCB3
+	LD	C,10h
+	CALL	UDFDOS
+	CALL	H$ERR
+	JP	NC,CCBERR
+	POP	AF
+	OR	A
+	JR	NZ,LZREC
+	LD	HL,80h
+	LD	BC,8000h
+EOFLP:	LD	A,(HL)
+	CP	1Ah
+	JR	Z,EFND
+	INC	HL
+	INC	C
+	DJNZ	EOFLP
+LZREC:	LD	DE,NCHG$
+	JP	PRINT		
+;
+EFND:	LD	A,C	
+	AND	7Fh
+	JP	SETLEN
+;
+SETP3D:	CALL	GET001
+	LD	DE,UFCB3
+	CALL	ZFCB
+	LD	C,0FH
+	CALL	UDFDOS	;Open the file
+	CALL	H$ERR
+	JP	NC,CCBERR
+	LD	HL,0
+	LD	(UFCB3+21h),HL	;Load record 0
+	LD	(UFCB3+22h),HL
+	LD	DE,80h
+	CALL	SETDMA
+	LD	DE,UFCB3
+	LD	C,21h
+	CALL	UDFDOS
+	CALL	H$ERR
+	JP	NC,CCBERR
+	PUSH	AF
+	LD	DE,UFCB3
+	LD	C,10h
+	CALL	UDFDOS
+	CALL	H$ERR
+	JP	NC,CCBERR
+	POP	AF
+	OR	A
+	JR	NZ,NOTP3D
+	LD	HL,80h
+	LD	DE,P3DSIG
+	LD	B,9
+	CALL	CP$
+	JR	NZ,NOTP3D
+	LD	A,(8Bh)	;Length, LSB
+	AND	7Fh
+	JP	SETLEN
+;
+NOTP3D:	LD	DE,NP3D$
+	JP	PRINT
+;
+	DSEG
+NP3D$:	DEFB	'  Not a +3DOS file$'
+NCHG$:	DEFB	'  Not changing length$'
+	CSEG
+;
+GETDIR:	CALL	GET000
+	LD	HL,(UFCB3+21h)
+	LD	A,(UFCB3+23h)
+	PUSH	HL
+	PUSH	AF
+	LD	DE,UFCB3
+	CALL	ZFCB
+	LD	C,0FH
+	CALL	UDFDOS	;Open the file
+	CALL	H$ERR
+	JP	NC,CCBERR
+	POP	AF
+	LD	E,A
+	POP	HL
+	OR	H
+	OR	L
+	JR	Z,NDGET
+	DEC	HL	;Load last record
+	LD	A,H
+	AND	L
+	INC	A
+	JR	NZ,XX002
+	DEC	E
+XX002:	LD	A,E
+	LD	(UFCB3+21h),HL	;Load last record 
+	LD	(UFCB3+23h),A
+	LD	DE,80h
+	CALL	SETDMA
+	LD	DE,UFCB3
+	LD	C,21h
+	CALL	UDFDOS
+	CALL	H$ERR
+	JP	NC,CCBERR
+	LD	A,(UFCB3+36)	;Byte count in last record
+	AND	7Fh
+	JR	Z,NDGET
+	ADD	A,80h
+	LD	L,A
+	LD	H,0
+FILL1A:	LD	(HL),1Ah
+	INC	L
+	JR	NZ,FILL1A
+	LD	DE,UFCB3
+	LD	C,22h
+	CALL	UDFDOS
+	CALL	H$ERR
+	JP	NC,CCBERR
+NDGET:	LD	DE,UFCB3
+	LD	C,10h
+	CALL	UDFDOS
+	CALL	H$ERR
+	JP	NC,CCBERR
+	LD	DE,SETOK$
+	JP	PRINT
+;
+	DSEG
+SETOK$:	DEFB	'  set OK.$'
+	CSEG
+;
+SETNUM:	CALL	GET001
+	LD	DE,UFCB3
+	CALL	ZFCB
+	LD	A,(NUMBER)
+SETLEN:	LD	(UFCB3+32),A
+	LD	(UFCB3+36),A
+	LD	HL,UFCB3+6
+	SET	7,(HL)	;Set byte counter
+	LD	C,1Eh
+	LD	DE,UFCB3
+	CALL	UDFDOS
+	CALL	H$ERR
+	JP	NC,CCBERR
+ISLEN:	LD	DE,ISL$
+	CALL	PRINT
+	JP	OPLEN
+;
+GET000:	CALL	CRLF
+	LD	HL,UFCB3
+	LD	C,0
+	CALL	UOPFCB
+	LD	E,' '
+	CALL	OPCHAR
+	CALL	OPCHAR
+	JR	OPLEN
+;
+GET001:	CALL	CRLF
+	LD	HL,UFCB3
+	LD	C,0
+	CALL	UOPFCB
+	JR	WASLEN
+
+	DSEG
+WASL$:	DEFB	'  Length was $'
+ISL$:	DEFB	'  New length $'
+	CSEG
+;
+WASLEN:	LD	DE,WASL$
+	CALL	PRINT
+OPLEN:	LD	DE,UFCB3
+	CALL	ZFCB
+	LD	C,23H
+	CALL	UDFDOS
+	CALL	H$ERR
+	JP	NC,CCBERR
+	LD	HL,(UFCB3+22H)
+	LD	A,(UFCB3+21H)
+	LD	D,A
+	LD	A,(UFCB3+36)
+	AND	7FH
+	JR	Z,ALL80
+	DEC	D
+	JR	NC,ALL80
+	DEC	HL
+ALL80:	LD	E,A
+	XOR	A
+	SRL	H
+	RR	L
+	RR	D
+	RRA
+	OR	E
+	LD	E,A	
+HEX32:	CALL	OPHEX4
+	EX	DE,HL
+	CALL	OPHEX4
+	LD	DE,BYT$
+	JP	PRINT
+;
+	DSEG	
+BYT$:	DEFB	'h bytes$'
+METHODS:
+	DEFB	'TEXT       '
+	DEFB	'3DOS       '
+	DEFB	'GET        '
+	DEFB	'           '
+METHOD:	DEFW	BADMTH
+BADMT$:	DEFB	'Unrecognised "method" command.',13,10,'$'
+NUMBER:	DEFB	0
+NFP:	DEFB	0
+UFCB3:	DEFS	38
+NFSP$:	DEFB	'No file.',13,10,'$'
+FSP$:	DEFB	' files processed.',13,10,'$'
+FP$:	DEFB	' file processed.',13,10,'$'
+	CSEG
+;
+BADMTH:	LD	DE,BADMT$
+	JR	ERRPR
+;
+FCBERR:	PUSH	DE
+	LD	HL,UFCB
+	LD	C,1
+	CALL	UOPFCB
+	POP	DE
+ERRPR:	CALL	PRINT
+	JR	ERROR
+;
+CCBERR:	CALL	CRLF
+	CALL	OPCCB
+ERROR:	LD	DE,0FF00h
+	LD	C,6Ch
+	CALL	FDOS
+	RST	0
+;
+HELP:	LD	DE,HELP$
+	CALL	SCRW
+	CALL	WRAPR
+	RST	0
+;	
+	DSEG
+HELP$:	DEFB	'BYTELEN 1.00 - handle accurate file lengths under CP/M +',13,10,10
+	DEFB	'Syntax:  BYTELEN du:filename { method }',13,10,10
+	DEFB	'  CP/M Plus has a system whereby exact file lengths can '
+	DEFB	'be stored in the directory. This program allows the ' 
+	DEFB	'information to be generated for files which do not '
+	DEFB	'already have it.',13,10
+	DEFB	'"method" can be: ',13,10
+	DEFB	'TEXT - the file is a text file. Look for an end-of-file '
+	DEFB	'character in the last record.',13,10
+	DEFB	'3DOS - the file has a +3DOS header. Set the length from '
+	DEFB	'the header.',13,10
+	DEFB	'nnn  - nnn is a number from 1-128, the number of bytes '
+	DEFB	'that are used in the last record.',13,10
+	DEFB	'GET  - get the information from the directory and use '
+	DEFB	'it to append an EOF marker to the file (eg files '
+	DEFB	'imported by MSODBALL',13,10
+	DEFB	'none - display information for each file.',13,10
+	DEFB	'$'  
+
+	END
+

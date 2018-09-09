@@ -1,0 +1,34 @@
+;
+;  SYSLIB Module Name:  SISPRINT
+;  Author:  Richard Conn
+;  SYSLIB Version Number:  3.6
+;  Module Version Number:  1.1
+
+	public	isprint
+;
+;	ISPRINT returns Zero Flag Set if char in A is printable
+; ( >= space, < DEL).  ISPRINT returns NZ if not.
+;
+;	Char in A is unaffected.
+;
+ISPRINT:
+	PUSH	BC	; SAVE BC
+	LD	C,A	; SAVE CHAR IN C
+	AND	7FH	; MASK OUT MSB
+	CP	' '	; LESS THAN SPACE?
+	JP	C,NO
+	CP	7FH	; LESS THAN DELETE?
+	JP	Z,NO
+	XOR	A	; SET FLAG
+	LD	A,C	; GET CHAR
+	POP	BC	; RESTORE BC
+	RET
+NO:
+	LD	A,0FFH	; SET FLAG
+	OR	A
+	LD	A,C	; GET CHAR
+	POP	BC	; RESTORE BC
+	RET
+
+	END
+

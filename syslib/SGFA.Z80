@@ -1,0 +1,128 @@
+;
+; SYSLIB Module Name:  SGFA
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	gfa
+
+;
+;  Externals
+;
+	ext	initfcb
+
+;
+;  Equates
+;
+bdos	equ	5	; base address of BDOS
+bsear	equ	17	; set file attributes function code
+tbuff	equ	80h	; DMA address
+
+;
+;  Macros
+;
+putrg	macro
+	push	hl	; save regs
+	push	de
+	push	bc
+	endm
+getrg	macro
+	pop	bc	; restore regs
+	pop	de
+	pop	hl
+	endm
+
+;
+;  GFA gets the file attributes of the unambiguous file whose FCB
+;    is pted to by DE; on return, A0 is the R/O bit and A7 is the SYS
+;    bit, and the MSBs of the FCB in the FN and FT fields are set
+;    according to the disk entry
+;  On exit, A=0FFH and NZ if file not found or ambigous file reference
+;	A=code (A0 is R/O bit and A7 is SYS bit) and Z if OK
+;	All FCB fields are cleared except for file name and type, and
+; these fields are changed in the MSBs to reflect those of the located
+; file
+;
+gfa:
+	putrg		; save registers
+;
+;  Check for ambiguous file name
+;
+	push	de	; save ptr to FCB
+	inc	de	; pt to first char
+	ld	b,11	; check 11 bytes
+amb:
+	ld	a,(de)	; get char
+	and	7fh	; mask MSB
+	ld	(de),a	; put char
+	cp	'?'
+	jp	z,amb1
+	inc	de
+	dec	b
+	jp	nz,amb
+	inc	b	; make NZ
+amb1:
+	pop	de
+	jp	z,error
+;
+;  Search for file
+;
+	push	de	; save FCB ptr
+	call	initfcb	; clear FCB fields
+	ld	c,bsear	; search for first
+	call	bdos
+	pop	de	; get FCB ptr
+	cp	0ffh	; error?
+	jp	z,error
+;
+;  Pt to File Name in TBUFF area
+;
+	add	a,a	; *2
+	add	a,a	; *4
+	add	a,a	; *8
+	add	a,a	; *16
+	add	a,a	; *32 for TBUFF offset
+	ld	c,a	; DE=offset
+	ld	b,0
+	ld	hl,tbuff+1	; pt to DMA address
+	add	hl,bc	; HL pts to FN of desired file
+	inc	de	; DE pts to FN of target file
+	ld	b,8	; copy 8 bytes
+copy:
+	ld	a,(hl)	; get byte
+	ld	(de),a	; put byte
+	inc	hl	; pt to next
+	inc	de
+	dec	b	; count down
+	jp	nz,copy
+	ld	a,(hl)	; get R/O byte
+	ld	(de),a	; put R/O byte
+	rlca		; rotate R/O bit into LSB
+	and	1	; mask out uninteresting bits
+	ld	c,a	; save in C
+	inc	hl	; pt to next
+	inc	de
+	ld	a,(hl)	; get SYS byte
+	ld	(de),a	; put SYS byte
+	and	80h	; mask out all but MSB
+	or	c	; OR in R/O bit
+	ld	c,a	; C=return code
+	inc	hl	; pt to next
+	inc	de
+	ld	a,(hl)	; get and put last byte
+	ld	(de),a
+	xor	a	; OK return
+	ld	a,c	; return code in A
+	getrg		; restore regs
+	ret
+;
+;  Error Return
+;
+error:
+	ld	a,0ffh	; set code
+	or	a	; set flags
+	getrg		; restore registers
+	ret
+
+	end
+

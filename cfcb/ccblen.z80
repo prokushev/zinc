@@ -1,0 +1,56 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+
+	extrn	c@last
+
+c@blen::
+	push	iy		;Return number of bytes remaining in current record.
+	push	de
+	pop	iy
+	call	c@last
+	ld	a,80h
+	jr	nz,c@bl1	;Not at last record
+	ld	a,(iy+36)
+	or	a
+	jr	nz,c@bl1
+	ld	a,80h
+c@bl1:	push	bc
+	ld	b,a
+	ld	a,(iy+40)	;A=current byte pointer
+	bit	7,a
+	jr	nz,retzero
+	ld	c,a
+	ld	a,b		;A=bytes left, C=pointer
+	sub	c
+	ccf			;NC if no bytes left
+	jr	c,retok
+	ld	a,25		;End of file error
+	jr	retok
+;
+retzero:
+	xor	a
+	scf
+retok:	pop	bc
+	pop	iy
+	ret
+;
+	end
+

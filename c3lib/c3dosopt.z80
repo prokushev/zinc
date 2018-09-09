@@ -1,0 +1,103 @@
+;
+;    CPM3LIB library: An extension to SYSLIB for CP/M 3 features
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+;
+; Parse DOS/Unix-style options such as /A /FOO -H 
+;
+; DE = address of a list of options:
+;
+;	DB	length of text
+;	DB	text
+;	DB	length
+;	DB	text
+;...
+;	DB	0
+;
+; HL = address of 0-terminated command line
+; IY = address of a table of subroutines.
+;
+;	DW	opt1_sub
+;	DW	opt2_sub
+;etc.
+;
+;	Each subroutine is entered with HL->first character after option;
+;      should return HL->next character to parse. This is for parsing 
+;      "OPT=VALUE" type options. The subroutine can trample other registers.
+;
+
+	.Z80
+	CSEG
+
+	EXTRN	COMPB	;Compare <B> bytes
+	EXTRN	C3PUSH,C3POP
+
+C3OPTD::
+	CALL	C3PUSH
+	LD	(OPTTBL),DE
+FINDOP:	LD	A,(HL)	;Search the command for options
+	INC	HL
+	OR	A
+	JP	Z,C3POP
+	CP	'/'     ;DOS option leadin
+	JR	Z,GOTOP
+	CP	'-'     ;Unix option leadin
+	JR	NZ,FINDOP
+
+GOTOP:	LD	DE,(OPTTBL)	;Try and match the option with the list
+	LD	C,0		;C = option number.
+MATCH:	PUSH	HL
+	LD	A,(DE)		;A = length of option.
+	INC	DE
+	OR	A		;0 => end of table
+	JR	Z,MATCHE
+	LD	B,A
+	CALL	COMPB
+	PUSH	AF
+SKIPL:	INC	DE		;Point DE and HL at the end of their
+	INC	HL		;respective option strings.
+	DJNZ	SKIPL
+	POP	AF
+	JR	Z,MATCHED
+	POP	HL		;No match. Try next option (DE -> next)
+	INC	C
+	JR	MATCH
+
+MATCHED:
+	POP	DE		;Clean up the stack
+	LD	B,0		;BC = option number
+	PUSH	IY
+	ADD	IY,BC
+	ADD	IY,BC		;IY -> address of subroutine
+	LD	E,(IY+0)
+	LD	D,(IY+1)	;DE -> subroutine
+	CALL	PCDE		;Run the code
+	POP	IY
+	JR	FINDOP		;And search for another option.
+
+PCDE:	PUSH	DE
+	RET
+
+MATCHE:	POP	HL
+	JR	FINDOP
+
+	dseg
+
+OPTTBL:	DW	0
+
+	END
+

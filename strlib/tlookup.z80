@@ -1,0 +1,105 @@
+;
+;    CPM3LIB library: An extension to SYSLIB for CP/M 3 features
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; Keyword matching code
+;
+;  This will compare a passed string to a list of keywords. If it matches,
+;returns the index of the keyword in A (0,1,2,3 etc.) with Carry set.
+;If it fails, it returns Carry reset.
+;  There are two matching modes: exact and prefix. In exact mode, the
+;passed string must be followed by a non-alpha character. In prefix
+;mode, there is no check for this (so passed string "PREFIX" matches 
+;keyword "PRE"). 
+; 
+;B=match mode 0=prefix 1=exact
+;DE->string
+;HL->keyword table: DB 'Word1',0,'Word2',0, ... ,0,0
+;
+;All registers apart from A are preserved.
+;
+C3TOKL::
+	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+
+	LD	C,0	;Index of keyword
+KFLOOP:	LD	A,(HL)
+	AND	A	;End of line encountered
+	JR	Z,KFEOL
+
+	CALL	KFCHK	;Compare strings at DE and HL.
+	JR	NZ,KFSKIP
+	
+	LD	A,C
+	SCF
+	DEFB	06h	;Swallow the LD HL,
+KFEOL:	LD	HL,0
+KFOUT:	POP	HL
+	POP	DE
+	POP	BC
+	RET		;We have a match!
+;
+;Skip to next keyword
+;
+KFSKIP:	LD	A,(HL)
+	INC	HL
+	OR	A
+	JR	NZ,KFSKIP
+	INC	C
+	JR	KFLOOP
+;
+KFCHK:	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+KFC1:	LD	A,(HL)		;End of template string
+	OR	A
+	JR	Z,KFCEOT
+	LD	A,(DE)
+	CP	(HL)
+	JR	NZ,KFCRET	;Return NZ: comparison failed
+	INC	HL
+	INC	DE
+	JR	KFC1
+;
+KFCEOT:	LD	A,B		;Prefix matching?
+	JR	Z,KFCRET	;If so, okay
+	LD	A,(DE)
+	CP	'0'
+	JR	C,KFCRZ
+	CP	'9'+1
+	JR	C,KFCRNZ
+	CP	'A'
+	JR	C,KFCRZ
+	CP	'Z'+1
+	JR	NC,KFCRZ
+KFCRNZ:	OR	B		;Since B>0, OR B will set NZ
+	DEFB	3Eh		;Swallow the XOR A
+KFCRZ:	XOR	A
+KFCRET:	POP	HL
+	POP	DE
+	POP	BC
+	RET
+;
+
+	END
+

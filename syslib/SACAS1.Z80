@@ -1,0 +1,76 @@
+;
+; SYSLIB Module Name: ACASE1
+; Author: Richard Conn
+; SYSLIB Version Number: 3.6
+; Module Version Number: 1.1
+
+	public	acase1
+
+;
+; ACASE1 is a acase1 statement processor.  On input, register A contains a
+; value to test against:
+;
+;	MVI	A,TEST	; test value
+;	CALL	ACASE1
+;	DB	NUM$ENT	; number of entries in CASE table
+;	DW	DEFAULT	; address to goto if no match in acase1
+;	DB	VAL1	; entry value 1 to test for
+;	DW	ADDR1	; address to goto if entry 1 matches
+;	DB	VAL2	; entry value 2 to test for
+;	DW	ADDR2	; address to goto if entry 2 matches
+;	...
+;	DB	VALN	; entry value N to test for (N = NUM$ENT)
+;	DW	ADDRN	; address to goto if entry N matches
+;
+; NUM$ENT is the number of values (VAL1 .. VALN) in the case table
+;
+acase1:
+	ex	(sp),hl		; return address in HL
+	push	af	; save regs
+	push	bc
+	ld	b,(hl)	; number of entries
+	inc	hl	; pt to default
+	ld	(default),hl	; save it
+	inc	hl	; pt to first entry
+	inc	hl
+;
+; Loop through case table entries, looking for a match
+;
+loop:
+	cp	(hl)	; compare
+	jp	z,match
+	inc	hl	; pt to next
+	inc	hl
+	inc	hl
+	dec	b	; count down
+	jp	nz,loop
+;
+; No match found - use default
+;
+	ld	hl,(default)	; get default
+	jp	goto
+;
+; Match - use HL+1
+;
+match:
+	inc	hl	; point to address
+;
+; Get address in HL and return
+;
+goto:
+	ld	a,(hl)	; get low
+	inc	hl
+	ld	h,(hl)	; get high
+	ld	l,a	; HL = address
+	pop	bc	; restore regs
+	pop	af
+	ex	(sp),hl		; return address on stack, HL restored
+	ret
+;
+; Storage for default address
+;
+default:
+	ds	2
+
+	end
+

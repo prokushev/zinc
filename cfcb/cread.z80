@@ -1,0 +1,155 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+
+	extrn	cfdos,c@rrec,c@last,c@blen,c@irec,cifdev,cdevi,cifnul
+
+cread::	push	iy
+
+	push	de
+	pop	iy	;IY -> CFCB.
+
+	push	de
+	call	crr0
+	pop	de
+
+retl1:	pop	iy
+	ret
+;
+crr0:	call	cifnul
+	jr	nz,crr0a
+	xor	a
+	ld	a,29
+	ret
+;
+crr0a:	call	cifdev
+	jr	nz,crr1
+
+crr0b:	push	bc
+	call	cdevi
+	jr	nc,retl1
+	ld	(hl),c
+	inc	hl
+	pop	bc
+	dec	bc
+	ld	a,b
+	or	c
+	jr	nz,crr0b
+	scf
+	ret
+;
+;1. How many bytes are left in the current buffer?
+;
+crr1:	bit	7,(iy+40)	;>7fh => buffer empty
+	scf
+	call	nz,fillbuf
+	ret	nc
+;
+;2. If no. to read < no. in buffer, just read straight in.
+;
+;bc=no. left to read, hl=address
+;
+readlp:	ld	a,b
+	or	a
+	jr	nz,more2rd
+	or	c
+	scf
+	ret	z		;A=C. If A=C=0, all done.
+	call	c@blen		;A:=no. of bytes remaining in current buffer
+	ret	nc		;EOF error.
+	cp	c		;C=no. of bytes wanted to read.
+	jr	c,more2rd	;Carry clear if they're all in the buffer.
+	ex	de,hl	;DE=address for bytes
+	ld	l,(iy+38)
+	ld	h,(iy+39)
+	push	de	;HL=buffer addr.
+	ld	e,(iy+40)
+	ld	d,0	;DE=offset
+	add	hl,de	;HL=addr of bytes
+	pop	de	;DE=buffer addr.
+	ld	a,(iy+40)
+	add	a,c	;Update pointer
+	ld	(iy+40),a
+	ldir		;Move bytes
+	ex	de,hl	;HL=next addr to write
+	scf
+	ret
+;
+more2rd:
+;
+;Load the contents of the current buffer (up to 128 bytes).
+;
+	call	c@blen		;Return A=no. bytes remaining in this buffer.
+	ret	nc
+	or	a
+	jr	z,unlb1		;None! Load another lot.
+	push	de
+	push	hl		;SP -> ld add, FCB
+	ld	e,a		;DE=no. bytes in buffer
+	ld	d,0
+	ld	l,c
+	ld	h,b		;HL=no. bytes to read
+	and	a
+	sbc	hl,de		;HL=no. bytes to read after this bufferload.
+	ld	b,h
+	ld	c,l		;BC=no. bytes to read after this bufferload.
+	ld	a,e		;A=no. bytes left in buffer.
+	ld	l,(iy+38)
+	ld	h,(iy+39)	;HL=address of buffer
+	ld	e,(iy+40)
+	ld	d,0		;DE=offset
+	add	hl,de		;HL=addr of bytes
+	pop	de		;DE = load addr.
+	push	bc
+	ld	c,a
+	ld	b,0		;BC=no. bytes left in buffer
+	ldir
+	pop	bc		;BC=no. bytes to read
+	ex	de,hl		;HL=load addr.
+	pop	de		;DE=FCB addr.
+	ld	(iy+40),80h	;At end of buffer.
+unlb1:	call	c@irec		;Move to next record.
+	call	fillb1		;Current record exhausted
+	ret	nc
+	jp	readlp
+;
+fillbuf:
+	ld	a,(iy+40)
+	cp	0ffh		;Load current record - else, load next.
+	scf
+	call	nz,c@irec
+	ret	nc
+fillb1:	push	hl
+	ld	l,(iy+38)
+	ld	h,(iy+39)	;HL -> record buffer
+	ld	a,h
+	or	l
+	ld	a,29
+	scf
+	ccf
+	call	nz,c@rrec	;Load current record.
+	pop	hl		;Retrieve load address.
+	ret	nc
+	ld	(iy+40),0
+	ret
+
+	end
+
+

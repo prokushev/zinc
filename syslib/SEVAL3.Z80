@@ -1,0 +1,63 @@
+;
+; SYSLIB Module Name:  SEVAL3
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	eval8
+
+;
+;  EVAL8 --
+;	Convert the string of ASCII octal digits pointed to by HL
+; into a binary value; string is converted until invalid digit is
+; encountered.
+;	On return, HL points to error character, DE=value, A=E (low
+; order 8 bits of value).  BC not affected.
+;
+EVAL8:
+	PUSH	BC	; SAVE BC
+	LD	DE,0	; SET DE=0 INITIALLY
+
+;  Get next digit and check for '0' - '7'
+E8L:
+	LD	A,(HL)	; GET BYTE
+	SUB	'0'	; CHECK FOR RANGE
+	JP	C,DONE
+	CP	8
+	JP	NC,DONE
+
+	PUSH	AF	; SAVE VALUE
+
+;  Multiply DE by 8
+MUL8:
+	PUSH	HL	; SAVE HL
+	LD	HL,0	; ACC=0
+	LD	B,8	; 8 LOOPS
+MUL8L:
+	ADD	HL,DE	; HL=HL+DE
+	DEC	B	; COUNT DOWN
+	JP	NZ,MUL8L
+	LD	D,H	; NEW DE
+	LD	E,L
+	POP	HL	; RESTORE HL
+
+;  Add in A
+	POP	AF	; GET LATEST DIGIT
+	ADD	A,E	; A=A+E
+	LD	E,A
+	LD	A,D	; ADD TO D IF NECESSARY
+	ADC	0
+
+;  Continue
+	INC	HL	; PT TO NEXT CHARACTER
+	JP	E8L
+
+;  Done -- Result already in DE; Set A=E
+DONE:
+	LD	A,E	; A=E
+	POP	BC	; RESTORE BC
+
+	RET
+
+	END
+

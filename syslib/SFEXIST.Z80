@@ -1,0 +1,29 @@
+;
+; SYSLIB Module Name:  SFEXIST
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	f$exist
+
+;
+;  EXTERNALS
+;
+	EXT	BDOS
+
+;
+;  F$EXIST -- Search current disk and user for file whose FCB is pted
+;	to by DE; return Zero Flag Set (Z) if not found, NZ if found
+;
+F$EXIST:
+	PUSH	HL	; SAVE REGS
+	PUSH	BC
+	LD	C,17	; SEARCH FOR FIRST
+	CALL	BDOS
+	POP	BC	; RESTORE REGS
+	POP	HL
+	INC	A	; 0 IF NOT FOUND
+	RET
+
+	END
+

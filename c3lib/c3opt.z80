@@ -1,0 +1,157 @@
+;
+;    CPM3LIB library: An extension to SYSLIB for CP/M 3 features
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+;
+; Parse CP/M-style options such as [foo,bar=baz] 
+;
+; DE = address of a list of options:
+;
+;	DB	'opt1',0,'opt2',0,...,'optN',0,0
+;
+; HL = address of 0-terminated command line
+; IY = address of a table of subroutines.
+;
+;	DW	opt1_sub
+;	DW	opt2_sub
+;etc.
+;
+;	Each subroutine is entered with HL->first character after option;
+;      should return HL->next character to parse. This is for parsing 
+;      "OPT=VALUE" type options. The subroutine can trample other registers.
+;
+
+	.Z80
+	CSEG
+
+	EXTRN	C3PUSH, C3POP
+
+C3OPT::
+	CALL	C3PUSH
+	LD	(OPTTBL),DE
+GETBKT:	LD	A,(HL)		;Search for a [ ... ] phrase.
+	INC	HL
+	OR	A
+	JP	Z,C3POP
+	CP	'['
+	JR	NZ,GETBKT
+OMATCH:	LD	DE,(OPTTBL)	;Found an option. Loop over all provided
+	LD	C,0		;strings to see if it matches. C = no. of 
+CMPOPT:	PUSH	HL		;string being matched.
+	LD	A,(DE)		;A = length of string to compare
+	OR	A		;End of options table
+	JR	Z,NXTOP1	;and nothing matched.
+;
+; Compare string until the one at DE gives out. COMPC will return with
+; DE->next option string (or terminating zero) and HL->next character after
+; CP/M option string.
+;
+	CALL	COMPC		;Return Z set if match, else NZ.
+	JR	Z,GOTIT		;If option matches, execute its code
+	POP	HL
+	INC	C
+	JR	CMPOPT		;Try next template
+
+GOTIT:	POP	DE		;Remove the pointer to the start of the option
+	LD	B,0
+	PUSH	IY		;Locate option no. C
+	ADD	IY,BC
+	ADD	IY,BC		;IY -> DW code for option
+	LD	E,(IY+0)
+	LD	D,(IY+1)	;DE -> code for option
+	CALL	PCDE		;Execute the code
+	POP	IY
+	JR	ENDOPT
+
+PCDE:	PUSH	DE
+	RET
+
+NXTOP1:	POP	HL		;No match. Find next option.
+;
+; Skip over any combination of commas and whitespace to get to the next
+; option in the brackets.
+;
+ENDOPT:	CALL	OPTSC
+	INC	HL
+	JR	NC,EOPT1	;End of line or option phrase
+	JR	NZ,ENDOPT	;Normal character
+;
+; We have found a space or comma. Now skip over space/comma until we find
+; the next real word.
+;
+EOPT0:	CALL	OPTSC
+	JR	NC,EOPT1	;End of line/option phrase.
+	JR	NZ,OMATCH	;Got a new option string
+	INC	HL
+	JR	EOPT0	
+
+EOPT1:	JP	Z,C3POP		;If end of line, return. 
+	JP	GETBKT		;Otherwise search for a new option phrase.
+;
+; OPTSC: Read the next character from the line, and return:
+; 
+; Carry reset, Zero set:   End of line
+; Carry set,   Zero set:   Comma or space
+; Carry reset, Zero reset: ]
+; Carry set,   Zero reset: Normal character
+; Does not increment HL.
+;
+OPTSC:	LD	A,(HL)
+	OR	A
+	RET	Z	;NC Z
+	CP	','	
+	SCF
+	RET	Z	;C Z
+	CP	' '
+	SCF
+	RET	Z	;C Z
+	CP	']'
+	SCF
+	RET	NZ	;C NZ
+	OR	A	;NC NZ
+	RET
+
+;
+; COMPC - compare 0-terminated string at DE with data at HL.
+; Returns DE->next character after the terminating 0
+;
+
+COMPC:	LD	A,(DE)
+	INC	DE
+	OR	A
+	RET	Z	;End of string, all OK.
+	CP	(HL)
+	INC	HL	;Matches so far
+	JR	Z,COMPC
+;
+; Mismatch. Move DE and HL to the end of their
+; respective strings.
+;
+COMPCM:	LD	A,(DE)
+	INC	DE
+	INC	HL
+	OR	A
+	JR	NZ,COMPCM
+	XOR	A
+	INC	A	;Return NZ.
+	RET
+
+	dseg 
+OPTTBL:	DW	0
+
+	END
+

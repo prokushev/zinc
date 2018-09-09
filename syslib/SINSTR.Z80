@@ -1,0 +1,68 @@
+;
+; SYSLIB Module Name:  SINSTR
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	instr
+
+;
+;  SINSTR --
+;	INSTRING Function.  Scan string pointed to by HL for the string
+; pointed to by DE.  A string in this case is a vector of bytes terminated
+; by a binary 0.
+;	On return, Zero Flag is set if found, and HL points to 1st byte
+; of substring within scanned string.  DE and BC are not affected.  If
+; string not found, Zero Flag is not set and HL is not affected.
+;
+INSTR:
+	PUSH	BC	; SAVE REGISTERS
+	PUSH	HL	; SAVE ORIGINAL HL
+
+SCAN:
+	PUSH	HL	; SAVE PTR TO STRINGS
+	PUSH	DE
+
+SCANL:
+	LD	A,(DE)	; GET BYTE FROM STRING TO SCAN FOR
+	OR	A	; END OF STRING?
+	JP	Z,FOUND	; FOUND IF SO
+	LD	B,A	; SAVE IN B
+	LD	A,(HL)	; GET BYTE OF STRING BEING SCANNED
+	OR	A	; END OF STRING?
+	JP	Z,NOT$FOUND
+	CP	B	; COMPARE STRING ELEMENTS
+	JP	NZ,NEXT
+	INC	HL	; PT TO NEXT BYTE
+	INC	DE
+	JP	SCANL	; CONTINUE SCAN
+
+;  NO MATCH -- POINT TO NEXT BYTE IN STRING BEING SCANNED
+NEXT:
+	POP	DE	; GET PTRS
+	POP	HL
+	INC	HL	; PT TO NEXT
+	JP	SCAN	; SCAN AGAIN
+
+;  MATCH -- ZERO FLAG IS SET -- GET POINTERS
+FOUND:
+	POP	DE	; GET PTRS
+	POP	HL
+
+	POP	BC	; CLEAR HL FROM STACK
+	POP	BC	; GET BC
+	RET
+
+;  NO MATCH -- SET NOT ZERO AND RESTORE ORIGINAL POINTERS
+NOT$FOUND:
+	POP	DE	; GET PTRS
+	POP	HL
+
+	POP	HL	; RESTORE ORIGINAL HL
+	POP	BC	; GET BC
+	LD	A,0FFH	; SET NOT FOUND
+	OR	A	; SET NOT ZERO
+	RET
+
+	END
+

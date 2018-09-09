@@ -1,0 +1,33 @@
+rem
+rem Start by copying files from RAMdrive to hard drive. 
+rem
+move c: makelib.sub
+:move c: lexer.z80
+:move c: token?.z80
+:move c: str*.z80
+:move c: strlib.doc
+:rem
+:rem Command line parsing
+:rem
+:m80$1 =lexer.z80
+:rem
+:rem Support for tokens
+:rem
+:m80$1 =tokenl.z80
+:m80$1 =tokeng.z80
+:rem
+:rem String primitives
+:rem
+:m80$1 =strchr.z80
+:m80$1 =strlen.z80
+:rem
+:rem Construct the library
+:rem 
+:lib strlib[i]=lexer
+:lib strlib[i]=strlib.irl,tokenl,tokeng
+:lib strlib[i]=strlib.irl,strlen,strchr
+:move b:0 strlib.irl
+:0b:
+:set strlib.irl[sys]
+:4d:
+

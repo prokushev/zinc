@@ -1,0 +1,41 @@
+;
+; SYSLIB Module Name:  SGUA
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	gua
+
+;
+;  Equates
+;
+bdos	equ	5
+bsua	equ	32	; set user number
+
+;
+;  Macros
+;
+putrg	macro
+	push	bc
+	push	de
+	push	hl
+	endm
+getrg	macro
+	pop	hl
+	pop	de
+	pop	bc
+	endm
+
+;
+;	GUA gets the current user number.  No error code is returned.
+;
+gua:
+	putrg		; save registers
+	ld	e,0ffh	; get user
+	ld	c,bsua	; set user function
+	call	bdos
+	getrg		; restore registers
+	ret
+
+	end
+

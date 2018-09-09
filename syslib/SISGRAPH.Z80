@@ -1,0 +1,35 @@
+;
+;  SYSLIB Module Name:  SISGRAPH
+;  Author:  Richard Conn
+;  SYSLIB Version Number:  3.6
+;  Module Version Number:  1.1
+
+	public	isgraph
+
+;
+;	ISGRAPH returns Zero Flag Set if char in A is graphic
+; ( > space, < DEL).  ISGRAPH returns NZ if not.
+;
+;	Char in A is unaffected.
+;
+ISGRAPH:
+	PUSH	BC	; SAVE BC
+	LD	C,A	; SAVE CHAR IN C
+	AND	7FH	; MASK OUT MSB
+	CP	' '+1	; LESS THAN OR EQUAL TO SPACE?
+	JP	C,NO
+	CP	7FH	; LESS THAN DELETE?
+	JP	Z,NO
+	XOR	A	; SET FLAG
+	LD	A,C	; GET CHAR
+	POP	BC	; RESTORE BC
+	RET
+NO:
+	LD	A,0FFH	; SET FLAG
+	OR	A
+	LD	A,C	; GET CHAR
+	POP	BC	; RESTORE BC
+	RET
+
+	END
+

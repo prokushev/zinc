@@ -1,0 +1,5 @@
+move c: makeshow.sub 3show.z80
+:m80$1 =3show.z80
+:m80$1 =last.z80
+:link 3show.com=3show,b:cpm3lib.irl[s],b:strlib.irl[s],b:syslib.irl[s],last
+:gencom 3show b:pipemgr

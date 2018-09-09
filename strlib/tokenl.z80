@@ -1,0 +1,88 @@
+;
+;    STRLIB library: Handling 0-terminated strings under CP/M  
+;    Copyright (C) 2001 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+;
+TOKENL::
+	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+
+	LD	C,0	;Index of keyword
+KFLOOP:	LD	A,(HL)
+	AND	A	;End of line encountered
+	JR	Z,KFEOL
+
+	CALL	KFCHK	;Compare strings at DE and HL.
+	JR	NZ,KFSKIP
+	
+	LD	A,C
+	SCF
+	DEFB	06h	;Swallow the LD HL,
+KFEOL:	LD	HL,0
+KFOUT:	POP	HL
+	POP	DE
+	POP	BC
+	RET		;We have a match!
+;
+;Skip to next keyword
+;
+KFSKIP:	LD	A,(HL)
+	INC	HL
+	OR	A
+	JR	NZ,KFSKIP
+	INC	C
+	JR	KFLOOP
+;
+KFCHK:	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+KFC1:	LD	A,(HL)		;End of template string
+	OR	A
+	JR	Z,KFCEOT
+	LD	A,(DE)
+	CP	(HL)
+	JR	NZ,KFCRET	;Return NZ: comparison failed
+	INC	HL
+	INC	DE
+	JR	KFC1
+;
+KFCEOT:	LD	A,B		;Prefix matching?
+	AND	A
+	JR	Z,KFCRET	;If so, okay
+	LD	A,(DE)
+	CP	'0'
+	JR	C,KFCRZ
+	CP	'9'+1
+	JR	C,KFCRNZ
+	CP	'A'
+	JR	C,KFCRZ
+	CP	'Z'+1
+	JR	NC,KFCRZ
+KFCRNZ:	OR	B		;Since B>0, OR B will set NZ
+	DEFB	3Eh		;Swallow the XOR A
+KFCRZ:	XOR	A
+KFCRET:	POP	HL
+	POP	DE
+	POP	BC
+	RET
+;
+
+	END
+

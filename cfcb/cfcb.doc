@@ -1,0 +1,233 @@
+Layout of CFCB:
+
++00 DEFS	36	;Standard FCB
++36 DEFB	bytelen	;Last Record Byte Count, as in disc directory
++37 DEFB	user	;User number
++38 DEFW	buffer	;0 => FCB not open
++40 DEFB	cbyt	;Next byte to read or write, 0-7Fh.
+			;80h => next byte is byte 0, next record - record no.
+                        ;      at +41 is loaded.
+			;FFh => next byte is byte 0, current record, record is
+			;      not loaded (only happens immediately after an
+                        ;      open or create).
++41 DEFS	3	;Number of current record
++42 DEFS	3	;Number of records in file
++47 DEFB	mode	;Access mode, 1 => R/O, 3 => R/W, bit 7 set if buffer
+			;is dirty. Note that if cbyt=0FFh, the buffer should
+                        ;not be marked "dirty".
+
+Error codes are:
+
+* 0 - Disk I/O
+  1 - Disk R/O
+  7 - Unknown error
+* 8 - Disk changed
+ 20 - Bad filename
+ 21 - Bad parameter
+ 22 - Invalid drive
+*23 - File not found
+*24 - File exists
+*25 - EOF
+ 26 - Disk full
+ 27 - Dir full
+*28 - File R/O
+*29 - File not open
+*30 - File open already
+ 31 - RENAME error
+*32 - Missing extent
+*37 - Invalid or missing password
+*38 - Illegal operation on this filetype
+*39 - Wheel protected
+
+[* indicates that DE should point to CFCB]
+
+
+
+CFCB routines:
+
+<PROJECTED>
+CCDEL      Conditionally delete file - as CDEL, but ask for confirmation.
+
+CREN       Rename file - DE->CFCB, HL->password
+CATTR      Set attributes - DE->CFCB, HL->password
+
+
+<UNTESTED>
+CDEL
+  CDEL    Delete file - DE->CFCB, HL->password
+          Returns Carry set if OK, Carry clear if error.
+CGEOF
+  CGEOF   Return the exact size of the open file DE -> CFCB. Returns value
+          in BCHL with A corrupt, or NC with BCHL corrupt & A=error.
+CSEEK
+  CSEEK   Move the file pointer to the value given in BCHL. DE-> CFCB.
+          Returns carry set, A corrupt or carry clear, A=error. BCHL
+          preserved.
+CTELL
+  CTELL   Return the file pointer position of DE -> CFCB. Returns the exact
+          value in BCHL, carry set, A corrupt - or NC, A=error, BCHL corrupt.
+CCLOSE
+  CCLOSE  Close file with DE -> CFCB. HL DE BC IY preserved. Returns C or NC
+          as usual, A corrupt or error.
+CRCLOS
+  CRCLOS  As CCLOSE, but avoids linking record-writing code.
+
+CCXTND
+  C@XTND  Called with DE -> CFCB after a write to the file. Updates the 
+          stored end-of-file position. All registers preserved.
+<TESTED>
+CBYTO
+  CBYTO   Called with DE -> CFCB, C=byte to write. Returns C or NC as 
+          appropriate, HL DE BC IY preserved.
+CWRITE
+  CWRITE  Called with DE -> CFCB, BC=no. bytes to write, HL=address of bytes.
+          Returns BC=no. unread bytes, HL=next address, DE preserved, A 
+          corrupt. Carry set or not as appropriate.
+CBYTI
+  CBYTI   Read a byte from the file at DE->CFCB. Either:
+             Carry set, A corrupt, C=byte, B DE HL preserved
+          or Carry clr, A=error, C corrupt, B DE HL preserved
+CRBYTI
+  CRBYTI  As CBYTI, but assumes the file is read-only. Avoids linking in 
+          code to write data (for programs like TYPE.COM)
+CREAD
+  CREAD   Read BC bytes from the file at DE->CFCB, at address HL. Return
+          C or NC as appropriate, BC=no. unread bytes, HL=next address, DE
+          preserved. Uses exact file size.
+CDEVIO
+  CDEVI   Read a byte from DE->FCB into C. B DE HL preserved. FCB must be
+          for a device.
+  CDEVO   Write a byte in C to device at DE-> FCB. A corrupt. BC DE HL ok.
+CCBLEN
+  C@BLEN  Return number of bytes remaining in buffer. Carry clear if the
+          pointer is off the end of the file. Carry set if the pointer is
+          in the file, with value returned in A. A=0 if the buffer is
+          empty. (DE -> CFCB)
+CCRREC
+  C@RREC  Load the record indicated by the "current record" field, at HL.
+          Returns Carry set if OK, Carry clear if not. No CFCB fields
+          affected. (DE -> CFCB)
+CCRRRC
+  C@RRRC  As C@RREC, but doesn't link code to write
+CCWREC
+  C@WREC  Save the record indicated by the "current record" field, at HL.
+          Returns Carry set if OK, Carry clear if not. No CFCB fields
+          affected, except the "dirty" flag is reset. (DE -> CFCB)
+CCLAST
+  C@LAST  Returns Z set if DE->CFCB is pointing to the last record in
+          the file, Z clear otherwise. Carry set if current < last record.
+          Other flags corrupt, all other registers preserved.
+CCIREC
+  C@IREC  Increment record number in DE->FCB. Returns Carry set if OK, clear if
+          file size >32Mb. A corrupt, others preserved.
+          If the buffer is marked as dirty, writes it.
+CFIND
+  CFIND   Find the n'th occurrence of a file. C=occurrence no, 0=first.
+                                             DE=FCB address
+          Returns HL -> directory FCB (between 80h and FFh).
+CTMAKE
+  CTMAKE  As CMAKE, but HL = address of timestamp to use.
+CMAKE
+  CMAKE   Create a file...
+            C=access mode 2=W/O 3=R/W
+           DE=CFCB addr.
+           IX=address of 128-byte buffer.
+           Returns Carry set, A corrupt or Carry clear, A=error.
+COPEN
+  COPEN   Open a file...
+            C=access mode 1=R/O 3=R/W
+           DE=CFCB addr.
+           HL=password addr, 0 for none.
+           IX=address of 128-byte buffer.
+          [uses buffer at 80h]
+          Returns either Carry set, A corrupt or Carry clear, A=error.
+CCFIXF
+  C@FIXF  Replace zeroes in CFCB bytes 0 and 37 by current drive/user.
+CCDMA
+  C@DMA   Set the DMA in DE. Returns carry set, all others preserved.
+CFDOS
+  CFDOS   Call 5, firstly setting the user number to that at (DE+37) -1 and
+          restoring it afterwards. Returns C if done or software error;
+          NC and error number otherwise.
+  C@FVEC  Address of the actual CALL 5 instruction.
+CPWSET
+  CPWSET  Set address of password handler in HL, 0 = none.
+          Returns previous handler address in HL, 0 if none.
+
+          HANDLER: Return either HL=address of a password and Carry set
+                                 or A=37, carry clear.
+CIFNUL
+  CIFNUL  If the CFCB at (DE) is valid, return NZ else Z.
+CIFDEV
+  CIFDEV  If the CFCB at (DE) is for a device, return with Z - otherwise NZ.
+CCGET
+  C@GET   LD A,(DE+37)
+CDVINI
+  CDVINI  Create the 5 standard character devices.
+            Returns C or NC - A BC DE HL corrupt.
+            Creates CON: LST: AUX: NUL: and RSX: in that order.
+CMKDEV
+  CMKDEV  Create a character device.
+            Entry: DE -> device name
+                   HL -> output driver
+                   BC -> input driver
+            Exit:  Carry set if OK, clear if no more drivers allowed.
+                   A BC DE HL corrupt.
+CERROR
+  CERROR  Given an error number in A and an FCB in DE, generate an error
+          menu at 80h. Returns HL=80h, AF DE corrupt, BC=CP/M return code.
+
+           80h: DB ?,?
+           82h: DB length,1
+           84h: DB message
+           84h+length:DB 'Abandon ',0,0
+          Thus setting (80h) to 84h and (83h) to 0 will create a CCB
+          with which to display the message.
+CPARSE
+  CPARSE  Parse a CFCB. Entry: DE is a PFCB.
+                      Returns: OK - A is user/device id, carry set, HL as
+                                   for XDOS 152.
+                               Error - A=20, Carry clear, HL=-1
+COPFCB
+  COPFCB  Display a CFCB at (DE...).
+            C=format byte: Bit 0 clear => pack with spaces
+                           Bit 0 set   => don't.
+                           Bit 1 clear => output drive & user id
+                           Bit 1 set   => don't.
+                           Bit 2 clear => FCB is a 48-byte CFCB.
+                           Bit 2 set   => FCB is a 32-byte directory FCB.
+            HL=0 => display onscreen, return HL=0
+                    else send into memory at (HL...), return next character
+                    after end of string.
+            Returns BC DE preserved, AF corrupt.
+CCGDRV
+  C@GDRV  Get current drive+1 into A.
+CCGUSR
+  C@GUSR  Get user number+1 into A.
+  C@PUSR  Set current user number to A-1.
+
+CCDEV
+  C@NDEV  DB number of character devices
+  C@DEVS  DB devices string - eg "CONLSTAUX"
+  C@DRVR  DW input-dev-0, output-dev-0, input-dev-1, ...
+
+CCPW
+  C@PW    DW password-error-handler, 0 for default.
+             Error handler entered with DE->CFCB.
+             Error handler should return Carry set & HL->new password
+             or Carry clear, A=37.
+
+  C@PER   Called when there is a password error.
+            Either returns Carry set, HL -> new password
+            Or Carry clear, A=error number.
+CCZFCB
+  C@ZFCB  Zeroise bytes 12-36 inclusive of a CFCB.
+  C@POPA  POP HL,DE,BC,AF,PC
+
+
+TDOS
+  TDOS    Execute a BDOS function, but first setting the clock to the stamp
+          at (HL) and resetting it afterwards. If all bytes of the stamp are
+          0FFh, then it is ignored.
+
+

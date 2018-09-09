@@ -1,0 +1,49 @@
+;
+; SYSLIB Module Name: AGOTO2
+; Author: Richard Conn
+; SYSLIB Version Number: 3.6
+; Module Version Number: 1.1
+
+	public	agoto2
+
+;
+; AGOTO2 is a computed GOTO.  When called, register A = index of following
+; jump to branch to, as indicated:
+;
+;	MVI	A,INDEX	; zero-relative
+;	CALL	AGOTO2
+;	JMP	ADDR0	; IF A=0
+;	JMP	ADDR1	; IF A=1
+;	JMP	ADDR2	; IF A=2
+;	<next instruction>	; IF A=3
+;	...
+; ADDR0:		; COME HERE IF A=0
+;	...
+; ADDR1:		; COME HERE IF A=1
+;	...
+; ADDR2:		; COME HERE IF A=2
+;	...
+;
+; No error or range checking is done
+;
+agoto2:
+	ex	(sp),hl		; get address of routines, save HL
+	push	de	; save regs
+	push	af
+	push	hl	; save return address
+	ld	h,0
+	ld	l,a
+	ex	de,hl		; index in DE
+	ld	hl,0
+	add	hl,de	; HL = index
+	add	hl,hl	; HL = index * 2
+	add	hl,de	; HL = index * 3
+	pop	de	; get return address
+	add	hl,de	; point to jump in HL
+	pop	af	; get regs
+	pop	de
+	ex	(sp),hl		; restore HL, set address of routine
+	ret
+
+	end
+

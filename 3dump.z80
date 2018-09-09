@@ -1,0 +1,223 @@
+;
+;    3DUMP: Display file as hex dump (GPLed clone of CP/M 3 DUMP)
+;    Copyright (C) 2000  John Elliott <jce@seasip.demon.co.uk>
+;
+;    This program is free software; you can redistribute it and/or modify
+;    it under the terms of the GNU General Public License as published by
+;    the Free Software Foundation; either version 2 of the License, or
+;    (at your option) any later version.
+;
+;    This program is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;    GNU General Public License for more details.
+;
+;    You should have received a copy of the GNU General Public License
+;    along with this program; if not, write to the Free Software
+;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+;
+	INCLUDE	ZINCHEAD.INC
+;
+	extrn	cparse,copen,crbyti,cerror,crclos,cexwild,@LAST
+	extrn	c3pini,c3pout,c3opt,c3pwd ; C3LIB
+	extrn	cpwset,copfcb,c3exit
+	extrn	print,phl4hc,pa2hc
+
+MAIN:	
+	LD	HL,MYPWD
+	CALL	CPWSET
+
+	LD	C,2Dh	
+	LD	E,0FFh		;Use CFCB to handle errors
+	CALL	BDOS
+
+
+	LD	DE,OPTS		;Check for PAGE / NOPAGE options
+	LD	HL,80h
+	LD	IY,OPTCS
+	CALL	C3OPT
+
+	LD	A,(PGMODE)
+	CALL	C3PINI		;Initialise the pager
+
+	LD	HL,80h		;Copy command line out of the way of
+	LD	DE,@LAST+400h	;the error reporter, which uses the buffer
+	LD	BC,128		;at 80h as workspace.
+	LDIR
+
+	LD	HL,@LAST+400h	;Expand wildcards in the command line.
+	LD	DE,DUMPF	;Subroutine to call if wildcards found
+	LD	BC,PRMPT
+	LD	IX,@LAST	;Buffer to use for expansion
+	LD	A,9
+	CALL	CEXWILD		;Do the expansion...
+	LD	A,B
+	OR	C		;No. of files _found_. If nonzero...
+	JP	NZ,C3EXIT	;then return number of files successfully 
+				;displayed.
+	CALL	PRINT
+	DEFB	'No files found.',13,10,0
+	LD	HL,0FF00h
+	JP	C3EXIT
+;
+pgon:	ld	a,1		;[PAGE]
+	ld	(pgmode),a
+	ret
+;
+pgoff:	xor	a		;[NOPAGE]
+	ld	(pgmode),a
+	ret
+;
+	dseg
+OPTS:	defb	'P',0,'NO',0,0	;Options P(age) and NO(page)
+OPTCS:	defw	pgon,pgoff
+
+PGMODE:	defb	2
+prmpt:	defb	'File to display: $'
+PCFCB:	defw	0
+	cseg
+	
+DUMPF:	LD	HL,@last
+	INC	H
+	INC	H
+	EX	DE,HL
+	PUSH	DE
+	LD	BC,48
+	LDIR	
+	CALL	PGCRLF
+	POP	DE
+	LD      HL,0
+	LD	C,1
+	CALL	COPFCB
+	LD	A,':'
+	CALL	C3POUT
+	LD	HL,0
+	LD	(DMPCTR),HL	;Start address is 0000h
+	CALL	PGCRLF
+	LD	BC,256
+	LD	IX,@last
+	ADD	IX,BC	
+	LD	C,1
+	CALL	COPEN
+	JR	NC,CERR1
+CTYP2:	CALL	CRBYTI
+	JR	NC,CBYTIE
+	CALL	DMPOUT
+	JR	CTYP2
+;
+CBYTIE:	CP	25	;EOF
+	JR	NZ,CERR1
+CBYTIF:	CALL	CRCLOS
+	JP	NC,CERR1
+	LD	A,(DMPCTR)
+	AND	0Fh		;Any bytes pending?
+	CALL	NZ,DMPFLS
+	LD	A,1	;File processed
+	SCF
+	RET
+;
+CERR1:	CALL	DMPFLS
+	ld	de,@last
+	inc	d
+	inc	d
+	call	cerror
+	ld	hl,84h
+	ld	(80h),hl
+	dec	hl
+	ld	(hl),0
+	ld	de,80h
+	ld	c,6Fh
+	call	5
+	CALL	PGCRLF
+	XOR	A	;File not processed
+	scf
+	ret
+;
+;Reset the pager before asking for a password; since the password 
+;input routine can print as many lines as it likes.
+;
+MYPWD:	LD	A,(PGMODE)
+	CALL	C3PINI		;Initialise the pager
+	JP	C3PWD
+;
+;
+; Output routines for DUMP
+;
+	dseg
+DMPCTR:	DEFW	0
+DMPBUF:	DEFS	16
+	cseg
+;
+; C = byte to output
+;
+DMPOUT:	PUSH	DE
+	PUSH	HL
+	LD	A,(DMPCTR)
+	AND	0Fh
+	LD	HL,DMPBUF
+	LD	E,A
+	LD	D,0
+	ADD	HL,DE
+	LD	(HL),C
+	LD	HL,(DMPCTR)
+	INC	HL	
+	LD	(DMPCTR),HL
+	INC	A
+	AND	0Fh
+	CALL	Z,DMPFLS
+	POP	HL
+	POP	DE
+	RET
+;
+DMPFLS:	LD	A,(DMPCTR)
+	AND	0Fh
+	JR	NZ,DMPFL1
+	LD	A,16
+DMPFL1:	LD	C,A	;C = no. of bytes to display
+	LD	B,0
+	PUSH	BC
+	LD	HL,(DMPCTR)
+	AND	A
+	SBC	HL,BC	;HL = offset of 1st character in buffer
+	CALL	PHL4HC
+	CALL	PRINT
+	DEFB	': ',0
+	LD	HL,DMPBUF
+	LD	B,16
+DMPFL2:	LD	A,(HL)
+	CALL	PA2HC
+	LD	A,' '
+	CALL	C3POUT
+	INC	HL
+	DEC	B
+	DEC	C
+	JR	NZ,DMPFL2
+	CALL	C3POUT	;A = ' '
+DMPFL4:	LD	A,B
+	OR	A
+	JR	Z,DMPFL6
+DMPFL5:	CALL	PRINT
+	DEFB	'   ',0
+	DJNZ	DMPFL5
+
+DMPFL6:	POP	BC
+	LD	HL,DMPBUF
+DMPFL7:	LD	A,(HL)
+	AND	7Fh
+	CP	20h
+	CALL	NC,C3POUT
+	LD	A,'.'
+	CALL	C,C3POUT
+	INC	HL
+	DEC	C
+	JR	NZ,DMPFL7
+PGCRLF:	LD	A,0Dh		;Print a paged CR, LF.
+	CALL	C3POUT
+	LD	A,0Ah
+	JP	C3POUT
+	
+	
+	END

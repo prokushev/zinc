@@ -1,0 +1,32 @@
+;
+; SYSLIB Module Name:  SMTH05
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	shftlh
+
+;
+;  SHFTLH -- SHIFT LEFT HL 1 BIT POSITION
+;	CARRY CONTAINS MSB
+;
+SHFTLH:
+	PUSH	AF
+	AND	A	; CLEAR CARRY
+	LD	A,L	; SHIFT LOW
+	RLA		; ROTATE 9-BIT ACC LEFT
+	LD	L,A
+	LD	A,H	; SHIFT HIGH
+	RLA
+	LD	H,A
+	JP	NC,OKRET
+	POP	AF	; GET PSW
+	SCF		; SET CARRY
+	RET
+OKRET:
+	POP	AF
+	OR	A	; CLEAR CARRY
+	RET
+
+	END
+

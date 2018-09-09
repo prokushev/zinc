@@ -1,0 +1,68 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+
+	.z80
+	cseg
+;
+	extrn	cifdev
+;
+ctell::	push	iy
+	push	de
+	pop	iy
+	call	cifdev
+	jr	z,isdev
+	ld	a,(iy+38)
+	or	(iy+39)
+	jr	z,isnopen	;NC already.
+	ld	l,0
+	ld	h,(iy+41)
+	ld	c,(iy+42)
+	ld	b,(iy+43)
+	ld	a,(iy+40)	;A=cbyt
+	bit	7,a
+	jr	z,ctell1
+	cp	0ffh
+	ld	a,0
+	jr	z,ctell1
+;
+;A=80h. This corresponds to 0-in-the-next-record.
+;	
+	inc	h
+	jr	nz,ctell1
+	inc	bc
+ctell1:	srl	b
+	rr	c
+	rr	h
+	rr	l	;BCHL=approx file pointer; A=0-7Fh.	
+	or	l
+	ld	l,a	;BCHL=exact file pointer.
+	scf
+	jr	exit
+;
+isnopen:	
+	ld	a,29
+	jr	exit
+;	
+isdev:	xor	a	;Can't ftell() on a device.
+	ld	a,38		
+exit:	pop	iy
+	ret
+;
+	end
+;	

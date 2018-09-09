@@ -1,0 +1,78 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+	
+	extrn	c@wrec,c@xtnd,c@rrec
+
+cseek::	push	iy
+	push	de
+	pop	iy
+	bit	7,(iy+47)	;Buffer dirty?
+	scf
+	push	hl
+	ld	l,(iy+38)
+	ld	h,(iy+39)
+	call	nz,c@wrec	;Write it, because we are going elsewhere
+	pop	hl
+	push	hl
+	push	bc
+	ld	a,l
+	and	7fh		;A=bytewise ptr.
+	sla	l
+	rl	h
+	rl	c
+	rl	b
+	ld	l,a		;A=cbyt
+	ld	a,b
+	cp	4
+	ld	a,21		;Sorry, pointer > 32Mb.
+	jr	nc,popret
+	ld	(iy+43),b
+	ld	(iy+42),c
+	ld	(iy+41),h	;Record number set.
+	ld	(iy+40),l	;Offset set.
+	call	c@xtnd		;Was the file extended?
+	call	c@rrec		;Attempt to read the new record
+	jr	c,popret
+	cp	25
+	scf
+	ccf	
+	jr	nz,popret
+;
+;If it was an EOF, fill the buffer with 1Ah characters.
+;
+	push	de
+	ld	l,(iy+38)
+	ld	h,(iy+39)
+	ld	d,h
+	ld	e,l
+	inc	de
+	ld	bc,7fh
+	ld	(hl),1ah
+	ldir
+	pop	de
+	scf
+popret:	pop	bc
+	pop	hl	
+cskret:	pop	iy
+	ret
+
+	end
+

@@ -1,0 +1,111 @@
+;
+; SYSLIB Module Name:  SALLOC
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.1
+
+	public	ialloc,alloc
+
+;
+;  BDOS ENTRY POINT
+;
+BDOSE	EQU	5
+
+;
+;  SYSLIB FUNCTIONS
+;
+	EXT	CODEND
+	EXT	COMPHD
+
+;
+;	ALLOC and IALLOC support dynamic memory allocation.  IALLOC is
+; used to initialize the system, specifying where the first byte of
+; the dynamic buffer is and where the last byte of this buffer is.
+; The user may explicitly give zero, one, or both of these values, and,
+; for those values omitted, IALLOC selects the area just after the
+; user program for the beginning of the buffer and the bottom of the CCP
+; for the end of the buffer.  ALLOC, then, is used to obtain buffers
+; from this area.  ALLOC is called with the desired space in DE, and it
+; returns a pointer to the first byte of the allocated buffer in HL
+; with a flag (Z means buffer not allocated due to memory overflow).
+;
+
+;
+;	IALLOC -- Initialize the Allocation Process
+;
+;	On Input, HL = Starting Address of Buffer Area
+;		  DE = End Address of Buffer Area
+;		  A  = Flag:
+;			Bit 0 - if set, set starting address from HL
+;				if clear, set starting address from CODEND
+;			Bit 1 - if set, set ending address from DE
+;				if clear, set ending address from CCP
+;
+IALLOC:
+	PUSH	AF	; SAVE REGS
+	PUSH	HL
+	PUSH	DE
+	PUSH	BC
+	LD	B,A	; SAVE CODE
+	AND	1	; SET FROM HL?
+	JP	NZ,IAL1
+	CALL	CODEND	; GET STARTING ADDRESS FROM CODEND
+IAL1:
+	LD	(NEXTBYTE),HL	; SET PTR TO NEXT BYTE
+	EX	DE,HL		; USE DE NOW
+	LD	A,B	; GET CODE
+	AND	2	; SET FROM HL?
+	JP	NZ,IAL2
+	LD	HL,(BDOSE+1)	; GET BDOS BASE ADDRESS FROM ENTRY POINT
+	LD	A,H
+	SUB	8	; PT TO CCP
+	LD	H,A
+	LD	L,0	; HL PTS TO BASE OF CCP
+	DEC	HL	; ONE BYTE LOWER
+IAL2:
+	LD	(LASTBYTE),HL	; SET PTR TO LAST BYTE
+	POP	BC	; RESTORE REGS
+	POP	DE
+	POP	HL
+	POP	AF
+	RET
+
+;
+;  ALLOC -- Allocate Buffer for user
+;	On Input, DE = number of bytes requested
+;	On Output, HL = address of first byte of buffer
+;		   A = Flag:
+;			A = 0 and Z Flag if CCP Overflow (HL now invalid)
+;			A = 0FFH and NZ Flag if OK
+;
+ALLOC:
+	PUSH	DE
+	LD	HL,(NEXTBYTE)	; SET NEXT BYTE
+	ADD	HL,DE	; PT TO AFTER LAST BYTE
+	EX	DE,HL
+	LD	HL,(LASTBYTE)	; OVERFLOW?
+	CALL	COMPHD	; OVERFLOW?
+	JP	C,ALERR	; ALLOCATION ERROR
+	LD	HL,(NEXTBYTE)	; GET PTR TO NEXT BYTE
+	EX	DE,HL		; HL PTS TO AFTER LAST BYTE
+	LD	(NEXTBYTE),HL	; NEW NEXT BYTE
+	EX	DE,HL		; HL CONTAINS DESIRED VALUE
+	LD	A,0FFH	; SET FLAG FOR OK
+	OR	A
+	POP	DE	; RESTORE DE
+	RET
+ALERR:
+	XOR	A	; ERROR CODE
+	POP	DE
+	RET
+
+;
+;  BUFFERS
+;
+NEXTBYTE:
+	DS	2	; ADDRESS OF NEXT BYTE IN DYNAMIC BUFFER
+LASTBYTE:
+	DS	2	; ADDRESS OF LAST BYTE IN DYNAMIC BUFFER
+
+	END
+

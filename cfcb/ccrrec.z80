@@ -1,0 +1,90 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+	.z80
+	cseg
+
+	extrn	c@dma,cfdos,c@last,c@wrec
+
+c@rrec::
+	push	iy	;Read record labelled as current.
+	ex	de,hl
+	call	c@dma
+	ex	de,hl
+	push	de
+	pop	iy
+	bit	7,(iy+47)	;Buffer dirty?
+	scf
+	call	nz,c@wrec
+	jr	nc,ret1
+	call	c@last
+	jr	c,c@rrc1
+	jr	z,c@rrc1
+	xor	a
+	ld	a,25		;EOF
+ret1:	pop	iy
+	ret
+;
+c@rrc1:	ld	a,(iy+41)
+	ld	(iy+33),a
+	ld	a,(iy+42)
+	ld	(iy+34),a
+	ld	a,(iy+43)
+	ld	(iy+35),a
+	push	bc
+	push	de
+	push	hl
+	push	iy
+	ld	c,21h
+	call	cfdos
+	pop	iy
+	pop	hl
+	pop	de
+	pop	bc
+	jr	nc,ret1
+	or	a
+	scf	
+	jr	z,ret1
+	push	hl
+	ld	l,a
+	ld	a,25
+	dec	l
+	jr	z,ret0
+	inc	a
+	dec	l
+	jr	z,ret0
+	inc	a
+	dec	l
+	jr	z,ret0
+	ld	a,25
+	dec	l
+	jr	z,ret0
+	ld	a,27
+	dec	l
+	jr	z,ret0
+	ld	a,21
+	dec	l
+	jr	z,ret0
+	ld	a,8
+ret0:	pop	hl
+	pop	iy
+	and	a
+	ret
+;		
+	end
+

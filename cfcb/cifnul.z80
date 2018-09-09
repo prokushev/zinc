@@ -1,0 +1,50 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+
+	.z80
+	CSEG
+	EXTRN	CIFDEV
+
+CIFNUL::
+	PUSH	BC
+	LD	C,A
+	CALL	CIFDEV
+	JR	Z,RETNZ
+	INC	DE
+	LD	A,(DE)
+	DEC	DE
+	CP	' '
+	JR	Z,RETZ
+	CP	'/'
+	JR	Z,RETZ
+	CP	'-'
+	JR	Z,RETZ
+	CP	'['
+	JR	Z,RETZ
+RETNZ:	XOR	A
+	INC	A
+RETIT:	LD	A,C
+	POP	BC
+	RET
+;
+RETZ:	XOR	A
+	JR	RETIT
+
+	END
+

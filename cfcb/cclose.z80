@@ -1,0 +1,81 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+
+	.z80
+	cseg
+	
+	extrn	cfdos,c@rrec,c@wrec,c@blen,c@irec,cifdev,cdevo,cifnul
+;
+cclose::
+	push	iy
+	push	de
+	pop	iy	;IY -> CFCB.
+	push	de
+	push	bc
+	push	hl
+	call	close0
+	pop	hl
+	pop	bc
+	pop	de
+retl1:	pop	iy
+	ret
+;
+close0:	call	cifnul		;Check for bad FCB
+	jr	nz,crr0a
+	xor	a
+	ld	a,29
+	ret
+;
+crr0a:	call	cifdev		;Is it for a device?
+	jr	z,clsdev
+	bit	7,(iy+47)	;Data pending?
+	jr	z,clsfil
+	push	de
+	push	hl
+	ld	l,(iy+38)
+	ld	h,(iy+39)
+	call	c@wrec
+	pop	hl
+	pop	de
+	ret	nc
+clsfil:	bit	1,(iy+47)	;Been written to?
+	jr	z,clsf1
+	ld	c,10h
+	call	cfdos
+	ret	nc
+	ld	c,1Eh		;Set attributes
+	ld	a,(iy+36)	;Bytelen
+	ld	(iy+32),a
+	set	7,(iy+6)	;f6'
+	call	cfdos
+	ret	nc
+	jr	clsdev
+;
+clsf1:	ld	c,10h
+	call	cfdos
+	ret	nc
+clsdev:	ld	(iy+38),0
+	ld	(iy+39),0	;FCB closed.
+	ld	(iy+47),0
+	scf
+	ret	
+;
+	end
+	
+

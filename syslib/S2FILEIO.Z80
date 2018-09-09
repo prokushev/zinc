@@ -1,0 +1,77 @@
+;
+; SYSLIB Module Name:  S2FILE
+; Author:  Richard Conn
+; SYSLIB Version Number:  3.6
+; Module Version Number:  1.2
+
+	public	fi2$open,f2$get,fi2$close
+	public	fo2$open,f2$put,fo2$close
+
+;  Date:     2 May 85
+;  Revised: Al Dunsmuir
+;  Changes:	- Table organization completely changed.
+;		- Extensive code optimization performed.
+;			
+;   Previous Version:	1.0 (16 Jan 84)
+
+
+;  EXTERNAL DECLARATIONS
+;
+	EXT	FI$OPEN
+	EXT	FO$OPEN
+	EXT	FI$CLOSE
+	EXT	FO$CLOSE
+	EXT	F$GET
+	EXT	F$PUT
+
+;
+;  MAIN ROUTINES FOR F2
+;
+FI2$OPEN:
+	PUSH	HL		;Save user REG
+	LD	HL,FI2$TBL	;Get FI2 table address.
+	JP	FI$OPEN		;Perform function
+
+FO2$OPEN:
+	PUSH	HL		;Save user REG
+	LD	HL,FO2$TBL	;Get FO2 table address.
+	JP	FO$OPEN		;Perform function
+
+F2$GET:
+	PUSH	HL		;Save user REG
+	LD	HL,FI2$TBL	;Get FI2 table address.
+	JP	F$GET		;Perform function
+
+F2$PUT:
+	PUSH	HL		;Save user REG
+	LD	HL,FO2$TBL	;Get FO2 table address.
+	JP	F$PUT		;Perform function
+
+FI2$CLOSE:
+	PUSH	HL		;Save user REG
+	LD	HL,FI2$TBL	;Get FI2 table address.
+	JP	FI$CLOSE	;Perform function
+
+FO2$CLOSE:
+	PUSH	HL		;Save user REG
+	LD	HL,FO2$TBL	;Get FO2 table address.
+	JP	FO$CLOSE	;Perform function
+
+;  Init Table and Buffers for F2 Routines
+;
+FI2$TBL:
+I2$FLG:	DB	0		;Input file opened flag (0=NO)
+I2$CNT:	DS	1		;Input char count
+I2$PTR:	DS	2		;Input char ptr
+I2$FCB:	DS	36		;Input file FCB
+I2$BUF:	DS	128		;Input Buffer
+
+FO2$TBL:
+O2$FLG:	DB	0		;Output file opened flag (0=NO)
+O2$CNT:	DS	1		;Output char count
+O2$PTR:	DS	2		;Output char ptr
+O2$FCB:	DS	36		;Output file FCB
+O2$BUF:	DS	128		;Output Buffer
+
+	END
+

@@ -1,0 +1,355 @@
+;
+;    CFCB library: An I/O library for CP/M giving byte-level access to files
+;    Copyright (C) 2000 John Elliott <jce@seasip.demon.co.uk>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+;
+;CPARSE: Parse a filename possibly containing UD: or DU: specifiers.
+;
+	.z80
+	cseg
+;
+FDOS	EQU	5
+;
+	EXTRN	C@NDEV,C@DEVS
+;
+CPARSE::
+;
+;Parameters passed to CPARSE are:
+;DE=PFCB addr.
+;
+;CPARSE returns HL=next address. FCB initialised. A=(FCB+37)=user number,
+;       1-16, 0 for default. Carry set.
+;	Or HL=FFFFh, carry clear, A=20
+;PFCB preserved.
+;
+	CALL	UDPAR1
+	PUSH	BC
+	LD	C,A
+	LD	A,H
+	AND	L
+	INC	A
+	LD	A,C
+	POP	BC
+	JR	Z,PARERR
+	SCF
+	RET
+;
+PARERR:	XOR	A
+	LD	A,20
+	RET
+;
+UDPAR1:	PUSH	BC
+	PUSH	DE
+	PUSH	IX
+	PUSH	IY
+;
+	PUSH	DE
+	POP	IX	;IX=PFCB addr.
+;
+;See if drive &/or user were given.
+;
+	LD	L,(IX+2)
+	LD	H,(IX+3)	;HL=CFCB addr.
+	LD	D,H
+	LD	E,L
+	INC	DE
+	LD	BC,47
+	LD	(HL),B		;Zeroise the CFCB.
+	LDIR
+	LD	L,(IX+0)
+	LD	H,(IX+1)	;If there is a colon, must be one of:
+	PUSH	HL		;x: n: nx: nn: nnx: CON: AUX: LST: NUL:
+	POP	IY
+	LD	A,(IY+1)	;x: n:
+	CP	':'
+	JR	Z,ISCOLON
+	LD	A,(IY+2)
+	CP	':'
+	JR	Z,ISCOLON
+	LD	A,(IY+3)
+	CP	':'
+	JR	Z,ISCOLON
+;
+;No specifier. DE := PFCB addr.
+;
+NOSPEC:	LD	C,152
+	PUSH	IX
+	POP	DE
+	PUSH	IX
+	CALL	FDOS	;Use CP/M parser. HL is now sacrosanct.
+	POP	IX
+	CALL	ZPMFIX
+	LD	E,(IX+2)
+	LD	D,(IX+3)
+	PUSH	DE
+	POP	IY	;IY=FCB addr.
+	XOR	A	;No user spec.
+	LD	(IY+37),A
+FINISH:	POP	IY
+	POP	IX
+	POP	DE
+	POP	BC
+	RET
+;
+ISCOLON:
+	PUSH	IY	;IY=command addr.
+	POP	HL
+	LD	DE,USERNO
+ISCOL0:	LD	A,(HL)
+	CALL	NUMERIC
+	JR	C,ISCOL1
+	LD	(DE),A
+	INC	DE
+ISCOL1:	INC	HL
+	CP	':'
+	JR	NZ,ISCOL0
+;
+;Numeric portions extracted into USERNO:
+;
+	XOR	A
+	LD	(DE),A
+	LD	HL,USERNO
+	LD	A,(HL)
+	OR	A
+	JP	Z,NOUSER
+	CALL	PARSENUM
+	JP	C,NOUSER	;No user number included.
+;
+;User no. given in E
+;
+	LD	A,E
+	CP	16
+	JP	NC,BADUID
+	INC	A
+	PUSH	AF		;User no. stacked
+;
+;Check for drive
+;
+	PUSH	IY
+	POP	HL
+ISDRV0:	LD	A,(HL)
+	CALL	UCA
+	CP	'A'
+	JR	C,ISDRV1
+	CP	'Q'
+	JR	NC,ISDRV1
+	SUB	'@'	;A=drive no.
+	PUSH	AF
+ISDRV3:	LD	A,(HL)
+	INC	HL
+	CP	':'
+	JR	NZ,ISDRV3
+	POP	AF
+	JR	ISDRV2
+;
+ISDRV1:	INC	HL
+	CP	':'
+	JR	NZ,ISDRV0
+;
+;No drive. HL = address of the colon + 1
+;
+	XOR	A
+ISDRV2:	PUSH	AF	;Drive no. stacked.
+	EX	DE,HL
+	LD	HL,USERNO
+	LD	(HL),E
+	INC	HL
+	LD	(HL),D
+	INC	HL
+	LD	E,(IX+2)
+	LD	D,(IX+3)
+	LD	(HL),E
+	INC	HL
+	LD	(HL),D
+	LD	DE,USERNO
+	LD	C,152
+	PUSH	IX
+	CALL	FDOS
+	POP	IX	;HL is now sacrosanct.
+	CALL	ZPMFIX
+	POP	AF	;A=drive letter
+	LD	E,(IX+2)
+	LD	D,(IX+3)
+	PUSH	DE
+	POP	IY	;IY=FCB addr
+	LD	(IY+0),A
+	POP	AF
+FINIS1:	LD	(IY+37),A
+FINIS2:	JP	FINISH
+;
+BADUID:	LD	HL,-1
+	JR	FINIS2
+;
+NOUSER:
+;
+;Is the filespec one of the specials?
+;
+	LD	L,(IX+2)
+	LD	H,(IX+3)
+	PUSH	HL
+	PUSH	IY
+	POP	DE	;DE = specifier
+	POP	IY	;IY = FCB
+	LD	A,(C@NDEV)
+	OR	A
+	JP	Z,NOSPEC
+	LD	B,A
+	LD	A,32
+	LD	HL,C@DEVS
+NOUS1:	CALL	MATCH$
+	JR	Z,FINIS0
+	INC	A
+	DJNZ	NOUS1
+	JP	NOSPEC
+;
+FINIS0:	PUSH	DE
+	LD	C,A
+	PUSH	HL
+	LD	HL,4
+	ADD	HL,DE	;HL => end of input parameter
+	LD	A,(HL)
+	OR	A
+	JR	Z,ZHL
+	CP	0DH
+	JR	Z,ZHL
+	LD	A,C
+	POP	DE
+	POP	DE
+	JR	FINIS1
+;
+ZHL:	LD	A,C
+	POP	DE
+	POP	DE
+	LD	HL,0
+	JR	FINIS1
+;
+MATCH$:	PUSH	BC
+	PUSH	DE
+	LD	C,A
+	LD	B,3
+MATCH1:	LD	A,(DE)
+	CALL	UCA
+	CP	(HL)
+	JR	NZ,NOMTC
+	INC	HL
+	INC	DE
+	DJNZ	MATCH1
+	LD	A,(DE)
+	CP	':'	;Z set if it ends with :
+	JR	MTC
+;
+NOMTC:	INC	HL
+	DJNZ	NOMTC
+	XOR	A
+	DEC	A	;NZ
+MTC:	LD	A,C
+	POP	DE
+	POP	BC
+	RET
+;
+UCA:	CP	'a'
+	RET	C
+	CP	'z'+1
+	RET	NC
+	SUB	' '
+	RET
+;
+	DSEG
+USERNO:	DEFB	0,0,0,0
+	CSEG
+
+NUMERIC:
+	CP	'0'
+	RET	C
+	CP	':'
+	CCF
+	RET
+;
+PARSENUM:
+	LD	E,0
+	LD	A,(HL)
+	CALL	NUMERIC
+	RET	C
+PARSEN1:
+	CCF
+	RET	NC
+	CALL	EX10
+	INC	HL
+	AND	0Fh
+	ADD	A,E
+	LD	E,A
+	LD	A,(HL)
+	CALL	NUMERIC
+	JR	PARSEN1
+;
+EX10:	PUSH	AF
+	LD	A,E
+	ADD	A,A	;D=E*2
+	LD	D,A
+	ADD	A,A	;A=E*4
+	ADD	A,A	;A=E*8
+	ADD	A,D	;A=E*10
+	LD	E,A
+	POP	AF
+	RET
+;
+ZPMFIX:	PUSH	HL
+	PUSH	BC
+	PUSH	AF
+	LD	L,(IX+2)
+	LD	H,(IX+3)	;FCB
+	LD	DE,12
+	ADD	HL,DE
+	LD	A,(HL)
+	OR	A
+	JR	Z,ZPMFX1
+	PUSH	HL
+	LD	DE,7
+	ADD	HL,DE
+	LD	D,H
+	LD	E,L
+	INC	DE
+	INC	DE
+	INC	DE
+	INC	DE
+	LD	BC,8
+	LDDR		;Shift password
+	POP	HL
+	LD	B,4
+ZFX1:	LD	(HL),0
+	INC	HL
+	DJNZ	ZFX1
+ZFX2:	LD	A,(HL)
+	CP	' '
+	JR	Z,ZFX3
+	INC	B
+	INC	HL
+	JR	ZFX2
+;
+ZFX3:	LD	L,(IX+2)	;B=password length
+	LD	H,(IX+3)
+	LD	DE,26
+	ADD	HL,DE
+	LD	(HL),B
+ZPMFX1:	POP	AF
+	POP	BC
+	POP	HL
+	RET
+;
+	END
+
+
