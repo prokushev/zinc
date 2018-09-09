@@ -4,7 +4,7 @@
 ; SYSLIB Version Number:  3.6
 ; Module Version Number:  1.2
 
-	public	fi0$open,f0$get,fi0$close
+	PUBLIC	fi0$open,f0$get,fi0$close
 	public	fo0$open,f0$put,fo0$close
 
 ;  Date:     2 May 85

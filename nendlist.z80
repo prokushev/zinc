@@ -20,6 +20,7 @@
 	cseg
 ;
 CPM3	EQU	0		;Don't perform CP/M 3 check
+CPNET	EQU	0		;Don't perform CP/NET check
 ;
 	INCLUDE	ZINCHEAD.INC
 ;

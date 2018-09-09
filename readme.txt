@@ -1,36 +1,46 @@
 The ZINC project
 ----------------
 
-The ZINC project is an attempt to replicate 8-bit CP/M 3.1 and some other DRI programs under the GNU General Public License.
+The ZINC project is an attempt to replicate 8-bit CP/M 3.1 and some other DRI programs under the GNU General
+Public License.
 
 ZINC stands for ZINC Is Not CP/M.
 
 Design choices
 --------------
 
-The idea is to come as close as possible to CP/M 3 in option syntax and functionality. There are many programs in existence to list a directory, but much fewer that let you type DIR [EXCLUDE] *.COM.
+The idea is to come as close as possible to CP/M 3 in option syntax and functionality. There are many
+programs in existence to list a directory, but much fewer that let you type DIR [EXCLUDE] *.COM.
 
 All current ZINC components are written in Z80 assembly language and require a Z80 processor.
 
-The idea is to keep a lot of the necessary functionality in code libraries. SYSLIB is used for some functions, and two further libraries (CPM3LIB and CFCB) provide functionality specific to CP/M 3. A fourth library (STRLIB) provides some string functions.
+The idea is to keep a lot of the necessary functionality in code libraries. SYSLIB is used for some
+functions, and two further libraries (CPM3LIB and CFCB) provide functionality specific to CP/M 3.
+A fourth library (STRLIB) provides some string functions. A fifth  library (NETLIB) provides
+CP/NET support.
 
-This will not apply to programs that have a use outside CP/M; for example, the development tools. Since these could be used for cross-development, they would be written in C. The same goes for the help system.
+This will not apply to programs that have a use outside CP/M; for example, the development tools. Since
+these could be used for cross-development, they would be written in C. The same goes for the help system.
 
 Don't use BIOS. Use BDOS!
 
 Current status (version 3.2.0)
 ------------------------------
 
-In strict accordance with tradition, I'm announcing a grandiose plan when I have very little to show for it. The following programs have been done:
+In strict accordance with tradition, I'm announcing a grandiose plan when I have very little to show for it.
+The following programs have been done:
 
 DATE.COM
     Complete. Is Year 2000 compliant and supports date entry in US, UK and ISO formats.
 DEVICE.COM
-    Complete. Optionally supports the Amstrad TIMEOUT extension so that it can also replace TIMEOUT.COM on Amstrad computers.
+    Complete. Optionally supports the Amstrad TIMEOUT extension so that it can also replace TIMEOUT.COM on
+    Amstrad computers.
 DIR.COM
-    Complete. Is Year 2000 compliant and supports I/O redirection. Several new output formats and sorting options.
+    Complete. Is Year 2000 compliant and supports I/O redirection. Several new output formats and sorting
+    options.
 DUMP.COM
-    A version exists, but the CFCB library seems to produce bloated code; DUMP.COM is actually bigger than the DRI original.
+    A version exists, but the CFCB library seems to produce bloated code; DUMP.COM is actually bigger than
+    the DRI original.
 ERASE.COM
     Complete. Can take more than one filespec on the command line (eg: ERASE *.PRN *.SYM )
 SETDEF.COM
@@ -74,7 +84,9 @@ A ZINC program should:
 Build environment
 -----------------
 
-The Submit files provided with the source assume a MYZ80 environment running CP/M 3. They assume that B0: contains library files, C0: contains the program source, C1: contains CFCB source, C2: contains C3LIB source and C4: contains STRLIB source.
+The Submit files provided with the source assume a MYZ80 environment running CP/M 3. They assume that
+B0: contains library files, C0: contains the program source, C1: contains CFCB source, C2: contains
+C3LIB source and C4: contains STRLIB source.
 
 To build ZINC, you will need:
 
@@ -98,5 +110,6 @@ John Elliott, 3-1-2000
 To do
 -----
 
-1. Replace SYSLIB routines by LGPL code
+1. Replace SYSLIB routines by LGPL code(?)
 2. NENDLINT.ASM uses SYSLIB LOUT. Need to replace by BDOS, not BIOS, call.
+2. Add NETLIB for CP/NET functions support.
