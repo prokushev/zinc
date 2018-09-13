@@ -1,44 +1,55 @@
 ;
+;    SYSLIB library: SYStem LIBrary for CP/M
+;    Copyright (C) 2018 Yuri Prokushev <yuri.prokushev@gmail.com>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+;
 ; SYSLIB Module Name:  SLOUT
-; Author:  Richard Conn
-; SYSLIB Version Number:  3.6
-; Module Version Number:  1.1
-
-	public	lout
-
+; Author:  Yuri Prokushev
+; SYSLIB Version Number:  5.0
+; Module Version Number:  1.0
+;
 ;
 ;  LOUT -- 
 ;	LIST OUTPUT ROUTINE
 ;	OUTPUT CHAR IN REG A TO LST:
 ;	AFFECT NO REGISTERS OR FLAGS
 ;
-PUTRG	MACRO
-	PUSH	BC	; SAVE BC, DE, HL
-	PUSH	DE
-	PUSH	HL
-	ENDM
-GETRG	MACRO
-	POP	HL	; RESTORE HL, DE, BC
-	POP	DE
-	POP	BC
-	ENDM
+;
+; Routine logic:
+; Move A to E and call LIST BDOS call
+;
+
+	PUBLIC	LOUT
+        
+        .Z80
+        CSEG
 
 LOUT:
-	PUSH	AF		; SAVE REG A AND FLAGS
-	PUTRG			; SAVE REGISTERS
-	LD	C,A		; CHAR IN C
-	LD	HL,(JTABL)	; GET ADDRESS OF JUMP TABLE
-	LD	L,L$OFF		; PRINTER OUTPUT ADR
-	LD	DE,LRET		; SET UP RET ADR
-	PUSH	DE		; ... ON STACK
-	JP	(HL)
-LRET:	GETRG			; RESTORE REGISTERS
-	POP	AF		; RESTORE REG A AND FLAGS
+	PUSH	AF		; Save registers
+	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+	LD	E, A		; Put char to A
+	LD	C, 05H          ; BDOS LIST function
+        CALL    BDOS
+	POP	HL              ; Restore registers
+	POP	DE
+	POP	BC
+	POP	AF
 	RET
 
-BOOT	EQU	0	; CP/M BOOT ADDRESS
-JTABL	EQU	BOOT+1	; CP/M JUMP TABLE ADDRESS
-L$OFF	EQU	0FH	; LIST OUTPUT OFFSET
-
 	END
-

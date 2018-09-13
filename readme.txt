@@ -111,5 +111,4 @@ To do
 -----
 
 1. Replace SYSLIB routines by LGPL code(?)
-2. NENDLINT.ASM uses SYSLIB LOUT. Need to replace by BDOS, not BIOS, call.
 2. Add NETLIB for CP/NET functions support.
