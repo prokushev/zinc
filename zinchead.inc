@@ -1,6 +1,7 @@
 ;
 ;    ZINC header: This file contains common definitions for ZINC programs.  
 ;    Copyright (C) 2000,2001  John Elliott <jce@seasip.demon.co.uk>
+;    Copyright (C) 2018  Yuri Prokushev <yuri.prokushev@gmail.com>
 ;
 ;    This program is free software; you can redistribute it and/or modify
 ;    it under the terms of the GNU General Public License as published by
@@ -16,6 +17,30 @@
 ;    along with this program; if not, write to the Free Software
 ;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 ;
+; ---------------------------------------------------------------------------
+;
+; This is startup file which provides MS-DOS protection (write error end exit under MS-DOS),
+; initializes configuration variables end pass control to MAIN label. Also provides machine
+; configuration check end exits if no required features are presented.
+;
+; Usage is:
+;
+; ; Program title
+;
+; ; -- SECTION 0 -- Configuration
+; CPM3  EQU 0 ; Requires CP/M 3
+; CPNET EQU 0 ; Requires CP/NET
+; Z80   EQU 0 ; Requires Z80 CPU
+;
+;       INCLUDE ZINCHEAD.INC
+;
+; ; -- SECTION 1 -- Entry point
+; MAIN: RET
+;
+
+        .Z80
+        CSEG
+
 FCB	EQU	005Ch
 CR	EQU	0Dh
 LF	EQU	0Ah
@@ -26,8 +51,6 @@ YES	EQU	NOT NO
 
 	EXT	BDOS		;SYSLIB
 
-;	ORG	100H
-
 BASE:	DEFB	0EBh,04h	;DOS protection... JMPS LABE
 	EX	DE,HL
 	JP	BEGIN
@@ -37,7 +60,7 @@ BASE:	DEFB	0EBh,04h	;DOS protection... JMPS LABE
 	DEFB	0CDh,021h	;DOS protection... INT 21h.
 	DEFB	0CDh,020h	;DOS protection... INT 20h.
 ;
-	DSEG
+;	DSEG
 
 BVMES:	DEFB	'This program requires CP/M '
 	IF	CPM3
@@ -45,33 +68,46 @@ BVMES:	DEFB	'This program requires CP/M '
 	ELSE
 	DEFB	'2'
 	ENDIF
-	DEFB	' and a Z80 processor',cr,lf,'$'
-BNMES	DEFB	'This program requires network support',cr,lf,'$'
+	DEFB	' and a '
+        IF  Z80
+        DEFB    'Z80'
+        ELSE
+        DEFB    '8080'
+        ENDIF
+        DEFB    ' processor',cr,lf,'$'
+BNMES	DEFB    'This program requires network support',cr,lf,'$'
 
-	CSEG
+;	CSEG
 
-BEGIN:	SUB	A
-	JP	PE,BADVER
+BEGIN:
+        IF  Z80
+        SUB	A
+	JP	PE, BADVER
+        ENDIF
 
-	IF	CPNET OR CPM3
-	LD	C,0Ch
+	IF  CPNET OR CPM3
+	LD	C, 0Ch
 	CALL	BDOS
 	IF	CPM3
 	CP	30h
-	JR	C,BADVER	; <30h
+	JP	C, BADVER	; <30h
+	ENDIF
+	IF	NOT CPM3
+	CP	20h
+	JP	C, BADVER	; <20h
 	ENDIF
 	IF	CPNET
-	LD	A,H
+	LD	A, H
 	AND	00000010b
-	JR	Z,BADNET	;
+	JP	Z, BADNET
 	ENDIF
 	ENDIF
 	JP	MAIN
 
-BADNET:	LD	DE,BNMES
-	JR	BADMSG
-BADVER:	LD	DE,BVMES
-BADMSG:	LD	C,9
+BADNET:	LD	DE, BNMES
+	JP	BADMSG
+BADVER: LD	DE, BVMES
+BADMSG: LD	C, 9
 	JP	BDOS
 
 ;
@@ -83,4 +119,7 @@ BADMSG:	LD	C,9
 	DEFB	0,0,0,0			;Patchlevel
 	DEFB	'654321'		;Serial number
 ;
+
+        CSEG
+        
 

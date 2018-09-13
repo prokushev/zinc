@@ -18,8 +18,10 @@
 NO	EQU	0
 YES	EQU	NOT NO
 
-	.z80
-	cseg
+;
+CPM3	EQU	1		; CP/M 3 check
+CPNET	EQU	0		; CP/NET check
+Z80	EQU	1		; Z80 check
 ;
 	INCLUDE	ZINCHEAD.INC
 ;

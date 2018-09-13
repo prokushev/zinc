@@ -21,6 +21,11 @@
 ;
 ;ZINC version of TYPE.COM
 ;
+;
+CPM3	EQU	1		; CP/M 3 check
+CPNET	EQU	0		; CP/NET check
+Z80	EQU	1		; Z80 check
+;
 	INCLUDE	ZINCHEAD.INC
 
 	extrn	cparse,copen,crbyti,cerror,crclos,cexwild,@LAST

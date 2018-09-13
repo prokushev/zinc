@@ -21,6 +21,7 @@
 ;
 CPM3	EQU	0		;Don't perform CP/M 3 check
 CPNET	EQU	0		;Don't perform CP/NET check
+Z80	EQU	0		;Don't perform Z80 check
 ;
 	INCLUDE	ZINCHEAD.INC
 ;

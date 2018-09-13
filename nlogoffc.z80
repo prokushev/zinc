@@ -21,7 +21,7 @@
 ;
 CPM3	EQU	0		;Don't perform CP/M 3 check
 CPNET	EQU	1		;Perform CP/NET check
-Z80	EQU	1		;Perform Z80 check
+Z80	EQU	0		;Perform Z80 check
 ;
 	INCLUDE	ZINCHEAD.INC
 ;
@@ -31,7 +31,7 @@ Z80	EQU	1		;Perform Z80 check
 
 BUFF	EQU	0080h
 
-ACTIVE	EQU	0001$0000b
+ACTIVE	EQU	00010000b
 
 MAIN:	LD	E, 0
 	LD	HL, BUFF
