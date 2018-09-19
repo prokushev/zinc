@@ -1,0 +1,34 @@
+
+; Set BIOS Bank Numbers to the RAM base Number as set by Boot ROM.  In-context
+; RAM will be reflected in CBR which is base.  We adjust other bank numbers
+; based on configured differences, except for MaxBnk which remains as config'd.
+; Since the bootable systems (MOVCPM set to YES) are not banked, the Fast boot
+; option should be OFF, and only the TPABNK will necessarily be Accurate.
+
+	IN0	C,(CBR)		; Read Current 4k base of RAM
+	RR	C		;  divide
+	RR	C		;   by
+	RR	C		;    8 for 32k Bank base
+	LD	HL,TPABNK
+	LD	B,(HL)		; Get configured TPA Bank #
+	LD	(HL),C		;  (Store actual)
+	  IF  NOT MOVCPM
+	DEC	HL
+	LD	A,(HL)		; Get Any User Bank
+	SUB	B		;  (compute difference from TPA)
+	JR	C,NoUsrB	; ..jump if None
+	ADD	A,C		; Else Compute new User Bank #
+	LD	(HL),A		;  (save)
+NoUsrB:	INC	HL		;   advance to System Bank #
+	INC	HL
+	LD	A,(HL)		;    fetch
+	SUB	B		; Compute diff from System Bnk to TPA Bnk
+	LD	A,C		;  add new base
+	LD	(HL),A		;   (save)
+	INC	HL		; Advance to RAM Drive Start Bank #
+	LD	A,(HL)
+	SUB	B		;  compute difference
+	ADD	A,C		;   Add true base
+	LD	(HL),A		;    (save)
+	  ENDIF		;~Movcpm.  Max Bank # Stays as configured
+

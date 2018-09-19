@@ -1,0 +1,116 @@
+;**************************************************************************
+;      Data file for emulating alien formats using EMULATE.COM.
+;
+; Formats which show an Asterisk (*) in the comment header line have been
+; tested on disks formatted on original equipment, not emulated, and can be
+; considered validated.  Formats which show a question mark (?) in the
+; comment header line have NOT been tested due to unavailability of original
+; equipment formatted disks.
+;
+; Assemble to .HEX as:		ZMAC ALIEN.LIB /H
+; Link to binary as:		MYLOAD ALIEN.DAT=ALIEN.HEX
+;
+; 1.5 -  4 Feb 04 - Added SuperIO formats.				HFB
+; 1.4 - 12 Jan 97 - Added REH CPU280 formats per Helmut Jungkunz,
+;		changed format to INClude sections for size.		HFB
+; 1.3 - 18 Sep 96 - Added Epson QX-10 formats per R.L.Edgecombe.	HFB
+; 1.2 -  6 Aug 95 - Corrected Kaypro4 format per R.L.Edgecombe.		HFB
+; 1.1 - 22 Jan 95 - Test Chameleon Format, Added High-Density Formats.	HFB
+; 1.0 - 31 Aug 92 - General Release.					HFB
+; 0.0 - 26 Jun 91 - Initial Test Release.				HFB
+;:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+; The B/P BIOS DPB's contain prefix information that provide data on the
+; format.  There is no "Native" format, so each disk MUST have these headers.
+
+; Format Type Byte 0
+; ------------------
+;  D D D D D D D D
+;  7 6 5 4 3 2 1 0
+;  | | | | | +-+-+--- Disk Size:  000=Fixed Disk, 001=8", 010=5.25", 011=3.5"
+;  | | +-+-+--------- Track Type: 000=Single Side 	001=(reserved)
+;  | |			010=Sel by Sec, Cont	011=Sel by Sec, Sec # Same
+;  | |			100=S0 All, S1 All	101=S0 All,S1 All Reverse
+;  | |			110=Sel by Trk LSB	111=(reserved)
+;  | +--------------- Track 0 Side 0: 0 = Double Dens, 1 = Single Dens
+;  +----------------- Density: 0 = Double, 1 = Single
+
+FIXDSK	EQU	00000000B
+DSK8	EQU	00000001B
+DSK5	EQU	00000010B
+DSK3	EQU	00000011B
+SS	EQU	00000000B
+TSBSC	EQU	00010000B	; Side Select by Sector Number, Cont Sect #
+TSBSS	EQU	00011000B	; Side Select by Sector Number, Same Sect #
+TSBTM	EQU	00100000B	; Side Select by Track - S0 All, S1 All
+TSBTMR	EQU	00101000B	; Side Select by Track - S0 All, S1 All Reverse
+TSBTL	EQU	00110000B	; Side Select by Track LSB
+T0S0SD	EQU	01000000B
+DD	EQU	00000000B
+SD	EQU	10000000B
+
+; Format Type Byte 1
+; ------------------
+;  D D D D D D D D
+;  7 6 5 4 3 2 1 0
+;  | | | | | +-+-+---- Sector Size:  000=128, 001=256, 010=512, 011=1024 bytes
+;  | | +-+-+---------- Allocation Size:  000=1K, 001=2K, 010=4K, 011=8K, 100=16K
+;  | +---------------- (reserved)
+;  +------------------ Speed: 0 = Normal 5.25" (300rpm), 1 = 8" or HD (360rpm)
+
+SEC128	EQU	00000000B
+SEC256	EQU	00000001B
+SEC512	EQU	00000010B
+SEC1K	EQU	00000011B
+ALC1K	EQU	00000000B
+ALC2K	EQU	00001000B
+ALC4K	EQU	00010000B
+ALC8K	EQU	00011000B
+ALC16K	EQU	00100000B
+SPEED5	EQU	00000000B
+SPEED8	EQU	10000000B
+
+; NOTES on Skew Factors:  Sector skew may be calculated or may be looked
+;  up using a lookup table in the B/P BIOS.  To handle both eventualities,
+;  these entries must include the table, but it is not moved into BIOS
+;  memory unless needed.
+
+	INCLUDE	ALIEN1.INC	; 40-Track 5.25" Single-Sided and
+				;		Double-Sided Formats
+	INCLUDE	ALIEN2.INC	; 80-Track 5.25 & 3.5" Single-Sided
+				;		and Double-Sided Formats
+	INCLUDE	ALIEN3.INC	; 8" Single-Sided and Double-Sided
+				;		Formats (FM and MFM)
+	INCLUDE	ALIEN4.INC	; "High-Density" 5.25" and 3.5" Formats
+				;		(all 80-Track)
+
+;........................................................
+; The following Dummy may be used as a template to expand the tables.
+
+;	DEFB	'Unused   ',' '+80H ; Id - 10 bytes
+;	DEFB	0		; Format type byte 0
+;	DEFB	0		; Format type byte 1
+;	DEFB	0		; Skew factor
+;	DEFB	0		; Starting sector number
+;	DEFB	0		; Physical sectors per track
+;	DEFB	40		; Physical tracks/side
+
+;	DEFW	0		; Sectors per track
+;	DEFB	0		; Block shift factor
+;	DEFB	0		; Block mask
+;	DEFB	0		; Extent mask
+;	DEFW	0		; Disk size-1
+;	DEFW	0		; Directory max
+;	DEFB	0, 0		; Alloc 0,1
+;	DEFW	0		; Check size
+;	DEFW	0		; Track offset
+
+;	DEFB	00,00,00,00,00,00,00,00	; Physical sectors
+;	DEFB	00,00,00,00,00,00,00,00
+;	DEFB	00,00,00,00,00,00,00,00
+;	DEFB	00,00
+
+;	DEFB	0,0,0,0,0,0,0	; Pad for total length of 128 bytes
+
+	END
+

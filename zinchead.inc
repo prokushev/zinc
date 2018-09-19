@@ -27,7 +27,7 @@
 ;
 ; ; Program title
 ;
-; ; -- SECTION 0 -- Configuration
+; ; -- SECTION 0 -- Configuration and startup
 ; CPM3  EQU 0 ; Requires CP/M 3
 ; CPNET EQU 0 ; Requires CP/NET
 ; Z80   EQU 0 ; Requires Z80 CPU
@@ -60,9 +60,9 @@ BASE:	DEFB	0EBh,04h	;DOS protection... JMPS LABE
 	DEFB	0CDh,021h	;DOS protection... INT 21h.
 	DEFB	0CDh,020h	;DOS protection... INT 20h.
 ;
-;	DSEG
+        DSEG
 
-BVMES:	DEFB	'This program requires CP/M '
+BVMES:	DEFB	'Requires CP/M '
 	IF	CPM3
 	DEFB	'3'
 	ELSE
@@ -74,10 +74,12 @@ BVMES:	DEFB	'This program requires CP/M '
         ELSE
         DEFB    '8080'
         ENDIF
-        DEFB    ' processor',cr,lf,'$'
-BNMES	DEFB    'This program requires network support',cr,lf,'$'
+        DEFB    ' CPU',cr,lf,'$'
+	IF	CPNET
+BNMES	DEFB    'Requires network support',cr,lf,'$'
+        ENDIF
 
-;	CSEG
+	CSEG
 
 BEGIN:
         IF  Z80
@@ -104,15 +106,17 @@ BEGIN:
 	ENDIF
 	JP	MAIN
 
+       	IF	CPNET
 BADNET:	LD	DE, BNMES
 	JP	BADMSG
+        ENDIF
 BADVER: LD	DE, BVMES
 BADMSG: LD	C, 9
 	JP	BDOS
 
 ;
 	DEFS	BASE+40h-$
-	DEFB	'ZINC v3.1.2 Copy'
+	DEFB	'ZINC v3.2.0 Copy'
 	DEFB	'right 2001 J. El'
 	DEFB	'liott. GPLed. '
 	DEFB	'20010307'		;Date in YYYYMMDD format

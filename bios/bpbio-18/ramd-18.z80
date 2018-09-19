@@ -1,0 +1,110 @@
+;==================================================************************
+;		RAM Disk Driver.		   **  Hardware Specific **
+;	- YASBEC and MicroMint SB-180 -		   ************************
+;
+; 1.1 - 27 Feb 93 - General Release Updated to latest specs.		HFB
+; 0.0 - 12 Jun 91 - Initial test release				HFB		
+;==========================================================================
+
+	CSEG
+	  IF  BANKED
+	COMMON	/BANK2/
+	  ENDIF
+
+; This module controls a RAM Drive using 32k memory allocations with the
+; starting bank set by RAMBNK in the Header (ICFG-xx).  The size of the
+; "Drive" is defined in DPBM-xx.LIB module.
+
+;.....
+; Select the RAM Drive.  This routine performs any setup required in a select.
+
+SELRAM:	JP	SETPARMS	; No action locally.
+
+;.....
+; Read a 128-byte logical sector from the RAM Drive to main memory.
+;  This routine uses the HSTxxx values from the base BIOS routines.
+
+RAMRD:	DEFB	0F6H		; Fall thru with "OR 0AFH" to common code
+
+;.....
+; Write a 128-byte logical sector from main memory to the RAM Drive.
+;  This routine uses the HSTxxx values from the base BIOS routines.
+
+RAMWR:	XOR	A		; Set Write flag with 0, Read w/AFH
+			;..fall thru to common code
+; The following performs calculations for the proper address and bank, sets
+; the DMA block and executes the Move to/from the Host Buffer.
+
+	PUSH	AF		; Save R/W flag for later
+	LD	A,(RAMBNK)	; Get 1st Bank of Ram Drive
+	ADD	A,A
+	ADD	A,A		; .converting
+	ADD	A,A		; ..to DMA Bank addr
+	LD	HL,HSTTRK	; Point to Track #
+	ADD	A,(HL)		; ..and add in
+	LD	HL,0000		; ..prepare address
+	LD	B,4
+SHFTR:	SRL	A		; Shift low 4 bits
+	RR	H		; ..to high of H
+	DJNZ	SHFTR
+	LD	C,A		; Save High byte of A
+	LD	A,(HSTSEC)	; Get sector #
+	SRL	A
+	RR	L		; .multiply by 128
+	ADD	A,H
+	LD	H,A
+	LD	A,C		; Compensate for..
+	ADC	A,0		; .Uneven page.
+	LD	C,A		; ..address
+
+	  IF  BANKED
+	LD	A,(SYSBNK)	; Point to system bank for HSTBUF
+	  ELSE
+	LD	A,(TPABNK)	; Point to TPA bank if Unbanked
+	  ENDIF
+	LD	DE,HSTBUF	; Point to Host Buffer
+	RL	D		; Place MSB of address in Carry
+	ADC	A,0		; .add to Bank Number
+	RRA			; Shift Bnk # to DMA Bank Byte (LSB to Carry)
+	LD	B,A		; ..and place in destination register
+	RR	D		; Bank # LSB (Carry) to Address MSB
+
+	POP	AF		; Read or Write?
+	JR	NZ,RAMRD0	; ..jump if Read
+	EX	DE,HL		; Else swap things around
+	LD	A,C
+	LD	C,B
+	LD	B,A
+RAMRD0:	LD	(RAMSRC),HL	; Stuff values in DMA block
+	LD	A,C
+	LD	(RAMSRC+2),A
+	LD	(RAMDST),DE
+	LD	A,B
+	LD	(RAMDST+2),A
+	LD	HL,128		; ..including length of move
+	LD	(MLEN),HL
+
+; Set the 64180 registers and start the move
+
+	LD	HL,RAMSRC	; Point to the DMA Control block
+	CALL	DMAMOV		; ..and use the 64180 DMA to move
+	XOR	A		; ..and return Ok status
+	RET
+
+;.....
+; We need a little data area to set a DMA control block.  Put in scratch RAM
+
+	  IF  BANKED
+	COMMON	/B2RAM/
+	  ELSE
+	DSEG
+	  ENDIF
+
+RAMSRC:	DEFS	2		; Address of Source
+	DEFS	1		; .Bank of Source
+RAMDST:	DEFS	2		; Address of Destination
+	DEFS	1		; .Bank of Destination
+MLEN:	DEFS	2		; Length of Data Area to move
+
+;================== End of RAM Disk Code ====================
+

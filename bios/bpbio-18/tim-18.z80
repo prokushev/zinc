@@ -1,0 +1,495 @@
+;:::::::::::::::::::::::::::::::::::::::***************************
+;	Time-handling Routines		**   Machine-Dependant   **
+;	   MicroMint SB-180		***************************
+;
+; This module contains the interrupt handler for 50mS interrupts
+; from one of the Counter/Timer circuits in the HD64180, and uses
+; this to control Floppy Motor Timeouts and optionally update a
+; Real Time Clock.  Options also allow the Real Time Clock to read
+; (and optionally set) the Clock chip on the ETS180IO+ board or a
+; Dallas DS-1216 No-Slot-Clock.  Options are selected in DEF-18-LIB.
+;
+; 1.4 - 12 Oct 01 - Cleaned up for GPL release.			HFB
+; 1.3 - 31 Dec 96 - Added General-Purpose User 100mS down-
+;	counter per suggestion by Terry Hazen.			HFB
+; 1.2a- 24 Dec 95 - Turn Refresh OFF during Dallas accesses, use
+;	Inline storage for saved values (Not good practice, but
+;	we need to save TPA space).				HFB
+; 1.2 -  1 Jul 95 - Added ETS180IO+ and Dallas DS-1216 Drivers.	HFB
+; 1.1 - 27 Feb 93 - General Release Updated to latest specs.	HFB
+; 1.0 - 31 Aug 92 - General Release.				HFB
+; 0.0 -  8 Jul 91 - Initial Test Release			HFB
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+; This code module should handle all Time-related segments, to include
+; Interrupt handlers for Real Time update, motor timeouts, and any
+; necessary time format conversion routines.
+
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+;  TIMER
+;	This routine controls the Diskette Time Out counter, and
+;	general 1/10th second downcounter.  If selected, Real Time is
+;	is updated and maintained in BCD form with No real reference.
+; Enter: No parameters needed (Interrupt)
+; Exit : None
+; Uses : None.  All registers preserved.  Decrements MTM & DCNTR bytes
+;		and increments time string (if CLOCK) by 0.1 Sec.
+;	This version decrements Diskette timeout counter and calls
+;	routine to shut motors off when count reaches zero.
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	CSEG
+
+; Come here every 100 milliseconds from Programmable Reload Timer 0
+
+TIMER:	DI			; Don't Interrupt from here
+	LD	(TIMSTK),SP	; Save entry Stack Pointer
+	LD	SP,TIMSTK	;   set up Local Interrupt Stack
+	PUSH	HL
+	PUSH	AF		; Save the registers
+
+	IN0	A,(TCR)
+	IN0	A,(TMDR0L)
+	IN0	A,(TMDR0H)	; Clear the interrupt
+
+	LD	HL,TIM50	; Point to 50 mS Flag
+	LD	A,(HL)		;  fetch
+	XOR	01H		;   and toggle LSB
+	LD	(HL),A		; Re-Save
+	JR	NZ,TDONE	; ..exit if odd count
+
+	LD	HL,DCNTR	; Decrement User General-Purpose
+	DEC	(HL)		;  Down-counter every 100 mS
+
+	LD	HL,MTM		; Decrement System General-Purpose
+	DEC	(HL)		;  Down-counter every 100 mS
+
+; Adjust the Motor On timer
+
+	INC	HL		; Point to Motor-On Control byte
+	LD	A,(HL)		;  get the count byte
+	OR	A		; Is Motor On?
+	JR	Z,TIMER0	; ..jump if Not
+	DEC	(HL)		; Else deduct another 100 mS
+	CALL	Z,MOTOFF	;   turn Motors Off if timed out
+TIMER0:
+
+;  Adjust the Real Clock (if it exists)
+
+	  IF  CLOCK AND [ NOT [ ETSCLK OR DS1216 ]]
+	LD	HL,TENTHS	; 100ms counter
+	INC	(HL)		; Bump Tenths-of-Seconds
+	LD	A,(HL)		;  (fetch)
+	SUB	10		; Subtract limit value (Decimal tenths)
+	JR	NZ,TDONE	; ..jump to exit if no rollover
+	LD	(HL),A		; Else save a zero
+	DEC	HL		;  back down time string
+
+	LD	A,(HL)		; Get Seconds
+	INC	A		;  bump
+	DAA			;   in BCD
+	LD	(HL),A		;    and save
+	SUB	60H		; Subtract limit value
+	JR	NZ,TDONE	; ..jump to exit if no rollover
+	LD	(HL),A		; Else save a zero
+	DEC	HL		;  back down time string	
+
+	LD	A,(HL)		; Get Minutes
+	INC	A		;  bump
+	DAA			;   in BCD
+	LD	(HL),A		;    and save
+	SUB	60H		; Subtract limit value
+	JR	NZ,TDONE	; ..jump to exit if no rollover
+	LD	(HL),A		; Else save a zero
+	DEC	HL		;  back down time string
+
+	LD	A,(HL)		; Get Hours
+	INC	A		;  bump
+	DAA			;   in BCD
+	LD	(HL),A		;    and save
+	SUB	24H		; Subtract limit value
+	JR	NZ,TDONE	; ..jump to exit if no rollover
+	LD	(HL),A		; Else save a zero
+	DEC	HL		;  back down time string
+
+	LD	A,(HL)		; Get Day
+	INC	A		;  bump
+	DAA			;   in BCD
+	LD	(HL),A		;    and save
+	PUSH	DE		; Save regs
+	PUSH	AF
+	EX	DE,HL
+	LD	HL,DPM-1	; Point to days per month table indexed base 1
+	DEC	DE		;  back up to Months byte
+	LD	A,(DE)
+	INC	DE		;   move ptr back
+	CP	10		; >Sept?
+	JR	C,TIMER1	; ..jump if Not
+	SUB	6		; Else convert BCD to binary
+TIMER1:	CALL	ADDAHL		; Offset into table based on Month
+	POP	AF		; Get current day count
+	CP	(HL)		; Time for new month?
+	EX	DE,HL		;  (put regs back)
+	POP	DE
+	JR	C,TDONE		; ..exit here if not time
+	LD	(HL),1		; Else start out on first of month
+	DEC	HL		;  back down to month
+
+	LD	A,(HL)		; Get month
+	INC	A		;  Bump
+	DAA			;   in BCD
+	LD	(HL),A		;    and save
+	SUB	13H		; Time for new year?
+	JR	C,TDONE		; ..exit if not
+	LD	(HL),1		; Else start at month 1 (Jan)
+	DEC	HL		;  back up to Years byte
+
+	LD	A,(HL)		; Get Year
+	INC	A		;  bump
+	DAA			;   in BCD
+	LD	(HL),A		;    and save
+	SUB	99H		; Time for next century?
+	JR	NZ,TDONE	; ..exit if not
+	LD	(HL),A		; Else save 0 year
+	  ENDIF		;clock & Not (Etsclk or Ds1216)
+
+TDONE:	POP	AF
+	POP	HL		; Restore registers
+	LD	SP,(TIMSTK)	;  and Stack Pointer
+	EI			;   allow Ints again
+	RET
+
+	  IF  CLOCK AND [NOT [ ETSCLK OR DS1216 ]]  ; Table of Days-per-Month
+DPM:	DEFB	31H+1, 28H+1, 31H+1	; January, February, March
+	DEFB	30H+1, 31H+1, 30H+1	; April, May, June
+	DEFB	31H+1, 31H+1, 30H+1	; July, August, September
+	DEFB	31H+1, 30H+1, 31H+1	; October, November, December
+	  ENDIF
+
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+; TIME - Set or Return the time string as defined for ZSDOS.  If Reading,
+;  The Six digit BCD ZSDOS Clock string is copied to the location pointed
+;  to by Register pair DE.  As an enhancement, the tenths-of-seconds value
+;  is returned in Reg D.  If Setting the Clock, the RTC clock string will
+;  be set from the 6 bytes addressed by DE.
+; A User down-counter byte is available which is decremented every 100 mS.
+;  The address of the byte is returned in the BC register for Time functions.
+; NOTE: Clock Set code is always included in the Interrupt-driven clock to
+;  allow the current time to be set, but is an optional assembly selection
+;  if either the ETS180IO+ or Dallas DS-1216 Clock code is included.
+;
+; ENTER: C - 0 to Read the Clock, Non-0 (1 recommended) to Set the Clock
+;	DE = Pointer to receive 6-byte Time/Date on Read, Source for Set
+;
+; EXIT : E = Original contents of Target Seconds field
+;	 D = Tenths of Seconds field
+;	HL = Pointer to Target Seconds field
+;	 A = 1 for success, 0 if Unable to Set or Read
+;	BC = Address of User 100 mS Down-Counter
+;
+;   NOTE: The Wall Clock string is arranged as BCD digits with Tenths-
+;	of-Seconds byte appended.  The entire string is:
+;
+;    YR   MO   DA   HH   MM   SS   TT
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+	  IF  CLOCK AND ETSCLK
+;	<< Epson 62421 RTC Clock Chip Interface for ETS180IO+ >>
+; These routines allow Reading and Optional Writing of the Epson RTC using
+; ZSDOS Standard 6-byte Time Strings.  The Mode is fixed to 24-hour format
+; and the Day-Of-Week register is ignored.
+
+ETSBAS	 EQU  40H		; Base Address on ETS180IO+
+
+TIME:	EX	DE,HL		; Address the String/Buffer with HL
+	LD	A,C		; Get Clock Operation Flag
+	OR	A		; Is it a Write?
+	   IF  CLKSET
+	JR	NZ,TIMSET	; ..jump if So and Set allowed
+	   ELSE
+	JR	NZ,NOCLOK	; ..jump to Error if Set Not allowed
+	   ENDIF
+RDETS:	LD	A,01H		; Load Hold Bit
+	OUT	(ETSBAS+13),A	;   and Send to Control Port
+	; NOTE: On some older versions of the 62421, a check may be needed at
+	;  this point to insure that the count is halted.  Do this by reading
+	;  Base+13 and insuring that bit1 is 0.  If Not, then write a 0 to
+	;  Base+13 and try again.
+; The 62421 chip is Now Ready for Reading the 12 registers.
+
+RDETS0:	LD	BC,12*256+ETSBAS+11 ; 12 bytes starting at high address
+RDETS1:	LD	A,B		; Check counter
+	OR	A		; Done?
+	JR	Z,RDETSOK	; ..jump to Set Clock Run if So
+	CP	5		; Is it for HRs * 10 (12/24)
+	IN	A,(C)
+	JR	NZ,RDN24	; ..Jump if Not
+	AND	03H		;  Else strip 12/24 bit
+RDN24:	RLD			; Rotate nybble into memory addr
+	DEC	B		; Count down the counter
+	DEC	C		; Odd/even count of nybbles
+	BIT	0,B
+	JR	NZ,RDETS1	; ..jump if just one nybble done
+	INC	HL		; Else advance pointer
+	LD	E,(HL)		;   preserving previous buffer contents
+	JR	RDETS1
+
+RDETSOK: DEC	HL		;  (back down to Seconds)
+RDEX:	XOR	A		; Else Clear Hold Bit
+	OUT	(ETSBAS+13),A
+	INC	A		; Set A=1 to show Good Read
+ETSEX:	LD	BC,DCNTR	;  Get User Down-Counter Address
+	RET			;   and Back to Caller
+
+;.....
+; Set the Epson 62421 RTC on ETS180IO+ Board.  In this code, no masking of
+; nibbles is needed since the 62421 chip only uses data lines 0-3.
+
+	   IF  CLKSET		; -- Assemble this only if allowing Clock Set
+TIMSET:	LD	A,01H		; Load Hold Bit
+	OUT	(ETSBAS+13),A	;   and Send to Control Port
+
+	; NOTE: See Comment in Read Code about insuring that clock is stopped.
+
+WRETS0:	LD	BC,6*256+ETSBAS+11  ; 6 Bytes starting at Port 4BH going down
+WRETS1:	LD	E,(HL)		; Get a Byte from String (Start w/Year)
+	INC	HL		;   (advance to next)
+	LD	A,E		; Copy Byte for High Nibble Access
+	RRCA			;  Move
+	RRCA			;   High-Nibble
+	RRCA			;    to Low
+	RRCA
+	OUT	(C),A		; Send to 62421
+	DEC	C		;  go down to next Port
+	LD	A,E		;   Fetch byte again
+	OUT	(C),A		;    and Write Low Nibble
+	DEC	C		;     down to next Port
+	DJNZ	WRETS1		; ..Loop if More Bytes to Go
+	LD	A,04H		; Set 12/24 Hr Bit to 24-hour time
+	OUT	(ETSBAS+15),A	;   set in Chip
+	JR	RDEX		;  ..Turn Clock back On and exit w/Ok Status
+	   ELSE
+NOCLOK:	XOR	A		; If No Set allowed, Return Error Status
+	JR	ETSEX		; ..Exit returning Down-Count Address
+	   ENDIF	; Clkset
+	  ENDIF		;Clock & EtsClk
+
+	  IF  CLOCK AND DS1216
+;	<< Dallas DS-1216E Direct Clock Interface >>
+; Read the No-Slot-Clock to a buffer area in Memory.  This functions by
+; reading location 4 of the ROM.  The bit appears in the LSB of the byte
+; read, and a byte is read in MSB...LSB fashion shifting each byte right
+; so that the first bit read appears in B0.  The Entire Date/Time String
+; is eight bytes read as:
+;
+;	10/100Sec  Sec  Min  Hour  DOW  Day  Mon  Year
+;
+; In this implementation, the DOW field is not used for anything other
+; than Error checking (0/FF).
+
+TIME:	DI			; NO INTERRUPTS in This Routine PLEASE!
+	LD	(CLKSTK),SP	; Save Entry Stack Ptr
+	LD	SP,CLKSTK	;   and Set Local Stack
+	LD	A,C		; Get Clock Operation Flag
+	OR	A		; Is it a Write?
+	   IF  CLKSET
+	JR	NZ,TIMSET	; ..jump if So and Set allowed
+	   ELSE
+	JR	NZ,NOCLOK	; ..jump to Error if Set Not allowed
+	   ENDIF
+
+	PUSH	DE		;  (Save TPA Destination)
+	CALL	CSETUP		; Prepare the clock for Read/Write
+	LD	HL,TENTHS	; Point to 100/10th Secs Field
+	LD	D,8		; Gather 8 bytes of info
+
+RDBYT:	LD	B,8		; 8-bits per byte
+	LD	C,00		; Clear the accumulator for gathering bits
+RDBIT:	LD	A,(0004H)	; Read a bit from the clock
+	RRA			;  put LSB in Carry
+	RR	C		;   then to MSB of accumulated Byte
+	DJNZ	RDBIT		; Loop til all 8 bits gathered
+	LD	A,D		; Get Byte Cntr
+	CP	4		; DOW Field?
+	JR	NZ,RDBIT0	; ..jump to continue if Not
+	PUSH	AF		; Else Save the byte for Error Checks later
+	JR	RDBIT1		; ..and bypass save/increment
+
+RDBIT0:	LD	(HL),C		; Save the byte
+	DEC	HL		;   Back to previous
+RDBIT1:	DEC	D		; More Bytes left?
+	JR	NZ,RDBYT	; ..loop if More
+
+RCRSAV	 EQU  $+1
+	LD	A,$-$		; Finished, Get saved Refresh Setting
+	OUT0	(RCR),A		;   and Restore
+BBRSAV	 EQU  $+1
+	LD	A,$-$		; Get Bank Register Value saved Inline
+	OUT0	(BBR),A		;   and restore
+DCLSAV	 EQU  $+1
+	LD	A,$-$		; Retrieve Control/Wait vals stored Inline
+	OUT0	(DCNTL),A	;   and restore them also
+	POP	AF		; Restore Good/Bad Flag Byte
+	POP	DE		;  and TPA Destination Ptr
+	AND	A		; Bad Read (0) ?
+	JR	Z,NOCLOK	; ..jump if Invalid
+	INC	A		; Alternate Bad Read (FF) ?
+	JR	Z,NOCLOK	; ..jump if Invalid
+
+	LD	HL,YEAR		; Point to Clock String
+	LD	BC,5		;  set up for ZSDOS Read/Write
+	LDIR			;   and move 5 bytes of 6 bytes (.1 Sec = 7)
+	LD	C,(HL)		; Get the Seconds byte
+	INC	HL		;  bump to Tenths/Hundredths Seconds
+	LD	A,(HL)		;   fetch
+	RRCA			; Move
+	RRCA			;  Hi Nibble
+	RRCA			;   To
+	RRCA			;    Low
+	AND	0FH		; Keep Only Tenths of Seconds
+	LD	H,A		; Set to Return Register
+	EX	DE,HL		; Swap pointers
+	LD	E,(HL)		; Preserve original Sec field contents in E
+	LD	(HL),C		;   and store the Seconds byte (.1 Sec in D)
+CLKOK:	LD	A,01		; Set Ok exit value of 1
+	JR	CLKEX		; ..restore Stack and Quit
+
+NOCLOK:	XOR	A		; Else Set Error Return Status
+CLKEX:	LD	SP,(CLKSTK)	; Get Entry Stack
+	LD	BC,DCNTR	;  Get User Down-Counter Address
+	EI			;   and re-enable Ints
+	RET
+
+;.....
+; Set No-Slot-Clock (Dallas DS-1216E)
+
+	   IF  CLKSET		; -- Only assemble if Clock Set allowed
+TIMSET:	EX	DE,HL		; Swap Pointers
+	LD	DE,YEAR		;  dest is Local Storage area
+	LD	BC,6		;   set length of string
+	LDIR			;    Copy High
+	PUSH	DE		; (Save Ptr to TENTHS)
+	CALL	CSETUP		; Prepare the Clock for Read/Write
+	POP	HL		; (Restore Ptr to TENTHS field)
+	LD	(HL),0		;   and init to Zero
+	LD	D,8		; It takes 8 bytes
+SETBYT:	LD	C,(HL)		; Get the byte to send
+	LD	B,8		;   8 bits to a byte
+SETBIT:	RR	C		; Is the bit 0 or 1?
+	JR	C,SETONE	; ..jump if it is a One
+	LD	A,(0002H)	; Else tell No-Slot-Clock that it was a 0
+	JR	SETZRO		; ..and continue
+
+SETONE:	LD	A,(0003H)	; Tell No-Slot-Clock that it was a 1
+SETZRO:	DJNZ	SETBIT		; ..continue til all bits sent
+	LD	A,D		; Get Byte Counter
+	CP	5		; Is DOW Next?
+	JR	NZ,SETB2	; ..jump if Not
+	LD	(HL),0		; Else Zero DOW using current byte
+	INC	HL		;  compensate for DEC and continue
+SETB2:	DEC	HL		; Then advance to the next byte
+	DEC	D		; More Bytes left?
+	JR	NZ,SETBYT	; ..loop til no more bytes
+
+	LD	A,(RCRSAV)	; Retrieve saved Refresh Setting
+	OUT0	(RCR),A		;   and Restore
+	LD	A,(BBRSAV)	; Retrieve the saved Bank Register value
+	OUT0	(BBR),A		;   and reset
+	LD	A,(DCLSAV)	; Get saved Control/Wait bits
+	OUT0	(DCNTL),A	;  reset to entry values
+	JR	CLKOK		; ..and Exit Ok
+	   ENDIF	; Clkset
+
+;.....
+; Set up the No-Slot-Clock for Reading/Writing
+
+CSETUP:	IN0	A,(BBR)		; Read Entry Bank Buffer Register
+	LD	(BBRSAV),A	;   saving for Exit
+	XOR	A		; Set Banked area for Physical 0 (ROM)
+	OUT0	(BBR),A
+	IN0	A,(DCNTL)	; Read the DMA Control Register/Waits
+	LD	(DCLSAV),A	;   saving for Exit
+	OR	0C0H		; Give Maximum # of Memory Wait States
+	OUT0	(DCNTL),A
+	IN0	A,(RCR)		; Get current Refresh Control Settings
+	LD	(RCRSAV),A	;  save
+	AND	7FH		;   Disable Refresh cycles
+	OUT0	(RCR),A		;    during Dallas access
+	LD	HL,CSTRNG	; Point to the Control String to activate clock
+	LD	D,8		; Do this loop 8 times
+	LD	A,(0004H)	; Read the Clock Control Address
+
+NXBYT:	LD	B,8		; Set to gather 8 bits
+	LD	C,(HL)		; Get a control byte
+
+NXBIT:	RR	C		; Test LSB
+	JR	C,ONEBIT	; ..jump if 1 bit
+	LD	A,(0002H)	; Else tell clock 0 bit by Reading Addr 0002
+	JR	ZERBIT		; ..and continue
+
+ONEBIT:	LD	A,(0003H)	; Tell the clock a 1 bit by Reading 0003
+ZERBIT:	DJNZ	NXBIT		; ..and loop til all bits done
+	INC	HL		; Advance to next byte
+	DEC	D		; More Bytes to go?
+	JR	NZ,NXBYT	; ..loop if more
+	RET			; Else Return
+
+CSTRNG:	DEFB	0C5H,3AH,0A3H,5CH,0C5H,3AH,0A3H,5CH
+	  ENDIF		;Clock & Ds1216
+
+	  IF NOT [ETSCLK OR DS1216]
+TIME:	LD	A,C		; Get Clock Operation Flag
+	LD	BC,5		;  and set up for ZSDOS Read/Write
+	LD	HL,YEAR		;   Pointing to Clock String
+	OR	A		; Is it a Read?
+	JR	Z,TIMSET	; ..jump it so
+	EX	DE,HL		; Else swap pointers for write
+TIMSET:	DI			;  disable Interrupts
+	LDIR			;   and move 5 bytes of 6 bytes (.1 Sec = 7)
+	LD	C,(HL)		; Get the Seconds byte
+	INC	HL		;  bump to 1/10th Seconds
+	LD	H,(HL)		;   and Get
+	EI			; Re-enable Interrupts
+	EX	DE,HL		; Swap pointers
+	LD	E,(HL)		; Preserve original Sec field contents in E
+	LD	(HL),C		;   store the Seconds byte (.1 Sec in D)
+	LD	A,01		; Set Ok exit value of 1
+	LD	BC,DCNTR	;  and get User Down-Counter Address
+	RET
+	  ENDIF		;Not (Etsclk or Ds1216)
+
+	  IF  NOT CLOCK		; If No Clock..
+TIME:	XOR	A		;  Set Error Return
+	LD	BC,DCNTR	;   get User Down-Counter Address
+	RET			;    and exit
+	  ENDIF
+
+	DSEG
+	  IF  CLOCK AND DS1216
+	DEFS	10		; Stack for Dallas Clock
+CLKSTK:	DEFS	2		;  Storage for Entry Stack Pointer
+	  ENDIF
+
+; Real Time Clock Buffer
+
+	  IF  CLOCK AND [NOT ETSCLK]
+YEAR:	DEFS	1		; Year		- packed BCD
+	DEFS	1		; Month		- packed BCD
+	DEFS	1		; Day		- packed BCD
+	DEFS	1		; Hour		- packed BCD
+	DEFS	1		; Minute	- packed BCD
+	DEFS	1		; Seconds	- packed BCD
+TENTHS:	DEFS	1		; Tenths of Seconds - Binary (Int, else..)
+				;  10th (Hi Nibble), 100th (Lo Nibble) Secs
+	  ENDIF			;   for Dallas 1216E
+
+;.....
+; Save some space in the Common RAM Area for a local stack
+
+DCNTR:	DEFS	1		; User Down-Counter on 100 mS Ticks
+TIM50:	DEFS	1		; LSB Toggles for 50 mS Ticks
+	DEFS	12		; Allow 6 levels of stack (worst case)
+TIMSTK:	DEFS	2		; Store the entry Stack pointer here
+	CSEG			; End up by restoring CSEG
+
+;=========================== END of TIM-18 ==================================
+

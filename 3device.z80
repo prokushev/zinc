@@ -15,10 +15,8 @@
 ;    along with this program; if not, write to the Free Software
 ;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 ;
-NO	EQU	0
-YES	EQU	NOT NO
 
-;
+; -- SECTION 0 -- Configuration and startup
 CPM3	EQU	1		; CP/M 3 check
 CPNET	EQU	0		; CP/NET check
 Z80	EQU	1		; Z80 check

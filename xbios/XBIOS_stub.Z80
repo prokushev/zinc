@@ -1,0 +1,152 @@
+;
+;    XBIOS stub: XBIOS implementation stub for ZINC
+;    Copyright (C) 2018  Yuri Prokushev <yuri.prokushev@gmail.com>
+;
+;    This program is free software; you can redistribute it and/or modify
+;    it under the terms of the GNU General Public License as published by
+;    the Free Software Foundation; either version 2 of the License, or
+;    (at your option) any later version.
+;
+;    This program is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;    GNU General Public License for more details.
+;
+;    You should have received a copy of the GNU General Public License
+;    along with this program; if not, write to the Free Software
+;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+; XBIOS functions called using USERF function of CP/M 3 BIOS. 
+; For portability use bellow code:
+;
+; USERF:	PUSH	HL
+;       	PUSH	DE
+;       	LD	HL,(1)
+;       	LD	DE,57h
+;       	ADD	HL,DE
+;       	POP	DE
+;       	EX	(SP),HL
+;       	RET
+;
+; Typically XBIOS placed in BANK 0 (SYSTEM BANK). This means BIOS must switch to
+; BANK 0, call XBIOS and switch bank back.
+; Documented functions are 80H-EEH
+
+	CPU	.Z80
+        CSEG
+	ORG	80H
+
+	JP	DD_INIT			; 0080h
+	JP	DD_SETUP		; 0083h
+	JP	DD_READ_SECTOR		; 0086h
+	JP	DD_WRITE_SECTOR		; 0089h
+	JP	DD_CHECK_SECTOR		; 008Ch
+	JP	DD_FORMAT		; 008Fh
+	JP	DD_LOGIN		; 0092h
+	JP	DD_SEL_FORMAT		; 0095h
+	JP	DD_DRIVE_STATUS		; 0098h
+	JP	DD_READ_ID		; 009Bh
+	JP	DD_L_DPB		; 009Eh
+	JP	DD_L_XDPB		; 00A1h
+	JP	DD_L_ON_MOTOR		; 00A4h
+	JP	DD_L_T_OFF_MOTOR	; 00A7h
+	JP	DD_L_OFF_MOTOR		; 00AAh
+	JP	DD_L_READ		; 00ADh
+	JP	DD_L_WRITE		; 00B0h
+	JP	DD_L_SEEK		; 00B3h
+	JP	CD_SA_INIT		; 00B6h
+	JP	CD_SA_BAUD		; 00B9h
+	JP	CD_SA_PARAMS		; 00BCh
+	JP	TE_ASK			; 00BFh
+	JP	TE_RESET		; 00C2h
+	JP	TE_STL_ASK		; 00C5h
+	JP	TE_STL_ON_OFF		; 00C8h
+	JP	TE_SET_INK		; 00CBh
+	JP	TE_SET_BORDER		; 00CEh
+	JP	TE_SET_SPEED		; 00D1h
+	JP	KM_SET_EXPAND		; 00D4h
+	JP	KM_SET_KEY		; 00D7h
+	JP	KM_KT_GET		; 00DAh
+	JP	KM_KT_PUT		; 00DDh
+	JP	KM_SET_SPEED		; 00E0h
+	JP	CD_VERSION		; 00E3h
+	JP	CD_INFO			; 00E6h
+	JP	SCR_RUN_ROUTINE		; 00E9h
+	JP	FIND_FID		; 00ECh
+
+DD_INIT:        
+        RET
+DD_SETUP:
+        RET
+DD_READ_SECTOR:
+        RET
+DD_WRITE_SECTOR:
+        RET
+DD_CHECK_SECTOR:
+        RET
+DD_FORMAT:
+        RET
+DD_LOGIN:
+        RET
+DD_SEL_FORMAT:
+        RET
+DD_DRIVE_STATUS:
+        RET
+DD_READ_ID:
+        RET
+DD_L_DPB:
+        RET
+DD_L_XDPB:
+        RET
+DD_L_ON_MOTOR:
+        RET
+DD_L_T_OFF_MOTOR:
+        RET
+DD_L_OFF_MOTOR:
+        RET
+DD_L_READ:
+        RET
+DD_L_WRITE:
+        RET
+DD_L_SEEK:
+        RET
+CD_SA_INIT:
+        RET
+CD_SA_BAUD:
+        RET
+CD_SA_PARAMS:
+        RET
+TE_ASK:
+        RET
+TE_RESET:
+        RET
+TE_STL_ASK:
+        RET
+TE_STL_ON_OFF:
+        RET
+TE_SET_INK:
+        RET
+TE_SET_BORDER:
+        RET
+TE_SET_SPEED:
+        RET
+KM_SET_EXPAND:
+        RET
+KM_SET_KEY:
+        RET
+KM_KT_GET:
+        RET
+KM_KT_PUT:
+        RET
+KM_SET_SPEED:
+        RET
+CD_VERSION:
+        RET
+CD_INFO:
+        RET
+SCR_RUN_ROUTINE:
+        RET
+FIND_FID:
+        RET
+
+        END

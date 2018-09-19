@@ -1,0 +1,1084 @@
+;:::::::::::::::::::::::::::::::::::::::::::::::::*************************
+;		 Byte I/O Routines		  *** Hardware Specific ***
+; Input routines do NOT mask MSB for 8-bit data.  *************************
+;		- MicroMint SB-180 -
+;
+; 1.4 - 15 Nov 01 - Cleaned up for GPL release.				HFB
+;	Fall 2002 - Added support for ESCC-Like Baud Rate Generator if
+;		Z8S180 substituted for HD64180 CPU chip.		DSC
+; 1.3 -  5 Aug 95 - Added Xon/Xoff to Serial Outputs, added NOWAIT init
+;		code at this point.					HFB
+; 1.1 -  7 Apr 93 - Revised to manage > 4 devices, added 88C681 driver
+;		routines, No swap or MORDEV if MOVCPM.			HFB
+; 0.0 - 23 Jun 91 - Initial test release				HFB
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+; Values relating to Exar 88C681 on ETS180IO+ Expansion board
+	  IF  MORDEV
+MODEA	EQU	60H		; Ch A Mode Reg
+STSA	EQU	MODEA+1		; Ch A Status Reg (Read)
+BAUDSA	EQU	MODEA+1		; Ch A Baud Rate Register (Write)
+COMNDA	EQU	MODEA+2		; Ch A Command Register
+XMTA	EQU	MODEA+3		; Ch A Transmit Register (Write)
+RCVA	EQU	MODEA+3		; Ch A Receive Register (Read)
+MODEB	EQU	68H		; Ch B Mode Reg
+STSB	EQU	MODEB+1		; Ch B Status Reg (Read)
+BAUDSB	EQU	MODEB+1		; Ch B Baud Rate Register (Write)
+COMNDB	EQU	MODEB+2		; Ch B Command Register
+XMTB	EQU	MODEB+3		; Ch B Transmit Register (Write)
+RCVB	EQU	MODEB+3		; Ch B Receive Register (Read)
+ACR	EQU	MODEA+4		; Auxiliary Command Register
+
+RRDY	EQU	00000001B	; Receiver Ready Status Bit	(STSx)
+TRDY	EQU	00000100B	; Transmitter Ready Status Bit	(STSx)
+	  ENDIF		;Mordev
+
+	CSEG
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+;	   Byte  Device  Control  Tables
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+DEVCFG:
+COM1:	DEFB	'COM1'		; 4-Char ID
+	DEFB	11001010B	; Baud Rate
+;		||||||||
+;		||||++++---- Baud Rate setting (9600 bps)
+;		++++-------- Maximum Baud Rate (38.4 kbps)
+; Rates are as:
+; 0000 = None	0001 = 134.5	0011 = 50	0011 = 75
+; 0100 = 150	0101 = 300	0110 = 600	0111 = 1200
+; 1000 = 2400	1001 = 4800	1010 = 9600	1011 = 19200
+; 1100 = 38400	1101 = 76800	1110 = 115200	1111 = Fixed
+
+	DEFB	11000001B	; Config Byte
+;		|||||||+---------- Stop Bits 1 (1), 2 (0)
+;		||||||+----------- Parity Enable (1), Disable (0)
+;		|||||+------------ Parity Even (1), Odd (0)
+;		||||+------------- Bits 8 (0), 7 (1)
+;		|||+-------------- Xon-Xoff Handshake
+;		||+--------------- CTS/RTS Handshake
+;		|+---------------- Input Device No (0), Yes (1)
+;		+----------------- Output Device No (0), Yes (1)
+
+	DEFB	0FFH		; Input Data Mask
+	DEFB	0FFH		; Output Data Mask
+
+	DEFW	COM1OT		; COM 1 byte output
+	DEFW	COM1OS		; COM 1 output status
+	DEFW	COM1IN		; COM 1 byte input
+	DEFW	COM1IS		; COM 1 input status
+
+COM2:	DEFB	'COM2'		; 4-Char ID
+	DEFB	11001011B	; Baud Rate (38.4 Max, 19.2 Set)
+	DEFB	11000001B	; Config Byte
+	DEFB	07FH		; Input Data Mask (MSB clear for CON:)
+	DEFB	0FFH		; Output Data Mask
+
+	DEFW	COM2OT		; COM 2 byte output
+	DEFW	COM2OS		; COM 2 output status
+	DEFW	COM2IN		; COM 2 byte input
+	DEFW	COM2IS		; COM 2 input status
+
+PIO1:	DEFB	'PIO1'		; 4-Char ID
+	DEFB	00000000B	; Baud Rate (None)
+	DEFB	10000000B	; Config Byte (Output Only)
+	DEFB	0FFH		; Input Data Mask
+	DEFB	07FH		; Output Data Mask
+
+	DEFW	PIO1OT		; PIO byte output
+	DEFW	PIO1OS		; PIO output status
+	DEFW	PIO1IN		; PIO byte input
+	DEFW	PIO1IS		; PIO input status
+
+	  IF  MORDEV AND NOT MOVCPM
+	DEFB	'ETSA'		; ETS180IO+ 88681 Channel A
+	DEFB	11101010B	; Baud Rate (115.2 kbps Max, 9600 bps set)
+	DEFB	11000001B	; Config Byte
+	DEFB	0FFH		; Input Mask
+	DEFB	0FFH		; Output Mask
+
+	DEFW	ETSAOT		; Output byte
+	DEFW	ETSAOS		; Output status
+	DEFW	ETSAIN		; Input byte
+	DEFW	ETSAIS		; Input Status
+
+	DEFB	'ETSB'		; ETS180IO+ 88681 Channel B
+	DEFB	11101010B	; Baud Rate (115.2 kbps Max, 9600 bps set)
+	DEFB	11000001B	; Config Byte
+	DEFB	0FFH		; Input Mask
+	DEFB	0FFH		; Output Mask
+
+	DEFW	ETSBOT		; Output byte
+	DEFW	ETSBOS		; Output status
+	DEFW	ETSBIN		; Input byte
+	DEFW	ETSBIS		; Input Status
+	  ENDIF		;Mordev & Not Movcpm
+
+	DEFB	'NULL'		; 4-Char ID
+	DEFB	00000000B	; Baud Rate (None)
+	DEFB	11000000B	; Config Byte
+	DEFB	0FFH		; Input Data Mask
+	DEFB	0FFH		; Output Data Mask
+
+	DEFW	ISFALSE		; Null output
+	DEFW	ISTRUE		; Null output status
+	DEFW	ISFALSE		; Null input
+	DEFW	ISTRUE		; Null input status
+	DEFB	0		; - End-of-Table marker
+MAXBDV	EQU	[$-DEVCFG-1]/[COM2-COM1] ; Number of Character Devices Defined
+
+DEVTBL:	LD	HL,DEVCFG	; BYTE device table
+	RET			; CP/M-3 device init
+
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+;		   COM1   Drivers
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+	  IF  NOT BUFAUX
+;.....
+; COM1 Input Status Test
+
+COM1IS:	IN0	A,(STAT0)	; Aux (Reader) Input Status
+	   IF  NOT BUFCON
+	JR	SISTV		; ..and go to test status
+	   ELSE
+	AND	RDRF
+	RET	Z
+	OR	0FFH
+	RET
+	   ENDIF	;not bufcon
+
+;.....
+; COM1 Input Routine
+
+COM1IN:	CALL	COM1IS		; Aux (Reader) input from UART0
+	JR	Z,COM1IN
+	IN0	A,(RDR0)
+	  IF  MOVCPM		; (No swapping allowed)
+	LD	C,A		; Store byte temporarily
+	LD	A,(COM1+6)	;  get Input mask
+	AND	C		;   apply to byte
+	  ELSE			; (allow Swapping)
+IPAT1:	AND	$-$		; Mask input byte   <Patched by Config>
+	  ENDIF		;Movcpm
+	RET
+	  ELSE		;proceed w/buffered input
+;.....
+; COM1 Input Status Test  (Buffered)
+
+COM1IS:	LD	A,(COM1Q)	; Get COM1 Queue Char Count
+	OR	A		; Anything there?
+	JR	RETST
+
+;.....
+; COM1 Input Routine  (Buffered)
+
+COM1IN:	CALL	COM1IS		; COM1 input
+	JR	Z,COM1IN
+	DI
+	PUSH	HL		; Save registers
+	PUSH	BC
+	LD	HL,COM1Q+QSIZE	; Point to end of Type ahead Buffer
+	LD	BC,QSIZE*256	; Length in B, Null in C
+
+; "Pop" character from the Buffer
+
+COM1LP:	LD	A,(HL)		; Get a character
+	LD	(HL),C		; Store Null 1st time, else character
+	LD	C,A		; Move previous char for later save
+	DEC	HL		;   down to previous char
+	DJNZ	COM1LP		; Loop til done
+	DEC	(HL)		; Decrement Count in Queue
+	  IF  MOVCPM		; (No swapping allowed)
+	LD	A,(COM1+6)	; Get input mask
+	AND	C		;   apply setting flags based on char
+	  ELSE			; (Swapping permitted)
+IPAT1:	AND	$-$		; Mask Input byte   <Patched by Config>
+	  ENDIF		;Movcpm
+	POP	BC		; Restore regs
+	POP	HL
+	EI
+	RET
+	  ENDIF		;buffered
+;.....
+; COM1 Output Status Test
+
+COM1OS:
+	  IF  XONOFF
+	LD	A,(COM1+5)	; Get Config byte
+	AND	00010000B	;  (just check Xon/Xoff Bit)
+	JR	Z,COM1O0	; ..jump if Not using Xon/Xoff
+	LD	A,(COM1WT)	; Else Get Status Byte
+	RLA			;  Output bit to Carry
+	LD	A,0		;   (prepare for Not Ready)
+	JR	C,SOSTV		; ..jump if Flow Halted
+COM1O0:
+	  ENDIF
+	IN0	A,(STAT0)	; ASCI0 Output status
+	JR	SOSTV		; ..and go check status
+
+;.....
+; COM1 Output Routine
+
+COM1OT:	CALL	COM1OS		; Output to ASCI
+	JR	Z,COM1OT
+	  IF  MOVCPM		; (No Swapping allowed)
+	LD	A,(COM1+7)	; Get output mask
+	AND	C		;  apply to byte
+	  ELSE			; (Swapping permitted)
+	LD	A,C		; Get Char to Output
+OPAT1:	AND	$-$		;  Mask   <Patched by Config>
+	  ENDIF		;Movcpm
+	OUT0	(TDR0),A	;   and send
+	RET
+	PAGE
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+;		  COM2   Drivers
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+	  IF  NOT BUFCON
+;.....
+; COM2 Input Status Test
+
+COM2IS:	IN0	A,(STAT1)	; ASCI1 Input Status
+SISTV:	AND	RDRF
+RETST:	RET	Z
+ISTRUE:	OR	0FFH
+	RET
+
+;.....
+; COM2 Input Routine
+
+COM2IN:	CALL	COM2IS		; Input from ASCI1
+	JR	Z,COM2IN
+	IN0	A,(RDR1)
+	  IF  MOVCPM		; (No Swapping Allowed)
+	LD	C,A		; Save byte
+	LD	A,(COM2+6)	;  get mask
+	AND	C		;   apply it
+	  ELSE			; (Swapping permitted)
+IPAT2:	AND	$-$		; Mask Input byte   <Patched by Config>
+	  ENDIF		;Movcpm
+	RET
+	PAGE
+	  ELSE		;proceed w/buffered input
+;.....
+; COM2 Input Status Test  (Buffered)
+
+COM2IS:	LD	A,(COM2Q)	; Get COM2 Queue Char Count
+	OR	A		; Anything there?
+RETST:	RET	Z		; ..return if nothing valid
+ISTRUE:	OR	0FFH		; Else set flags for Ready
+	RET
+
+;.....
+; COM2 Input Routine  (Buffered)
+
+COM2IN:	CALL	COM2IS		; COM2 input
+	JR	Z,COM2IN
+	DI
+	PUSH	HL		; Save registers
+	PUSH	BC
+	LD	HL,COM2Q+QSIZE	; Point to end of Type ahead Buffer
+	LD	BC,QSIZE*256	; Length in B, Null in C
+
+; "Pop" character from the Buffer
+
+COM2LP:	LD	A,(HL)		; Get a character
+	LD	(HL),C		; Store Null 1st time, else character
+	LD	C,A		; Move previous char for later save
+	DEC	HL		;   down to previous char
+	DJNZ	COM2LP		; Loop til done
+	DEC	(HL)		; Decrement Count in Queue
+	  IF  MOVCPM		; (No Swapping allowed)
+	LD	A,(COM2+6)	; Get input mask
+	AND	C		;   apply setting flags based on char
+	  ELSE			; (Swapping permitted)
+IPAT2:	AND	$-$		; Mask Input byte   <Patched by Config>
+	  ENDIF		;Movcpm
+	POP	BC		; Restore regs
+	POP	HL
+	EI
+	RET
+	  ENDIF		;buffered
+;.....
+; COM2 Output Status Test
+
+COM2OS:
+	  IF  XONOFF
+	LD	A,(COM2+5)	; Get Config byte
+	AND	00010000B	;  (just check Xon/Xoff Bit)
+	JR	Z,COM2O0	; ..jump if Not using Xon/Xoff
+	LD	A,(COM2WT)	; Else Get Status Byte
+	RLA			;  Output bit to Carry
+	LD	A,0		;   (prepare for Not Ready)
+	JR	C,SOSTV		; ..jump if Flow Halted
+COM2O0:
+	  ENDIF
+	IN0	A,(STAT1)	; Console output
+SOSTV:	AND	TDRE		;  Mask Bit of interest
+	JR	RETST		;   and test
+
+;.....
+; COM2 Output Routine
+
+COM2OT:	CALL	COM2OS		; Test if ready
+	JR	Z,COM2OT	; ..loop if not
+	  IF  MOVCPM		; (No swapping allowed)
+	LD	A,(COM2+7)	; Get output mask
+	AND	C		;  apply
+	  ELSE			; (Swapping permitted)
+	LD	A,C		; Get char to output
+OPAT2:	AND	$-$		;  Mask   <Patched by Config>
+	  ENDIF		;Movcpm
+	OUT0	(TDR1),A	;   and send char
+	RET
+	PAGE
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+;	       Parallel  I/O  Drivers
+;:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+;.....
+; Parallel Input Status Test
+
+PIO1IS:	JR	ISTRUE		; Not implemented
+
+;.....
+; Parallel Input Data fetch
+
+PIO1IN:	JP	ISFALSE		; Not implemented
+
+;.....
+; Parallel Output Status Test
+
+PIO1OS:	LD	A,(PAOR)	; Parallel output status
+	OR	A		;  set flags
+	RET			;   and return
+
+;.....
+; Parallel Output Routine
+
+PIO1OT:	CALL	PIO1OS		; List on the parallel device
+	JR	Z,PIO1OT
+	XOR	A
+	LD	(PAOR),A	; Clear busy flag
+	  IF  MOVCPM		; (No Swapping allowed)
+	LD	A,(PIO1+7)	; Get output mask
+	AND	C		;   apply to char
+	  ELSE			; (Swapping permitted)
+	LD	A,C		; Get char to output
+OPAT3:	AND	$-$		;   Mask   <Patched by Config>
+	  ENDIF		;Movcpm
+	OUT	(CENDAT),A	; Set up data latch
+	OUT	(CENSTB),A	;  Set STB*
+	OUT	(CENDAT),A	;   and clear STB*
+	RET
+	PAGE
+
+;.....
+; Printer acknowledgement routine
+
+INTPIO:	PUSH	AF
+	LD	A,0FFH
+	LD	(PAOR),A	; Set Ready Flag
+	OUT	(CENDAT),A	;   and clear interrupt
+	POP	AF
+	EI			; Enable Interrupts
+	RET
+
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+;	Interrupt service routines for ASCI0 (Aux)
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+; NOTE: DSEG Space for Queue Buffers and Local Stack placed
+;	at end of BPBIO-18 to insure it is after CBOOT code.
+
+	  IF  BUFAUX
+RCAA:	LD	(INTSP),SP
+	LD	SP,INTSP
+	PUSH	AF
+	PUSH	BC
+	PUSH	HL
+
+	IN0	A,(RDR0)	; Get character from ASCI0
+	LD	C,A		;   save it
+
+	  IF  XONOFF
+	LD	A,(COM1+5)	; Get Config byte
+	AND	00010000B	;  (keep only Xon/Xoff Bit)
+	JR	Z,RCAA0		; ..jump if Not using Xon/Xoff
+	LD	HL,COM1WT	; Else point to Status Byte
+	LD	A,C		;   fetch received byte
+	CP	XON		; Start Sending Again?
+	JR	NZ,RCAA1	; ..jump if Not
+	RES	7,(HL)		; Else Enable Sending
+	JR	RETISV		;   and Exit
+
+RCAA1:	CP	XOFF		; Stop Sending?
+	JR	NZ,RCAA0	; ..jump if Not and add to buffer
+	SET	7,(HL)		; Else Turn Output Off
+	JR	RETISV		; ..and Exit
+	  ENDIF
+RCAA0:	LD	HL,COM1Q	; Point to char count
+	LD	A,(HL)		;   get it
+	INC	A		; Bump
+	CP	QSIZE		; Buffer Full?
+	JR	NC,RCAAX	; ..exit if so
+	LD	(HL),A		; Else save new char count
+	CALL	ADDAHL		; Offset to storage in Queue
+	LD	(HL),C		;   save the character
+RCAAX:
+	   IF  BUFCON		; If duplicating below..
+	JR	RETISV		; ..jump..else code comes next
+	   ENDIF
+	  ENDIF
+	
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+;	Interrupt service routines for ASCI1 (Con)
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+; NOTE: DSEG Space for Queue Buffers and Local Stack placed
+;	at end of BPBIO-18 to insure it is after CBOOT code.
+
+	  IF  BUFCON
+RCAB:	LD	(INTSP),SP
+	LD	SP,INTSP
+	PUSH	AF
+	PUSH	BC
+	PUSH	HL
+
+	IN0	A,(RDR1)	; Get character from ASCI1
+	LD	C,A		;   save it
+
+	  IF  XONOFF
+	LD	A,(COM2+5)	; Get Config byte
+	AND	00010000B	;  (keep only Xon/Xoff Bit)
+	JR	Z,RCAB0		; ..jump if Not using Xon/Xoff
+	LD	HL,COM2WT	; Else point to Status Byte
+	LD	A,C		;   fetch received byte
+	CP	XON		; Start Sending Again?
+	JR	NZ,RCAB1	; ..jump if Not
+	RES	7,(HL)		; Else Enable Sending
+	JR	RETISV		;   and Exit
+
+RCAB1:	CP	XOFF		; Stop Sending?
+	JR	NZ,RCAB0	; ..jump if Not and add to buffer
+	SET	7,(HL)		; Else Turn Output Off
+	JR	RETISV		; ..and Exit
+	  ENDIF
+RCAB0:	LD	HL,COM2Q	; Point to char count
+	LD	A,(HL)		;   get it
+	INC	A		; Bump
+	CP	QSIZE		; Buffer Full?
+	JR	NC,RCABX	; ..exit if so
+	LD	(HL),A		; Else save new char count
+	CALL	ADDAHL		; Offset to storage in Queue
+	LD	(HL),C		;  Save the character
+RCABX:
+	   IF  BUFAUX OR BUFCON
+RETISV:	POP	HL		; Restore regs
+	POP	BC
+	POP	AF
+	LD	SP,(INTSP)	; Restore Entry Stack
+	EI			;  allow Ints again
+	RET			;   and resume
+	   ENDIF	;bufaux or bufcon
+	  ENDIF
+
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+;	 Exar 88C81 Channel A Additional Driver
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+	  IF  MORDEV AND NOT MOVCPM
+;.....
+; ETSA Input Status (Non-buffered)
+
+ETSAIS:	IN	A,(STSA)	; Ch A Input Status
+	AND	RRDY		; Ready?
+	JP	RETST		; ..jump to common code to return Status
+
+;.....
+; ETSA Input Routine (Non-buffered)
+
+ETSAIN:	CALL	ETSAIS		; Check Status of Ch A
+	JR	Z,ETSAIN	; ..loop til Ready
+	IN	A,(RCVA)
+IPAT4:	AND	$-$		; Mask Input byte   <Patched by Config>
+	RET
+
+;.....
+; ETSA Output Status (Non-buffered)
+
+ETSAOS:	IN	A,(STSA)	; Console output
+	AND	TRDY		;  Mask Bit of interest
+	JP	RETST		;   and test
+
+;.....
+; ETSA Output Routine (Non-buffered)
+
+ETSAOT:	CALL	ETSAOS		; Test if ready
+	JR	Z,ETSAOT	; ..loop if not
+	LD	A,C		; Get char to output
+OPAT4:	AND	$-$		;  mask  <Patched by Config>
+	OUT	(XMTA),A	;   send char
+	RET
+
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+;	 Exar 88C81 Channel B Additional Driver
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+;.....
+; ETSB Input Status (Non-buffered)
+
+ETSBIS:	IN	A,(STSB)	; Ch A Input Status
+	AND	RRDY		; Ready?
+	JP	RETST		; ..jump to common code to return Status
+
+;.....
+; ETSB Input Routine (Non-buffered)
+
+ETSBIN:	CALL	ETSBIS		; Check Status of Ch A
+	JR	Z,ETSBIN	; ..loop til Ready
+	IN	A,(RCVB)
+IPAT5:	AND	$-$		; Mask Input byte  <Patched by Config>
+	RET
+
+;.....
+; ETSB Output Status (Non-buffered)
+
+ETSBOS:	IN	A,(STSB)	; Console output
+	AND	TRDY		;  Mask Bit of interest
+	JP	RETST		;   and test
+
+;.....
+; ETSB Output Routine (Non-buffered)
+
+ETSBOT:	CALL	ETSBOS		; Test if ready
+	JR	Z,ETSBOT	; ..loop if not
+	LD	A,C		; Get char to output
+OPAT5:	AND	$-$		;  mask  <Patched by Config>
+	OUT	(XMTB),A	;   and send char
+	RET
+	  ENDIF		;Mordev & Not Movcpm
+
+;:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+;::	      I n t e r r u p t    T a b l e		    ::
+;:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+; The HD64180 Interrupt Vector table is placed here on a 32-byte
+; boundary for internal peripherals.
+
+	DEFS	32-[$-BIOSJT AND 31]
+
+INTTBL:	DEFW	INTPIO		; Parallel output port
+	DEFW	FDCINT		; Floppy Disk Controller
+	DEFW	TIMER		; Timer0
+	DEFW	INTT1		; Timer1
+	DEFW	INTDM0		; DMA Channel 0
+	DEFW	INTDM1		; DMA Channel 1
+	DEFW	INTCSIO		; Clocked Serial IO
+	DEFW	RCAA		; ASCI 0
+	DEFW	RCAB		; ASCI 1
+
+; Error trap for unimplemented Interrupts
+
+INTT1:
+INTDM0:
+INTDM1:
+INTCSIO:
+	  IF  NOT BUFAUX
+RCAA:
+	  ENDIF
+	  IF  NOT BUFCON
+RCAB:
+	  ENDIF
+	CALL	PRINT
+	DEFC	CR,LF,'Bad Int'
+	RST	00		; This has same effect as JP WBOOT
+
+;:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+;::	  D e v i c e    I n i t i a l i z a t i o n	    ::
+;:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+; This routine must set all configurable devices in the system dynamically.
+; Many support routines and possibly user applications will vary some of
+; the data structures for optimum performance.  Ill-behaved routines that
+; directly address hardware and exit with altered states may be restored
+; by calling this routine via the Jump Table.
+;  If the Bios is assembled for Boot Track installation (MOVCPM True),
+; the Device swapping, and attendant dynamic configuration is disabled
+; resulting in fixed device configurations.
+
+	CSEG
+DEVINI:
+	  IF  BANKED
+	CALL	BIOSTK
+	CALL	GOSYSB
+	JP	JDVINI
+	COMMON	/BANK2/
+JDVINI:
+	  ENDIF
+
+; Synchronize the Boot Sector Environment Descriptor Processor Speed byte
+; with the Bios Speed Byte.
+
+	LD	HL,(ENVADR)	; Get ENV Address
+	LD	L,2BH		;  offset to CPU Clock rate
+	LD	A,(SPEED)	; Fetch the Bios Clock setting
+	LD	(HL),A		;   and slam it into the ENV
+
+; Set up Memory and IO wait State delays.  If "NoWait" is True, only insert
+; Memory Waits here.  IO Waits added only where needed (9266 FDC at present).
+
+	LD	A,(WAITS)	; Get # Wait states for Memory & IO
+	  IF  NOWAIT
+	RLCA			; Rotate Memory Wait Bits
+	RLCA			;  to B7 & 6
+	AND	11000000B	;   and Mask off other Junk
+	  ELSE
+	AND	00110011B	; Mask off all but 2 LSBs in each nybble
+	RLCA			;   move Mem bits to B7,6
+	RLCA
+	LD	C,A		; Save partially shifted byte
+	RLCA			; Move IO to Bits 5,4
+	RLCA
+	OR	C		;  OR in Memory waits
+	AND	11110000B	;   mask off all others
+	  ENDIF
+	OR	00001100B	; Ints On, Edge Triggered
+	OUT0	(DCNTL),A	;   and send it
+
+; Set Refresh to Assembled Setting
+
+	  IF  REFRSH		;  (Must be TRUE for Real SB-180s)
+	LD	A,FDRCR1	; Set refreshing on for Dynamic Rams
+	  ELSE
+	LD	A,00H		; Else disable Refresh cycles
+	  ENDIF
+	OUT0	(RCR),A		; Set Refresh timing specs
+
+; Set Reload Constant to values in header
+
+	LD	HL,(RELOD0)	; Get the timer reload constant
+	OUT0	(RLDR0L),L	;  send low byte
+	OUT0	(RLDR0H),H	;   and hi byte
+
+; Configure COM1 IO Masks anc Channel characteristics
+
+	  IF  NOT MOVCPM	; (Swapping permitted)
+	LD	DE,C1NAM	; Point to COM1 Name string
+	CALL	SETPTR		;  locate data returning ptr to COM1+7
+	JR	Z,DEVIN0	; ..jump to next if No Device Name
+	LD	A,(HL)		; Else Get Dev+7 Mask
+	LD	(OPAT1+1),A	;   patch
+	DEC	HL		; Down to Input Mask @ Dev+6
+	LD	A,(HL)		;  fetch
+	LD	(IPAT1+1),A	;   patch
+	DEC	HL		; Down to Config byte @ Dev+5
+	  ELSE			; (No Swapping allowed)
+	LD	HL,DEVCFG+5	; Point to second COM1 Config byte
+	  ENDIF		; Not Movcpm
+	LD	BC,CNTLA0	; B=0 for Hi-order IO Address, C=CNTLA0 Port
+	LD	E,01100000B	; CNTLA0 Mask, RE, TE, RTS*
+	CALL	IOINI0		;  and set a couple of bytes
+	  IF  ESCCBRG	    ;dsc If using Z8S180 Escc-like Baud Rate Generator
+	LD	A,00001000B	;dsc Enable ESCC BRG
+	OUT0	(ASEXT0),A	;dsc  Set ASCI Extension Ctrl Reg 0
+	LD	BC,ASTC0L	;dsc   Address ASCI TC 0 Reg
+	CALL	TCINI		;dsc Configure COM1 ESCC BRG TC Regs
+	  ENDIF		;esccbrg - dsc
+
+; Configure COM2 IO Masks and Channel Characteristics
+
+DEVIN0:
+	  IF  NOT MOVCPM	; (Swapping permitted)
+	LD	DE,C2NAM	; Point to COM2 Name string
+	CALL	SETPTR		;  locate data returning ptr
+	JR	Z,DEVIN1	; ..jump to next if No Device Name
+	LD	A,(HL)		; Else Get Dev+7 Mask
+	LD	(OPAT2+1),A	;   patch
+	DEC	HL		; Down to Input Mask @ Dev+6
+	LD	A,(HL)		;  fetch
+	LD	(IPAT2+1),A	;   and patch
+	DEC	HL		; Down to Config byte @ Dev+5
+	  ELSE			; (No Swapping allowed)
+	LD	HL,DEVCFG+[COM2-COM1]+5	; Point to second COM2 Config byte
+	  ENDIF		; Not Movcpm
+	LD	BC,CNTLA1	; B=0 for Hi-order IO Address, C=CNTLA1 Port
+	LD	E,01110000B	; CNTLA1 Mask, RE, TE, Intern Clk
+	CALL	IOINI0		;   and set a couple of bytes
+	  IF  ESCCBRG	    ;dsc If using Z8S180 Escc-like Baud Rate Generator
+	LD	A,00001000B	;dsc Enable ESCC BRG
+	OUT0	(ASEXT1),A	;dsc  Set ASCI Extension Ctrl Reg 1
+	LD	BC,ASTC1L	;dsc   Address ASCI TC 1 Reg
+	CALL	TCINI		;dsc Configure COM1 ESCC BRG TC Regs
+	  ENDIF		;esccbrg - dsc
+
+; Configure Parallel Port IO Masks and Characteristics
+
+	  IF  NOT MOVCPM	; (No Swapping Allowed)
+DEVIN1:	LD	DE,P1NAM	; Point to PIO1 Name String
+	CALL	SETPTR		;  locate data returning ptr
+	JR	Z,DEVIN2	; ..jump if No Device Name
+	LD	A,(HL)		; Get Dev+7 Mask
+	LD	(OPAT3+1),A	;   and patch
+DEVIN2:
+	  ENDIF		;Not Movcpm
+
+	  IF  MORDEV AND NOT MOVCPM
+; -- Add necessary Initialization for Expansion Drivers here --
+
+	LD	A,11100000B	; Select BRG Set 1, Aux Tmr, x1 ClkIn, No Ints
+	OUT	(ACR),A		;   and Command
+
+	LD	DE,ETANAM	; Point to ETS Ch A Name
+	CALL	SETPTR		;  and return ptr to end of data
+	JR	Z,DEVIN3	; ..jump to next if No Device Name
+	LD	A,(HL)		; Else Get Dev+7 Mask
+	LD	(OPAT4+1),A	;   patch
+	DEC	HL		; Down to Input Mask @ Dev+6
+	LD	A,(HL)		;  fetch
+	LD	(IPAT4+1),A	;   patch
+	DEC	HL		; Down to Config byte @ Dev+5
+	LD	C,MODEA		;  select Port A Mode Control
+	CALL	IOXINI		;   and Initialize
+
+DEVIN3:	LD	DE,ETBNAM	; Point to ETS Ch B Name
+	CALL	SETPTR		;  and return ptr to end of data
+	JR	Z,DEVIN4	; ..jump to next if No Device Name
+	LD	A,(HL)		; Else Get Dev+7 Mask
+	LD	(OPAT5+1),A	;   patch
+	DEC	HL		; Down to Input Mask @ Dev+6
+	LD	A,(HL)		;  fetch
+	LD	(IPAT5+1),A	;   patch
+	DEC	HL		; Down to Config byte @ Dev+5
+	LD	C,MODEB		;  select Port B Mode Control
+	CALL	IOXINI		;   and init it too
+
+DEVIN4:
+	  ENDIF		;Mordev & Not Movcpm
+
+; Activate Interrupts for Buffered Input as needed
+
+	  IF BUFAUX
+	LD	A,00001000B	; Set Interrupts for ASCI0
+	  ELSE
+	LD	A,00000000B	; No interrupts
+	  ENDIF		;bufaux
+	OUT0	(STAT0),A
+	  IF  BUFCON
+	LD	A,00001100B	; Enable Interrupts, Enable CTS1*
+	  ELSE
+	LD	A,00000100B	; No Interrupts, Enable CTS1*
+	  ENDIF		;bufcon
+	OUT0	(STAT1),A
+
+; Set IOBYTE value in Page 0 and Bank if necessary
+
+	  IF  BANKED
+	LD	A,(TPABNK)	; Get Bank # for TPA
+	LD	C,A		;   and set for destination
+	LD	HL,0003H	; Point to IOBYTE
+	LD	A,(IOBYT)	;  get the new settings
+	CALL	FRPUTB		;   and stuff it in TPA bank
+	  ENDIF
+	LD	A,(IOBYT)	; If Non-banked, just get the byte
+	LD	(0003H),A	;   stuff it, else stuff in SYStem bank
+
+; Set final configs and activate timer interrupts
+
+	LD	A,00010001B	; Turn Ints On and enable downcounting
+	OUT0	(TCR),A
+
+	LD	A,0FFH
+	OUT	(CENDAT),A	; Clear any pending PIO Interrupts
+	LD	(PAOR),A	; Set PIO handshake
+
+	  IF  PHI2
+	LD	A,80H		; Set Clock divide bit
+	OUT0	(CCR),A		;   Go for it!
+	  ENDIF
+
+	EI			; Insure interrupts enabled
+	RET
+
+;.....
+; Detailed Configuration for ASCI Channels on HD64180
+
+IOINI0:
+	  IF  ESCCBRG		;dsc If using Z8S180 Escc-like BRG
+	PUSH	HL		;dsc  save defcfg+5 ptr
+	  ENDIF			;dsc
+	BIT	0,(HL)		; One Stop Bit?
+	JR	NZ,IOIN00	; ..jump if Not
+	SET	0,E		; Else Set for 2 Stop bits
+IOIN00:	BIT	1,(HL)		; Parity On?
+	JR	Z,IOIN01	; ..jump if Not
+	SET	1,E		; Else Turn it On
+IOIN01:	BIT	3,(HL)		; 7-bit Data?
+	JR	NZ,IOIN02	; ..jump if so
+	SET	2,E		; Else set for 8-bit data
+IOIN02:	OUT	(C),E		; Send the byte to CNTLA0/1
+	INC	C		;   advance to CNTLB0/1
+	INC	C
+	DEC	HL		; Back up to first config byte
+	LD	A,(HL)		;   fetch
+	AND	0F0H		; Check config status
+	LD	E,0111B		;  (preset for External clock in case)
+	JR	Z,IOIN0X	; ..jump if No rate to set
+	LD	A,(HL)		; Refetch the rate byte
+	AND	0FH		;  masking off all but desired rate
+	PUSH	HL		; Save Config byte pointer
+	  IF  NOT ESCCBRG   ;dsc - If using standard ASCI Baud Rate Generator
+	LD	HL,RATES-1	;  point to Rate Table (correcting for base 0)
+	CALL	ADDAHL		;   offsetting to desired byte
+	LD	E,0		; Prepare an initial mask
+	LD	A,(SPEED)	; Check processor speed
+	CP	6		; Is it 6 MHz?
+	JR	Z,IOIN03	; ..jump if so all set up
+	DEC	HL		; .(prepare for 12 test)
+	CP	12		; Is it 12 MHz?
+	JR	Z,IOIN03	; ..jump if so
+	INC	HL		; Else advance for 9 MHz
+	INC	HL		; Else bump up one in Rate Table
+	SET	5,E		;   set an additional divisor bit
+IOIN03:	LD	A,(HL)		; Get the Rate Setting byte
+	OR	E		;  add in any additional divisor
+	LD	E,A		;   and back to output reg
+	  ELSE		;esccbrg - dsc
+	LD	E,00000000B	;dsc PS=0, DR=0, SS210=0
+	  ENDIF			;dsc
+	POP	HL		; Restore Config byte ptr
+IOIN0X:	INC	HL		;  advance to second byte
+	BIT	2,(HL)		; Is Odd parity desired?
+	JR	NZ,IOIN04	; ..jump if Even parity
+	SET	4,E		; Else set to Odd
+IOIN04:	OUT	(C),E		; Send the byte to CNTLB0/1
+	  IF  ESCCBRG	    ;dsc - If using Z8S180 Escc-like BRG
+	POP	HL		;dsc Restore Devcfg+5 ptr
+	DEC	HL		;dsc  Pt to Devcfg+4 byte (baud setting)
+	  ENDIF		;esccbrg - dsc
+	RET
+
+RATES:	DEFB	00001110B	; 1  = default to lowest rate
+	DEFB	00001110B	; 2  = default to lowest rate
+	DEFB	00001110B	; 3  = default to lowest rate
+	DEFB	00001110B	; 4  =   150 bps @ 6 MHz,   75 @ 9 MHz
+	DEFB	00001101B	; 5  =   300 bps @ 6  " ,  150 @ 9  "
+	DEFB	00000110B	; 6  =   600 bps @ 6  " ,  300 @ 9  "
+	DEFB	00000101B	; 7  =  1200 bps @ 6  " ,  600 @ 9  "
+	DEFB	00000100B	; 8  =  2400 bps @ 6  " , 1200 @ 9  "
+	DEFB	00000011B	; 9  =  4800 bps @ 6  " , 2400 @ 9  "
+	DEFB	00000010B	; 10 =  9600 bps @ 6  " , 4800 @ 9  "
+	DEFB	00000001B	; 11 = 19.2 kbps @ 6  " , 9600 @ 9  "
+	DEFB	00000000B	; 12 = 38.4 kbps @ 6 MHz, 19.2 @ 9 MHz
+	DEFB	00000000B	; 13 = default to highest rate
+	DEFB	00000000B	; 14 = default to highest rate
+	DEFB	00000000B	; 15 = default to highest rate
+
+;.....
+;dsc - If using the ESCC-like Baud Rate Generator, this code is used
+	  IF  ESCCBRG		;dsc
+TCIni:	PUSH	BC		; (save IO Address ptr)
+	LD	A,(HL)		;dsc Get COM1 Baud Setting
+	AND	0FH		;dsc  keep low nibble
+	DEC	A		;  make base 0
+	LD	C,A		;   save
+	LD	HL,brSCC	; Pt to byte table of constants
+	CALL	ADDAHL		;  index to desired rate
+	LD	L,(HL)		;   fetch constant for desired rate
+	LD	A,(SPEED)	; Fetch Clock speed (in MHz)
+	LD	H,A
+	LD	A,C
+	CP	3		; Is Rate in [134.5, 50, 75]?
+	JR	NC,TCIni0	; ..jump if Not
+	LD	A,H		; Else
+	ADD	A,A		;  Multiply
+	ADD	A,H		;   constant * 3
+	LD	H,A
+TCIni0:	MLT	HL		; Multiply Clock Rate by Constant (16-bit)
+	LD	A,C
+	CP	8		; Is Rate < 4800 bps?
+	JR	C,TCIni1	; ..jump if Yes
+	LD	B,5		; Else divide result (DIV) by 32
+TCdivL:	SRL	H
+	RR	L		;  (discard remainder)
+	DJNZ	TCdivL
+TCIni1:	POP	BC		; Restore IO Port Addr
+	DEC	HL		;  Perform last part of count calculations
+	DEC	HL		;   (count - 2)
+	LD	A,H
+	OR	L		; If Divisor = 0
+	JR	NZ,TCIni2
+	INC	L		;  default to 1
+TCIni2:	OUT	(C),L
+	INC	C
+	OUT	(C),H
+	RET			;dsc
+
+;.....
+; Divisor factors are computed as:
+;	(Xtal Freg in Hz / (2 * BPS * Divisor)) - 2
+; These rate constants represent a compromise between rates for integer
+; MegaHertz frequencies and the small differences of 11.0592 MHz used in
+; Scott's version of the code.  The difference is a fraction of a percent.
+;  HFB
+
+brSCC:	DEFB	77		; 1  = 134.5 bps / 3
+	DEFB	209		; 2  = 50  bps   / 3
+	DEFB	139		; 3  = 75  bps   / 3
+	DEFB	209		; 4  = 150 bps
+	DEFB	104		; 5  = 300 bps
+	DEFB	52		; 6  = 600 bps
+	DEFB	26		; 7  = 1200 bps
+	DEFB	13		; 8  = 2400 bps
+	DEFB	209		; 9  = 4800 bps  * 18
+	DEFB	104		; 10 = 9600 bps  * 18
+	DEFB	52		; 11 = 19.2 kbps * 18
+	DEFB	26		; 12 = 38.4 kbps * 18
+	DEFB	17		; 13 = 57.6 kbps * 18
+;	DEFB	13		; 13 (alternate) = 76.8 kbps * 18
+	DEFB	9		; 14 = 115.2 kbps * 18
+	  ENDIF		;esccbrg - dsc
+
+;.....
+; Perform detailed Initialization of 88C681 DUART on ETS180IO+ Expansion Board
+;  Enter with HL --> Dev+5 in Table, C = Channel Mode Port
+; Needed Ports are set as:
+;   Bit	7 6 5 4 3 2 1 0		MODEx (Byte 1)	(Base+0/8)
+;	| | | | | | +-+-- Bits/Char (00=5, 01=6, 10=7, 11=8)
+;	| | | | | +------ 0=Even Parity, 1=Odd
+;	| | | +-+-------- 00=w/Parity, 01=Force Parity, 10=No Par, 11=Multidrop
+;	| | +------------ Error Mode (0=Char, 1=Block)
+;	| +-------------- RxInt (0=RxRDY, 1=FFULL)
+;	+---------------- Rx RTS (0=No, 1=Yes)
+;
+;   Bit 7 6 5 4 3 2 1 0		MODEx (Byte 2)
+;	| | | | +-+-+-+-- Stop Bit Length (0111=1.0 bits, 1111=2.0 bits)
+;	| | | +---------- Tx CTS Enable (0=No, 1=Yes)
+;	| | +------------ Tx RTS Control (0=No, 1=Yes)
+;	+-+-------------- Chan Mode (00=Norm,01=AutoEcho,10=Lcl Lp,11=Rem Lp)
+;
+;   Bit 7 6 5 4 3 2 1 0		BAUDx		(Base+1/9)
+;	| | | | +-+-+-+-- Xmtr Clock Rate Bits
+;	+-+-+-+---------- Rcvr Clock Rate Bits
+;
+;   Bit 7 6 5 4 3 2 1 0		COMDx		(Base+2/10)
+;	| | | | | | | +-- Rx Enable
+;	| | | | | | +---- Rx Disable
+;	| | | | | +------ Tx Enable
+;	| | | | +-------- Tx Disable
+;	+-+-+-+---------- Command (1000=Set Rx Extend bit, 1001=Clr Rx Ext Bit,
+;				   1010=Set Tx Extend bit, 1011=Clr Tx Ext Bit)
+;
+;   Bit 7 6 5 4 3 2 1 0		ACR, Aux Comnd Reg	(Base+4)
+;	| | | | +-+-+-+-- Interrupt Controls (not used)
+;	| +-+-+---------- 1100 = Aux Timer, x1 Clk In
+;	+---------------- Baud Rate Gen Set (0=Set 0, 1=Set 1)
+
+	  IF  MORDEV
+IOXINI:	LD	E,01010011B	; Dflt = 8 bits, No Par, No RTS
+	BIT	3,(HL)		; 8-bit Data?
+	JR	Z,IOXIN0	; ..jump if So
+	RES	0,E		; Else set for 7-bit Data
+IOXIN0:	BIT	1,(HL)		; Parity Enabled?
+	JR	Z,IOXIN1	; ..jump if Not
+	RES	4,E		; Else Force
+	SET	3,E		;  parity
+	BIT	2,(HL)		; Even Parity?
+	JR	Z,IOXIN1	; ..jump if Not
+	SET	2,E		; Else Set to Odd
+IOXIN1:	BIT	5,(HL)		; Use RTS?
+	JR	Z,IOXIN2	; ..jump if Not
+	SET	7,E		; Else set to use Rx RTS
+IOXIN2:	OUT	(C),E		; Send First COMDx byte
+	LD	E,00000111B	;  Dflt = 1 Stop, No CTS/RTS
+	BIT	5,(HL)		; Use RTS/CTS?
+	JR	Z,IOXIN3	; ..jump if Not
+	SET	5,E		; Else Enable Tx RTS Control
+	SET	4,E		;  activate Tx CTS
+IOXIN3:	BIT	0,(HL)		; 1 Stop Bit?
+	JR	NZ,IOXIN4	; ..jump if So
+	SET	3,E		; Else Set for 2 Stop Bits
+IOXIN4:	OUT	(C),E		; Send Second COMDx Byte
+	INC	C		; Advance to Baud Rate Register (Mode+1)
+	DEC	HL		;  back up to Rate
+	LD	A,(HL)		;   fetch
+	AND	0FH		; Mask
+	LD	HL,XRATES-1	; Pt to Table (-1 for base correction)
+	CALL	ADDAHL		; Offset into Table (base 1)
+	LD	A,(HL)		;  fetch byte
+	PUSH	AF		;    (save for later)
+	AND	0FH		;   mask off Extend bit
+	LD	B,A		;    and save Tx setting
+	RLCA			; Shift rate for Tx clock
+	RLCA
+	RLCA
+	RLCA
+	ADD	A,B		;   add Tx clock to Rx
+	OUT	(C),A		; Set BAUDx Tx & Rx Rates
+	INC	C		;  advance to COMDx
+	POP	AF		; Restore Baud+Ext byte
+	RLA			;  Put Extend in Carry
+	LD	A,10010101B	; Clr Rx Extend, Enable Rx & Tx
+	JR	NC,IOXIN5	; ..jump if No Extend Bit
+	RES	4,A		; Else Set Extend Bit (complemented)
+IOXIN5:	OUT	(C),A		; Set/Clr Rx Extend Bit
+	SET	5,A		;  command for Tx Extend Bit
+	OUT	(C),A		; Set/Clr Tx Extend Bit
+	RET			; ..and Return
+
+;.....
+; Baud Rate Table for 88C681 DUART set as:
+;	    Bit 7 6 5 4 3 2 1 0
+;		| | | | +-+-+-+-- Rate Bits
+;		| +-+-+---------- (unused)
+;		+---------------- Extended Set Bit
+XRATES:	DEFB	00000010B	; 134.5 bps
+	DEFB	10000000B	; 50 bps
+	DEFB	00000000B	; 75 bps
+	DEFB	00000011B	; 150 bps
+	DEFB	00000100B	; 300 bps
+	DEFB	00000101B	; 600 bps
+	DEFB	00000110B	; 1200 bps
+	DEFB	00001000B	; 2400 bps
+	DEFB	00001001B	; 4800 bps
+	DEFB	00001011B	; 9600 bps
+	DEFB	00001100B	; 19.2 kbps
+	DEFB	10001100B	; 38.4 kbps
+	DEFB	10000111B	; 57.6 kbps (Non-Standard)
+	DEFB	10001000B	; 115.2 kbps
+	  ENDIF		;Mordev
+
+;.....
+; Locate Named Device and return pointer to last Config byte if swappable
+	  IF  NOT MOVCPM
+SETPTR:	LD	HL,DEVCFG-[COM2-COM1]	; Point ahead of start
+SETPTL:	LD	BC,COM2-COM1	; Set size of entries
+	ADD	HL,BC		;   advance to next entry
+	LD	B,4		; Set # chars to compare
+	LD	A,(HL)		; Get first char
+	OR	A		; Is it Table End?
+	RET	Z		; ..return Zero Set if so
+	PUSH	DE		;  (save source & dest strings)
+	PUSH	HL
+SETPT0:	LD	A,(DE)
+	CP	(HL)		; Compare each char
+	JR	NZ,SETPTX	; ..quitting if mismatch
+	INC	DE		; Else advance to next
+	INC	HL
+	DJNZ	SETPT0		; ..loop to next char
+SETPTX:	POP	HL		; Restore source & dest ptrs
+	POP	DE
+	JR	NZ,SETPTL	; ..try next entry if mismatch
+	LD	DE,7		; Else advance to Dev+7
+	ADD	HL,DE
+	OR	0FFH		; Insure Zero Clear on return
+	RET			; ..and quit
+
+C1NAM:	DEFB	'COM1'		; Devices needing Configuration to match
+C2NAM:	DEFB	'COM2'
+P1NAM:	DEFB	'PIO1'
+	  ENDIF		;Not Movcpm
+	  IF  MORDEV AND NOT MOVCPM
+ETANAM:	DEFB	'ETSA'		; ETS180IO+ Serial Channel A
+ETBNAM:	DEFB	'ETSB'		; ETS180IO+ Serial Channel B
+	  ENDIF
+
+; Buffers placed at end of BPBIO-18 to insure placement after HSTBUF
+;===================== End of IIO-18.Z80 ==========================
+

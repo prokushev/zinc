@@ -1,0 +1,328 @@
+; Boot ROM for B/P BIOS		Teletek		(Version of 28 Jan 90)
+;  Copyright (c) 1990/91/92 Cameron W. Cotrill and Harold F. Bower
+
+;<<-- SAMPLE - for use in developing ROM Applications of B/P Bios -->>
+
+; Boots from Double-Density Disks ONLY!
+; Bootable formats MUST have skew formatted onto disk, and Double-
+; sided Disks MUST have sector numbers offset by 16 on BOTH sides.
+; Odd/Even Track Head selection is used on Double-Sided Disks.
+; 5.25-inch bootable formats are: 256/18, 512/10, and 1024/5.
+; 8-inch bootable formats are: 256/26, 512/17, and 1024/9.
+
+; If stand alone boot, link for cseg at 0 and DSEG at 4000H
+
+FALSE	EQU	0
+TRUE	EQU	NOT FALSE
+YES	EQU	TRUE
+NO	EQU	FALSE
+
+CR	EQU	0DH
+LF	EQU	0AH
+
+	  IFNDEF BANKED
+ALONE	EQU	YES
+BANKED	EQU	NO
+INROM	EQU	YES
+BUFCON	EQU	NO
+BUFAUX	EQU	NO
+BIOERM	EQU	NO
+	  ENDIF
+
+	  IF  NOT [BANKED AND INROM]
+	JP	INSYNC		; Set PC to EPROM space
+INSYNC:	JP	BOOTER		; And vector to boot routine
+	JP	FDCIO		; FDC routine vector
+	JP	0		; Banked BIOS read vector
+	JP	0		; Banked BIOS write vector
+	JP	0		; Banked BIOS SECTRAN vector
+MONTIM:	DEFB	30		; Motor on time in seconds
+	  ENDIF
+	  IF  ALONE
+HSTBUF	EQU	8000H		; Define for FDC routines that need it
+	  ENDIF
+
+
+BOOTER:	DI
+	XOR	A		; Cheap 0
+	LD	B,A
+	LD	C,A		; BC=0
+	LD	D,A
+	LD	H,A
+	LD	L,A		; HL=0
+	INC	A
+	LD	E,A		; DE=1
+	LDIR			; Zero all visable RAM
+	LD	SP,BOOTSTK	; Put stack in a safe place for now
+	LD	A,01001000B	; Load s/m control register
+	LD	(CNBYTE),A	; Save a picture of it
+	OUT	(CNPORT),A	; ROM is enabled, RAM is enabled
+				; Motor is off, and 5 1/4" drive enabled
+	CALL	IOINIT		; Program devices
+	LD	A,01001000B	; Load s/m control register
+	LD	(CNBYTE),A	; Save a picture of it
+	EI
+BOOT:	XOR	A
+	CALL	STHDRV		; Assume head 0 and set drive
+	LD	A,0FFH		; Try high speed first
+BOOT0:	LD	DE,0FF01H	; Assume 8" THAT NEEDS MOTOR
+BOOT1:	LD	(SEKSPD),A
+	CALL	STSIZE		; Set motor flag and drive size
+	LD	A,12		; Step rate to 12ms
+	LD	DE,0FF20H	; Hlt=32ms, hut=255ms
+	CALL	SPEC		; Set step rate, hut, hlt
+	XOR	A
+	LD	(VTRK),A	; Set virtual track to 0
+	CALL	STMODE		; Set to double density
+	LD	B,2
+BOOT2:	CALL	RECAL		; Home the drive
+	JR	Z,BOOT3		; Decipher format if successful
+	DJNZ	BOOT2		; Else try again
+	LD	A,20
+	LD	E,0		; No double stepping here
+	CALL	SEEK		; Force step out in case track < 0
+	XOR	A
+	JP	BTERR		; Else error
+
+BOOT3:	CALL	READID		; See if we can read it
+	JR	Z,BOOT5		; If we read ok
+
+BOOT4:	LD	A,(SEKSPD)	; Get speed we used
+	CPL			; Set other speed
+	AND	A
+	LD	DE,0FF02H	; Anticipate 5"
+	JR	Z,BOOT1		; If low speed, assume 5"
+	JR	BOOT0		; And try again
+
+; When we arrive here, we have a successful Read on Side 0, Track 0
+
+BOOT5:	LD	A,2
+	LD	E,0		; No double stepping here
+	CALL	SEEK		; Go to track 1 or 2
+	CALL	READID
+	JP	NZ,BTERR	; ..jump if error
+	LD	A,(RC)
+	DEC	A
+	DEC	A		; A=0FFH if double step needed
+	LD	(STEP2),A
+	LD	E,A
+	XOR	A		; back to track 0
+	CALL	SEEK
+	CALL	READID
+	JP	NZ,BTERR
+	LD	A,(RR)		; Get sector number
+	CP	17		; Double sided?
+	LD	A,0		; .(prep offset for SS)
+	JR	C,BOOT6		; ..jump if not DS
+	LD	A,16
+BOOT6:	LD	(SOFF),A	; Set sector offset
+	ADD	A,1		; Set sector number
+	CALL	STSECT		; For FDC
+	LD	A,(SEKSPD)
+	LD	B,A		; Get speed (size also)
+	AND	4
+	LD	C,A		; To use for index
+	LD	A,(RN)		; Get sector size
+	LD	D,A		; Put in D for later
+	ADD	A,C
+	LD	HL,SPTTBL
+	CALL	ADDAHL		; Point to spt value
+	LD	A,(SOFF)	; And sector offset
+	ADD	A,(HL)		; Get it for appropriate format
+	LD	E,A
+	LD	A,(HL)
+	LD	(SPT),A		; Save sectors/track
+	CALL	STSSEC		; Set sector size and eot for last sector
+	XOR	A
+	CALL	STMODE
+	LD	E,1		; Read one physical sector
+	LD	HL,8000H	; To 8000H
+	CALL	SREAD
+	LD	A,1
+	JP	NZ,BTERR
+	CALL	8000H		; Return param pointer in HL
+	LD	D,(HL)		; Ccp base page
+	LD	E,0
+	LD	(CCPBA),DE
+	INC	HL
+	INC	HL
+	LD	E,(HL)		; Number of records to load
+	LD	A,(RN)		; Get sector size
+	INC	A		; .Comp for first djnz
+	LD	B,A		; ..into B for counter
+	LD	HL,128		; Set length of a record
+	JR	BOOT8
+BOOT7:	SRL	E		; Divide sector count by 2
+	ADD	HL,HL
+BOOT8:	DJNZ	BOOT7		; Until correct physical sector count
+	LD	A,(SPT)
+	LD	B,A		; Spt to B
+	LD	C,E		; Nsects to C
+	EX	DE,HL		; Put sector size in DE
+	LD	HL,08000H	; Set buffer address
+BOOT9:	LD	A,C		; Get physical sectors remaining
+	AND	A
+	JR	Z,BOOTD		; Continue if all loaded
+	SUB	B		; Remove one track's worth
+	JR	NC,BOOTA	; Unless less than a track remains
+	LD	B,C		; In that case, load remaining
+	XOR	A
+BOOTA:	LD	C,A		; Else update count for next pass
+	PUSH	DE		; Save sector size
+	LD	E,B		; And set to read a track's worth
+	CALL	SREAD		; Read a track's worth
+	LD	A,2
+	JP	NZ,BTERR
+	LD	A,E		; Get # sectors loaded
+	POP	DE
+BOOTB:	ADD	HL,DE
+	DEC	A
+	JR	NZ,BOOTB	; Update pointer
+	PUSH	HL
+	LD	HL,VTRK
+	INC	(HL)		; Bump track
+	LD	A,(SOFF)
+	AND	A		; Test for double sided
+	LD	A,(HL)		; Get track number
+	JR	Z,BOOTC		; Set track if not double sided
+	RRA			; Head into Carry, track in A
+	PUSH	AF
+	LD	A,0		; Drive 0
+	ADC	A,A		; =1 if head 1, else 0
+	ADD	A,A
+	ADD	A,A		; =4 if head 1, else 0
+	CALL	STHDRV		; Set head, drive=0
+	POP	AF
+BOOTC:	PUSH	DE
+	LD	E,0		; double step is false
+	CALL	SEEK		; Set track
+	POP	DE
+	LD	A,3
+	JP	NZ,BTERR
+	POP	HL
+	JR	BOOT9		; And load next
+
+BOOTD:	LD	DE,8080H	; Point to start of CCP in load
+	DEC	HL		; point to last byte loaded
+	AND	A		; Clear carry
+	PUSH	HL		; Save pointer to last
+	SBC	HL,DE
+	LD	B,H
+	LD	C,L		; Move length in BC
+	POP	DE		; Restore pointer to last
+	LD	HL,(CCPBA)	; Get base of CCP
+	ADD	HL,BC		; Point to top of target
+	EX	DE,HL		; Target in DE, load in HL
+	INC	BC
+	LDDR			; Tail to head move os image into place
+	JP	8006H		; And vector to cold start OS
+
+BTERR:	PUSH	AF
+	CALL	PRINT
+	DEFB	'Boot error',' '+80H
+	POP	AF
+	ADD	A,'0'
+	LD	C,A
+	CALL	COM1OT
+	CALL	PRINT
+	DEFB	CR,LF+80H
+	JP	BOOT
+
+; Table of # SPT for a given Sector Size and Drive Size
+
+SPTTBL:	DEFB	18		; 5.25, 128 byte
+	DEFB	18		; 5.25, 256 byte
+	DEFB	10		; 5.25, 512 byte
+	DEFB	5		; 5.25, 1024 byte
+
+	DEFB	26		; 8, 128 byte
+	DEFB	26		; 8, 256 byte
+	DEFB	17		; 8, 512 byte
+	DEFB	9		; 8, 1024 byte
+
+	  IF  ALONE
+;.....
+; Routine to Add A to HL
+
+ADDAHL:	ADD	A,L		; Add A to LSB
+	LD	L,A
+	RET	NC		; Exit if no H adjustment
+	INC	H		; Else had carry, so add 1 to MSB
+	RET			; ..And exit
+
+
+;.....
+; Return A=True w/Flags Set
+
+ISTRUE:	OR	0FFH
+	RET
+
+;.....
+; Return A=False w/Flags Set
+
+ISFALSE: XOR	A
+	RET
+
+FDCIO:	PUSH	HL		; Save user's HL
+	PUSH	BC		; And B register
+	LD	B,0
+	LD	HL,FDFUNC	; Point to floppy function table
+	ADD	HL,BC
+	ADD	HL,BC		; Add twice for word index
+	LD	B,(HL)
+	INC	HL
+	LD	H,(HL)
+	LD	L,B		; Put vector in HL
+	POP	BC		; Restore user's B register
+	EX	(SP),HL		; Restore HL, vector to tos
+	RET			; Jump to routine
+
+FDFUNC:	DEFW	STMODE		; 00 set mode
+	DEFW	STSIZE		; 01 set drive size
+	DEFW	STHDRV		; 02 set head and drive
+	DEFW	STSECT		; 03 set sector
+	DEFW	SPEC		; 04 specify srt, hlt, hut
+	DEFW	RECAL		; 05 home the floppy
+	DEFW	SEEK		; 06 seek track
+	DEFW	SREAD		; 07 read
+	DEFW	SWRITE		; 08 write
+	DEFW	READID		; 09 read id
+	DEFW	RETSAD		; 10 return result pointer
+	DEFW	RETDST		; 11 return drive status
+	DEFW	STSSEC		; 12 set eot, sector size
+
+;.....
+; Print routine prints to console the string at (SP)
+
+PRINT:	EX	(SP),HL		; Print inline 0 or hi bit terminated
+	CALL	PSTR		; String
+	EX	(SP),HL
+	RET
+
+PSTR:	LD	A,(HL)		; General purpose print 0 or hi bit
+	INC	HL		; Terminated string pointed to by HL
+	OR	A
+	RET	Z		; Exit if null found in string
+	LD	C,A
+	PUSH	HL
+	CALL	COM1OT		; Send to console device
+	POP	HL
+	BIT	7,C		; Test for hi bit terminator
+	JR	Z,PSTR
+	RET
+
+JPHL:	JP	(HL)
+
+	DSEG
+ERFLAG:	DEFS	1
+FDONE:	DEFS	1
+	CSEG
+	  ENDIF		; alone
+	  IF  NOT [BANKED AND INROM]
+	CSEG
+	INCLUDE	IOINIT.Z80	; User-supplied Init routines
+	INCLUDE	IOSIOPIO.Z80	; User-supplied Char IO routines
+	INCLUDE	FDC765.Z80	; User-supplied FDC driver routines
+	INCLUDE	BOOTRAM.Z80	; User-supplied RAM allocations
+	  ENDIF
+

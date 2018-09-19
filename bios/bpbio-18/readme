@@ -1,0 +1,18 @@
+								5 June 2004
+GPL Release of Banked and Portable (B/P) Bios for the Micromint SB-180
+
+This release contains modifications by Scott Coburn for enhanced baud
+rate setting and speed selection if the HD64180 processor is replaced by
+a Z8S180, as well as modifications to remove IO wait states for all but
+Floppy Disk Accesses.
+
+The Base file is BPBIO-18.Z80 and draws other .Z80 and .LIB files in as
+needed under the DEF-18.LIB configuration file (template versions for
+boot images and banked images are DEFBOOT and DEFBANK respectively).
+
+Two versions of the Banked ZSDOS2 BDOS are provided as:
+	ZS227G.ZRL - Non-hashed base version
+	ZS203.ZRL  - Capable of using Hashed directories
+
+Harold "Hal" Bower
+

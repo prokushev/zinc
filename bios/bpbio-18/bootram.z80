@@ -1,0 +1,15 @@
+; This file used for ROM applications ONLY.  It is Not needed for a normal
+; RAM Bios Assembly.							CWC
+; BOOTRAM.Z80 - RAM allocations needed for BOOT ROM.
+
+	DSEG
+	  IF  ALONE
+SEKSPD:	DEFS	1		; High speed flag
+	  ENDIF
+CCPBA:	DEFS	2		; Ccp base address
+SOFF:	DEFS	1		; Sector offset
+SPT:	DEFS	1		; Number of physical sectors/track
+VTRK:	DEFS	1		; Logical track number
+	DEFS	64		; Stack for Boot Operations
+BOOTSTK	EQU	$
+

@@ -1,0 +1,415 @@
+;
+;    ZINC boot sector: This file contains ZX Spectrum +3 boot sector for ZINC
+;    Copyright (C) 2018  Yuri Prokushev <yuri.prokushev@gmail.com>
+;
+;    This program is free software; you can redistribute it and/or modify
+;    it under the terms of the GNU General Public License as published by
+;    the Free Software Foundation; either version 2 of the License, or
+;    (at your option) any later version.
+;
+;    This program is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;    GNU General Public License for more details.
+;
+;    You should have received a copy of the GNU General Public License
+;    along with this program; if not, write to the Free Software
+;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+;
+; Memory map after boot is
+;
+; C000h...FFFFh (49152...65535)	- Page 3
+; 8000h...BFFFh (32768...49151)	- Page 6
+; 4000h...7FFFh (16384...32767)	- Page 7
+; 0000h...3FFFh (0...16383)	- Page 4
+;
+; The bootstrap sector is on side 0, track 0, sector 1. It is loaded at
+; FE00h (65024) and entered at FE10h (65040). Interrupts are disabled.
+; SP is at FE00h (65024). The sum of all bytes in the sector must equal
+; 3 MOD 256 (byte 15 can be set to the required value to achieve this).
+;
+        ORG     0FE00H
+;
+; Boot sector code.
+;
+; Relocates itself, prints message, then loads the kernel.
+;
+; Loading dots are printed with black ink on black background to hide them. The
+; print_dot routine simply changes the attributes to make this visible. This
+; avoids having to switch back and forth between ROM2 and ROM3 to print a dot
+; (which is all that is required in the majority case).
+;
+; In the error case, we do the switch back to ROM3 and print an error string
+; before sleeping 5 sec and resetting the machine.
+;
+
+
+
+bootstart:
+;
+; The bootstrap sector contains the 16 byte disk specification at the start.
+; The following values are for a AMSTRAD PCW range CF2/Spectrum +3 format disk.
+;
+	db	0		; +3 format
+	db	0		; single sided
+	db	40		; 40 tracks per side
+	db	9		; 9 sectors per track
+
+	db	2		; log2(512)-7 = sector size
+	db	1		; 1 reserved track
+	db	3		; blocks
+	db	2		; 2 directory blocks
+
+	db	02Ah		; gap length (r/w)
+	db	052h		; page length (format)
+	ds	5,0		; 5 reserved bytes
+
+cksum:	db	0		; checksum must = 3 mod 256 for the sector
+
+;
+; The bootstrap will be entered here with the 4, 7, 6, 3 RAM pages switched in.
+; To print something, we need 48 BASIC in at the bottom, page 5 (the screen and
+; system variables) next up. The next page will be 2, and the top will be kept
+; as page 3 because it still contains the bootstrap and stack (stack is FE00h
+; on entry).
+;
+; The DOS BOOT documentation (Spectrum +3 manual, chapter 8, part 27) states:
+;	"[the boot sector] is loaded at
+;	FE00h (65024) and entered at FE10h (65040). Interrupts are disabled.
+;	SP is at FE00h (65024)."
+;
+; So, to that end, we can't safely read values from the existing bankm/bank678
+; locations and clear/set bits, as they will come from "random" data in page 7
+; (currently paged in the 0x4000-0x7fff range). Instead, we need to set the
+; absolute values wanted here, then after we have switched out of the RAM-only
+; memory map, we can store the updated values in the system variables area,
+; which is now visible.
+;
+; Note that we set the bit for "motor on" too here, as it will still be running
+; once the boot sector has been loaded, but acknowledge that DD_INIT (called
+; via DOS_INITIALISE) will stop the motor.
+;
+; We also set the strobe bit as it is active low (according to +3DOS manual,
+; chapter 8, part 24).
+
+; Logic:
+; Switch to R3,5,2,3
+; Get and update BANKM, BANK678
+; Fix vars and 
+; Load image
+; Jump to BIOS cold start
+
+
+boot_entry:
+
+        di
+	ld	a, 0x13			; Gives ROM 1/3 and RAM page 3
+	ld	bc, bank1
+	out	(c), a			; Switch RAM and horizontal ROM, but we
+					; are still in a RAM-only config.
+
+	ld	l, 0x14			; ROM 2/3, motor on, strobe inactive
+	ld	bc, bank2
+	out	(c), l			; Should now have R3,5,2,3
+
+	ld	a, (bank678)    	; Now we have page 5 in place, get the
+	ld      (tmp_bank678), a	; values for BANKM and BANK678 and store in
+        ld	a, (bankm)              ; temporary storage
+        ld      (tmp_bankm), a
+        
+
+; The code now needs to relocate itself (and stack) down in memory to somewhere
+; lower, then switch in ROM2 and load the next component. We need to do this in
+; order to switch in RAM page 7 in the 0xc000-0xffff slot (which is where this
+; code and stack currently reside, but in RAM page 3).
+
+boot_relocate:
+
+	; Set up bc, de, hl and call ldir
+	ld	bc, endfill-bootmove
+	ld	hl, boot_phase2	
+	ld	de, bootmove
+	ldir
+
+	ld	sp, bootmove
+
+	; Jump to it at the new location.
+	jp	bootmove
+
+
+boot_phase2:
+	org bootmove
+
+cls:
+	ld	bc, _ay_addr
+	ld	a, 7
+	out	(c), a
+	ld	bc, _ay_data
+	ld	a, 255
+	out	(c), a
+
+	xor	a			; Clear pixels
+	ld	bc, 6143
+	ld	hl, 16384
+	ld	de, 16385
+	ld	(hl), a
+	ldir
+	inc	hl
+	inc	de
+
+	; Intialise DF SZ with 0 (ie. use entire upper screen)
+	ld	(_sys_df_sz), a
+
+	ld	bc, 767
+	ld	a, paper_colour * 8 + ink_colour
+	ld	(hl), a
+	ldir
+
+	; Initialise colours (based on ROM3 initialisation code)
+	ld	(_sys_attr_p), a
+	ld	(_sys_attr_t), a
+	ld	(_sys_bordcr), a
+
+	ld	a, paper_colour		; Make border match
+	out	(254), a
+
+	ld	iy, _sys_errnr	; Point to BASIC sysvars before printing
+
+	ld	a, 2
+	call	_chan_open	; BASIC ROM routine to open stream (A)
+	ld	hl, msg_loading
+	call	print_msg
+
+	ld	a, (_sys_bankm)
+	or	7		; RAM page 7 (for DOS functions)
+	res	4, a		; left-hand ROMs (0/2)
+	ld	bc, _port_bank1
+	ld	(_sys_bankm), a
+	out	(c), a		; switch RAM page
+				; Note that bank678 will not need adjusting
+				; Should now have R2,5,2,7
+	im	1		; Explicitly set mode 1
+	ei			; Can re-enable interrupts here, as the DD
+				; routines assume interrupts are enabled.
+
+; call dos initialise
+	call	_dos_init
+	ld	hl, msg_init
+	jr	nc, error
+	call	print_dot
+
+; call dos get/set 1346. We keep the size of the cache the same, relocate both
+; cache and ramdisk to page 6, and make the ramdisk use the remainder of the
+; page.
+	call	_dos_get_1346
+
+	ld	d, 96		; SECTORS_PAGE6_START
+	ld	a, e
+	add	d
+	ld	h, a		; Ramdisk start
+
+	ld	a, 32		; SECTORS_PER_PAGE
+	sub	e
+	ld	l, a		; Ramdisk size (SECTORS_PER_PAGE - cache size)
+
+	call	_dos_set_1346
+	ld	hl, msg_init
+	jr	nc, error
+	call	print_dot
+
+; NOTE - Some individual register load instructions have been compressed into
+; the 16-bit equivalents, saving 1 byte per pair.
+
+; call dos open
+	ld	bc, 1		; ld b, 0 (fd); ld c, 1 (excl_rd)
+	ld	de, 1		; ld d, 0 (no create); ld e, 1 (open)
+	ld	hl, filename
+	call	_dos_open
+	ld	hl, msg_open
+	jr	nc, error
+	call	print_dot
+
+; read in header
+	ld	bc, 0		; ld b, 0 (fd); ld c, 0 (RAM page 0)
+	ld	de, SIZEOF_EXEC_HDR_T
+	ld	hl, header_buf
+	call	_dos_read
+	ld	hl, msg_read
+	jr	nc, error
+	call	print_dot
+
+; Here we check the header magic string.
+
+	ld	hl, header_buf + EH_MAGIC
+	ld	de, kern_magic
+	ld	b, EXEC_MAGICLEN
+magic_loop:
+	ld	a, (de)
+	cp	(hl)
+	jr	nz, magic_err
+	inc	hl
+	inc	de
+	djnz	magic_loop
+
+; Given that the header_buf is a well-known address already, we can get the
+; assembler to do the hard work here and calculate the addresses for us, making
+; use of the 16-bit load instructions. We (ab)use the eh_reloc_len field of
+; the exec_hdr_t struct to give us the address to jump to.
+
+	ld	hl, (header_buf + EH_RELOC_LEN)
+	push	hl		; save entry address for later
+	ld	hl, (header_buf + EH_LOAD_ADDR)	; Load address
+	ld	de, (header_buf + EH_FILE_LEN)	; File len
+
+; call dos read. de and hl have just been set up above.
+	ld	bc, 0		; ld b, 0 (fd); ld c, 0 (RAM page 0)
+	call 	_dos_read
+	ld	hl, msg_read
+	jr	nc, error
+	call	print_dot
+
+; call dos close
+	ld	b, 0		; File #
+	call	_dos_close
+	ld	hl, msg_close
+	jr	nc, error
+	call	print_dot
+
+; Now that we have finished with DOS for a bit, disable interrupts before
+; jumping to the kernel. This leaves the kernel to perform its setup and
+; re-enable interrupts at the appropriate time.
+
+	di
+
+; jump to entry point (saved to stack after reading kernel's header). As the
+; address is already on the stack, we can simply issue a "ret" here which will
+; pop it for us and jump to it.
+
+	ret
+
+	; Main program done.
+
+
+magic_err:
+	ld	hl, msg_invalid
+	; fallthru
+
+
+; Common error handler. Switch ROMs back to ROM3 and print error message.
+; Then wait for a while before loading ROM0 back in and calling rst 0.
+
+error:
+	di
+	ld	a, (_sys_bankm)
+	and	0xf8			; Select RAM page 0
+	or	0x10			; set 4, a (ROM1/3)
+	ld	bc, _port_bank1
+	ld	(_sys_bankm), a
+	out	(c), a			; Switch RAM and horizontal ROM
+	ei
+
+	; hl still contains message pointer.
+	; stream should still be open from earlier.
+	call	print_msg
+
+; Now wait for 5 seconds, by halting 5*50=250 times.
+
+	ld	b, 250
+hlt_loop:
+	halt
+	djnz	hlt_loop
+
+; Now given we are about to jump back to the start of ROM 0, we don't care about
+; the values of _sys_bankm and _sys_bank678. Nor do we really care about the
+; actual value written to _port_bank1 or _port_bank2. The value 0 to both ports
+; (given we are already in a ROM-based mapping) is sufficient to get back to
+; ROM0, and we can start again.
+;
+; XXX Note we could squeeze an extra byte out here by only changing the content
+; of 'b' between the two out instructions (at the possible expense of a very
+; slight reduction in readability).
+
+	di
+	xor	a
+	ld	bc, _port_bank1
+	out	(c), a
+
+	ld	bc, _port_bank2
+	out	(c), a			; Should now have R0,5,2,0
+
+	rst	0			; Start again
+
+
+; Routine to print out a dot. Actually, this only changes the colour to make
+; an already printed dot visible.
+
+print_dot:
+	ld	hl, (addr)
+	ld	a, paper_colour * 8 + ink_colour
+	ld	(hl), a
+	inc	hl
+	ld	(addr), hl
+	ret
+
+; Routine to print a message, using the ROM3 print routine.
+
+print_msg:
+	ld	a, (hl)		; this just loops printing characters
+	cp	0xFF		; until if finds 0xff byte
+	ret	z
+	rst	10h		; with 48K ROM in, this will print char in A
+	inc	hl
+	jr	print_msg
+
+
+
+filename:
+	defb "KERNEL.EXE", 0xff
+
+
+; Message listings.
+; Notes:
+;	Code 13 can be used for "next line"
+;	The colour setup for error case is done on the tail of the dots.
+;	Only printable characters must appear between _msg_loadstart|loadend,
+;	    else the attribute changing for the dots will be off.
+
+msg_loading:
+	defb 22,0,0
+_msg_loadstart:
+	defb "Loading kernel"
+_msg_loadend:
+	defb 16,paper_colour,".......",13,17,paper_colour,16,ink_colour,0xff
+
+msg_init:
+	defb "Init failed", 0xff
+
+msg_open:
+	defb "Open failed", 0xff
+
+msg_read:
+	defb "Read failed", 0xff
+
+msg_close:
+	defb "Close failed", 0xff
+
+msg_invalid:
+	defb "Invalid kernel image", 0xff
+
+kern_magic:
+	defb "KERN"
+	; XXX should somehow come from the header file.
+
+addr:
+	dw	22528 + _msg_loadend - _msg_loadstart
+					; Address of next dot to change attr
+
+header_buf:
+	; Note we don't reserve any space for this, else it will be included
+	; in the boot sector size calculation, which isn't right. We just need
+	; to make sure it's not going to clobber the code!
+endfill:
+	ds 512 + bootstart - boot_phase2 + bootmove - endfill
+
+end

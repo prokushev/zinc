@@ -1,5 +1,5 @@
 ;
-;    SYSLIB library: SYStem LIBrary for CP/M
+;    SYSLIB library: SYStem LIBrary for CP/M (LGPL version)
 ;    Copyright (C) 2018 Yuri Prokushev <yuri.prokushev@gmail.com>
 ;
 ;    This library is free software; you can redistribute it and/or
@@ -34,6 +34,8 @@
 ;
 
 	PUBLIC	LOUT
+        
+        EXT     BDOS
         
         .Z80
         CSEG

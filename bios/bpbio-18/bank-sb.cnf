@@ -1,0 +1,92 @@
+; BPCNFG Configuration script for MicroMint SB-180, 256 KB RAM, 6 MHz, Banked
+;   == This Script for application right after Assembly and Build ==
+
+;-- Submenu 1 allows changes to be made in miscellaneous system parameters.
+
+1[			; Start w/Base Menu, go to Submenu 1
+  2   START01,		;  Execute START01.COM alias file.  Comma ends string.
+  4  6, Y		; Set Proc Clock Speed to 6 MHz, Yes to Scale Constant
+  5  0, 2,		; Set Number of Waits, 0 Memory Wait, 2 IO Wait States
+]			;   and back to main menu
+
+;-- Submenu 2 allows changes to be made in Character IO Driver settings
+
+2[			; Start w/Base Menu, go to Submenu 2
+  3			;  Configure COM2 which is used for the Console
+  10, ,,,,,,,		; Set for 9600 bps, all other settings as default
+]			;   and back to main menu
+
+;-- Submenu 3 allows changes to be made in the Floppy Drive physical parameters.
+;  -- NOTE: The standard SB-180 CANNOT operate 3/5" drives in "High-Density".
+
+3[			; Start w/Base Menu, go to Submenu 3
+  1 0 3,		; Set Drive, Unit 0, 3.5"
+   D Y S		;  Double-Sided, Motor Needed, Standard Density
+   80, 3,  4, 240,	;   80 Trks, 3 mS Step,  4 mS Head Load, 240 mS Unload
+  1 1 2,		; Set Drive, Unit 1, 5.25" (TEAC FD55B)
+   D Y S		;  Double-Sided, Motor Needed, Standard Density
+   40, 4, 24, 240,	;   40 Trks, 4 mS Step, 24 mS Head Load, 240 mS Unload
+  1 2 2,		; Set Drive, Unit 2, 5.25" (TEAC FD55F)
+   D Y S		;  Double-Sided, Motor Needed, Standard Density
+   80, 3,  4, 240,	;   80 Trks, 3 mS Step,  4 mS Head Load, 240 mS Unload
+  1 3 1,		; Set Drive, Unit 3, 8"
+   D N			;  Double-Sided, No Motor Needed
+       5, 28, 240,	;   5 mS Step, 28 mS Head Load, 240 mS Unload
+]
+
+;-- Submenu 4 allows changes to be made in Physical Hard Drive parameters
+
+4[			; Start w/Base Menu, go to Submenu 4
+; Set SCSI Controller Type for this configuration as:
+;  0 = Owl				5 - Conner SCSI
+;  1 = Adaptec ACB-4000A		6 - Quantum SCSI
+;  2 = Xebec 1410a/Shugart 1610-3	7 - Maxtor SCSI
+;  3 = Seagate SCSI			8 - Syquest SCSI
+;  4 = Shugart 1610-4 (Minimal SCSI)
+
+  1 3			;  Set Controller to Type in Second Digit
+]
+
+;-- Submenu 5 allows changes to be made to Hard and RAM Disk Logical
+;--  parameters, and exchanging of logical drives.
+
+; Partition Allocation for 20 MB Seagate ST-125.
+
+5[			; Starting w/Base menu, go to Submenu 5
+ 1 A E			; Swap first 4 floppies
+ 1 B F			;  with
+ 1 C G			;   first 4 Hard
+ 1 D H			;    Drive Partitions
+    ; Configure the Hard Drive partitions.
+2 A			; Configure Partition A:
+  4, 512,   2, 498,0,	;  4k Allocs,  512 Dirs,   Start @ 2, 498 Trks, Unit 0
+2 B			; Partition B:
+  4,1024, 500, 750,0,	;  4k Allocs, 1024 Dirs, Start @  500, 750 Trks, U 0
+2 C			; Partition C:
+  4,1024,1250, 750,0,	;  4k Allocs, 1024 Dirs, Start @ 1250, 750 Trks, U 0
+2 D			; Partition D:
+  4,1024,2000, 607,0,	;  4k Allocs, 1024 Dirs, Start @ 2000, 607 Trks, U 0
+
+     ; I usually assign a second partition for the executables and hash the
+     ; directory for Speed.  To access as A:, swap the hashed drive with A:.
+     ; If you do this, set the 2nd drive letter below and uncomment the line.
+
+;1 A D			; Swap Logical drives A: and D:
+
+     ; I configure my systems for a second drive to use for backups.
+     ; NOTE: the Bios must be assembled to activate these drives, or
+     ;       BPCNFG will abort.  Comment out if not configured or needed.
+
+;2 O			; Partition O:   (Backup Drive)
+;  4,1024,   2, 998,1,	;  4k Allocs, 1024 Dirs, Start @    2, 1000 Trks, U 1
+;2 P			; Partition P:   (Backup Drive)
+;  4,1024,1000,1635,1,	;  4k Allocs, 1024 Dirs, Start @ 1000, 1635 Trks, U 1
+;1 A D			; Swap Logical drives A: and D:
+
+    ; Configure the RAM Drive.  Since this system has only 256 KB RAM total,
+    ; and at least 96kb is taken up by the OS, only a small RAM drive is made.
+
+ 2 M			; Drive M:   (RAM Disk)
+   1, 32,   0,  40,0,	;  1k Allocs,  32 Dirs, Start @ 0, 40 Trks (160k), U0
+			;   (less 1 for User Bank = 32 Trks, 128k)
+]

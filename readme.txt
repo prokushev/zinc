@@ -6,13 +6,18 @@ Public License.
 
 ZINC stands for ZINC Is Not CP/M.
 
+Originally project started by John Elliott (https://www.seasip.info/Cpm/Zinc/index.html). Last
+version by John is version 3.1.1 (3-1-2000). Since last version was some thing published under
+GPL license, so ZINC can be extended to be closer to ZINC goals. ZSDOS (GPL), ZCPR1(Public domain)
+and some other code was added and adopted to ZINC environment. So, version 3.2.0 was born in 2018.
+
 Design choices
 --------------
 
 The idea is to come as close as possible to CP/M 3 in option syntax and functionality. There are many
 programs in existence to list a directory, but much fewer that let you type DIR [EXCLUDE] *.COM.
 
-All current ZINC components are written in Z80 assembly language and require a Z80 processor.
+Most of current ZINC components are written in Z80 assembly language and require a Z80 processor.
 
 The idea is to keep a lot of the necessary functionality in code libraries. SYSLIB is used for some
 functions, and two further libraries (CPM3LIB and CFCB) provide functionality specific to CP/M 3.
@@ -27,7 +32,6 @@ Don't use BIOS. Use BDOS!
 Current status (version 3.2.0)
 ------------------------------
 
-In strict accordance with tradition, I'm announcing a grandiose plan when I have very little to show for it.
 The following programs have been done:
 
 DATE.COM
@@ -84,6 +88,8 @@ A ZINC program should:
 Build environment
 -----------------
 
+!!TODO!! Mostly cross-development environment used for 3.2.0.
+
 The Submit files provided with the source assume a MYZ80 environment running CP/M 3. They assume that
 B0: contains library files, C0: contains the program source, C1: contains CFCB source, C2: contains
 C3LIB source and C4: contains STRLIB source.
@@ -98,17 +104,21 @@ To build ZINC, you will need:
     SYSLIB in .IRL form.
     BDS C
 
-Why?
-----
+Why? (John Elliott, 3-1-2000)
+-----------------------------
 
     Because I want to.
-    CP/M emulators cannot include the CP/M utilities, because of copyright problems. I happen to have written some CP/M emulators, and I would like to include workalikes for the utilities.
-    The original 151282 release of CP/M 3.1 is not Year 2000 compliant. I have fixed this (November 1998 update) but some programs still use two-digit year numbers, which looks untidy.
+    CP/M emulators cannot include the CP/M utilities, because of copyright problems. I happen to have written 
+    some CP/M emulators, and I would like to include workalikes for the utilities.
+    The original 151282 release of CP/M 3.1 is not Year 2000 compliant. I have fixed this (November 1998 update)
+    but some programs still use two-digit year numbers, which looks untidy.
 
-John Elliott, 3-1-2000
 
 To do
 -----
 
 1. Replace SYSLIB routines by LGPL code(?)
-2. Add NETLIB for CP/NET functions support.
+2. Rewrite C3BIOS to use SBIOS (because SBIOS now portable)
+3. Add ROM define to prevent code self-modification and allow to have CP/M in ROM
+3. Translate 8080 asm sources to Z80 syntax
+4. Add to submit zinchead startup

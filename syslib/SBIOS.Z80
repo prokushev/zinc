@@ -1,76 +1,93 @@
 ;
+;    SYSLIB library: SYStem LIBrary for CP/M
+;    Copyright (C) 2018 Yuri Prokushev <yuri.prokushev@gmail.com>
+;
+;    This library is free software; you can redistribute it and/or
+;    modify it under the terms of the GNU Library General Public
+;    License as published by the Free Software Foundation; either
+;    version 2 of the License, or (at your option) any later version.
+;
+;    This library is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;    Library General Public License for more details.
+;
+;    You should have received a copy of the GNU Library General Public
+;    License along with this library; if not, write to the Free
+;    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+;
 ; SYSLIB Module Name:  SBIOS
-; Author:  Richard Conn
-; SYSLIB Version Number:  3.6
-; Module Version Number:  1.1
-
-	public	bios
-
+; Author:  Yuri Prokushev
+; SYSLIB Version Number:  5.0
+; Module Version Number:  1.0
 ;
-;  SBIOS -- Direct BIOS I/O Routine
-;	This routine provides the user with a direct interface into the
-; CP/M BIOS.  It is called with the A Reg containing the index offset into
-; the BIOS JMP table.  No registers are preserved by this routine.  The
-; contents of HL, DE, and BC are passed to the BIOS unchanged.
+; Routine logic:
+; check CP/M version
+; self-modify code to prevent version rechecking
+; if CP/M 3 then call via function BDOS 32h
+; if CP/M 2 then call directly via WarmBoot
 ;
-;	The following table summarizes the BIOS JMP Table Entries --
-;
-;     Offset	Function
-;	 0	Cold Start
-;	 1	Warm Start
-;	 2	Console Status; Returns A=0FFH if char ready, A=0 if not
-;	 3	Console Input; Returns char in A
-;	 4	Console Output; Char passed in C
-;	 5	List Output; Char passed in C
-;	 6	Punch Output; Char passed in C
-;	 7	Reader Input; Returns char in A
-;
-;	 8	Home Disk Head (Return Version Number); Returns Version Number
-;			in HL
-;	 9	Select Disk; Disk Number (A=0, etc) passed in C
-;	10	Set Track Number; Track Number passed in C
-;	11	Set Sector Number; Sector Number passed in C
-;	12	Set DMA Address; DMA address passed in BC
-;	13	Read Disk; Returns A=0 if OK, A=1 if error
-;	14	Write Disk; Returns A=0 if OK, A=1 if error
-;
-;	15	List Status; Returns A=0FFH if ready to output, A=0 if not
-;	16	Sector Translation; Logical-to-Physical Sector Translation;
-;			Logical Sector Number passed in BC and Translate
-;			Table Address passed in DE; Returns Physical Sector
-;			Number in HL
 ;
 
-;
-;  EQUATES
-;
-WBADR	EQU	1	; WARM BOOT ADDRESS
+	PUBLIC	BIOS
 
-BIOS:
-	PUSH	DE	; SAVE DE
-	LD	(HLBUF),HL	; SAVE HL
-	LD	HL,(WBADR)	; GET ADDRESS OF WARM BOOT
-	DEC	HL	; BACK UP TO POINT TO COLD BOOT
-	DEC	HL
-	DEC	HL
-	LD	DE,3	; PT TO ENTRY
-BIOSL:
-	OR	A	; DONE?
+        .Z80
+        CSEG
+        
+BASE    EQU     0               ; CP/M Base        
+        
+BIOS:   PUSH    AF              ; <- become JP BIOSx where x is 2 or 3
+        PUSH    HL
+        LD      C, 0CH
+        CALL    5
+	CP	31h
+        LD      A, 0C3H         ; =JMP
+        LD      (BIOS), A
+	JP	Z, SETB3	; =31h CP/M Plus
+        LD      HL, BIOS2
+        LD      (BIOS+1),HL
+        POP     HL
+        POP     AF
+        JP      BIOS2
+SETB3:  LD      HL, BIOS3
+        LD      (BIOS+1),HL
+        POP     HL
+        POP     AF
+BIOS3:	LD	(BIOSA),A
+	LD	(BIOSBC),BC
+	LD	(BIOSDE),DE
+	LD	(BIOSHL),HL
+	LD	A,C
+	LD	(BIOSPB),A
+	LD	C,32h
+	LD	DE,BIOSPB
+	JP	5
+;
+BIOS2:
+	LD      (BIOSHL), HL
+	LD	HL, (BASE+1)
+        LD      L, 0            ; BIOS always at 16 boundary
+BLOOP:
+	OR	A
 	JP	Z,BIOSD
-	ADD	HL,DE	; PT TO NEXT
-	DEC	A	; COUNT DOWN
-	JP	BIOSL
-;
-;  HL NOW POINTS TO BIOS JMP TO BE PERFORMED
-;
+        INC     HL
+        INC     HL
+        INC     HL
+	DEC	A
+	JP	BLOOP
 BIOSD:
-	POP	DE	; GET DE
-	PUSH	HL	; PLACE ROUTINE ADDRESS ON STACK
-	LD	HL,(HLBUF)	; RESTORE HL
-	RET		; "CALL" INTO BIOS (RET ADR IS CALLER OF BIOS)
+	PUSH	HL
+	LD	HL,(BIOSHL)
+	RET
 
-HLBUF:
-	DS	2	; BUFFER IN WHICH TO SAVE HL
+	DSEG
+BIOSPB:	DEFB	0
+BIOSA:	DEFB	0
+BIOSBC:	DEFW	0
+BIOSDE:	DEFW	0
+BIOSHL:	DEFW	0
 
-	END
-
+        CSEG
+        
+        END

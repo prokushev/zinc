@@ -1,0 +1,9 @@
+Alien Floppy Disk format data for B/P Bios.  See header in ALIEN.LIB for
+directions on assembling and linking.
+
+ALIEN.DAT is the Data file used by B/P Bios systems.
+
+Released under the GNU General Public License Vers 2 or later.
+ (See release note in B/P Bios packages)
+
+Copyright 1991,2,5,2001,4 by Harold F. Bower and Cameron W. Cotrill.

@@ -1,0 +1,322 @@
+;======= Hard Disk Parameter Blocks =======	************************
+;   - MicroMint SB-180 with ETS180IO+ -		** Hardware Dependant **
+;						************************
+; 1.1 - 27 Feb 93 - General Release.				    HFB
+; 0.0 - 12 Jun 91 - Initial Test Release.			    HFB
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+; The B/P BIOS DPB's contain prefix information that provide data on the
+; logical format.  This table contains only DPB Data on Hard Disk Partitions.
+
+; NOTE: For simplicity, the code always assumes a logical 16 512-byte sectors
+;	per track for SCSI interface.  Translate the actual 17 or 18 sectors
+;	to an increased track count of 16 sector tracks.
+
+;.....
+; Format Type Byte 0  (Fixed Disk Subset)
+; ------------------
+; D D D D D D D D
+; 7 6 5 4 3 2 1 0
+;  \ \ \ \ \ \_\_\____ Disk Size 000 = Fixed Disk
+;   \_\_\_\_\_________ (unused)
+
+; Format Type Byte is set to  FIXDSK  EQU  00000000B.  See DPB.LIB for def'ns.
+
+; Format Type Byte 1  (Fixed Disk Subset)
+; ------------------
+; D D D D D D D D
+; 7 6 5 4 3 2 1 0
+;  \ \ \ \ \ \_\_\____ Sector Size
+;   \ \ \ \ \		000=128, 001=256, 010=512, 011=1024
+;    \ \ \_\_\________ Allocation Size
+;     \ \		000=1K, 001=2K, 010=4K, 011=8K, 100=16K
+;      \ \____________ Reserved
+;	\_____________ Speed Normal 5.25" (0), 8" or HD Floppy (1)
+
+; This byte is not used in the SCSI driver, but is retained for commonality  in
+; tools and accesses.  Refer to DPB.LIB for bit definitions.
+
+; NOTE: No Skew Table needed since Hard Disk Format is locked w/No Skew Table
+
+;.....
+; These are some of the capacities and configurations used with different
+; drives and controllers:
+
+;		Shugart		  Adaptec		 Seagate
+;		1610-3	/-------  ACB-4000a ----------\	  SCSI
+;		ST-212	SQ-312  SQ-312A  SQ-306  ST-225  ST125N
+;		------	------	-------  ------  ------  ------
+; Size (MB)	A=2.6	A=2.7	A=4.0	 A=2.0	 A=4.0	 A=4.0
+;		B=2.6	B=2.7	B=7.1	 B=3.5	 B=7.1	 B=6.4
+;		C=2.6	C=2.7	  -	   -	 C=11.1	 C=10.6
+;		D=2.6	D=2.8	  -	   -	   -	   -
+
+;.....
+; ST-157N Bower 4-partition, A
+
+	  IF  DRV_E
+	DEFB	'Bower-157','A'+80H ; Id - 10 bytes
+	DEFB	FIXDSK		    ; Format type byte 0
+	DEFB	SPEED8+SEC512+ALC4K ; Format type byte 1
+	DEFB	-2		; Skew factor (== Only the +/- sign used)
+	DEFB	1		; Starting sector number
+	DEFB	16		; Logical # sectors as defined in DPB
+				;  even though real layout is 17/18 physical
+				;   sectors per track
+	DEFB	0		; Physical tracks/side (No Meaning in HD)
+
+HSIZ0	EQU	996		; # of blocks in first Partition  (498 trks)
+
+				;	SQ-312	SQ312A	SQ-306	ST-225  ST125N
+				;	------	------	------	------  ------
+DPB50:	DEFW	64	; Sctrs/Trk	  64	  64	  64	  64	  64
+	DEFB	5	; Blk Shf Fctr	   5	   5	   5	   5	   5
+	DEFB	31	; Block Mask	  31	  31	  31	  31	  31
+	DEFB	1	; Extent Mask	   1	   1	   1	   1	   1
+	DEFW	HSIZ0-1	; Disk Size-1	 683	 995	 495	 995	 995
+	DEFW	767	; Dir Max	 767	 767	 767	 767	 767
+	DEFB	0FCH,0	; Alloc 0,1	 0FC	 0FC	 0FC	 0FC	 0FC
+	DEFW	0	; Check Size	   0	   0	   0	   0	   0
+	DEFW	2	; Trk Offset	   2	   2	   2	   2	   2
+	  ENDIF
+
+;.....
+; Partition B.  ST-157N
+
+	  IF  DRV_F
+	DEFB	'Bower-157','B'+80H ; Id - 10 bytes
+	DEFB	FIXDSK		    ; Format type byte 0
+	DEFB	SPEED8+SEC512+ALC4K ; Format type byte 1
+	DEFB	-2		; Skew factor
+	DEFB	1		; Starting sector number
+	DEFB	16		; Logical Sectors per track
+	DEFB	0		; Physical tracks/side (No Meaning in HD)
+
+HSIZ1	EQU	2500		; # of blocks in Second Partition  (1250 trks)
+
+			;		SQ-312	SQ312A	SQ-306	ST-225  ST125N
+			;		------	------	------	------  ------
+DPB51:	DEFW	64	; Scts/Trk	  64	  64	  64	  64	  64
+	DEFB	5	; Blk Shf Fctr	   5	   5	   5	   5	   5
+	DEFB	31	; Block Mask	  31	  31	  31	  31	  31
+	DEFB	1	; Extent Mask	   1	   1	   1	   1	   1
+	DEFW	HSIZ1-1	; Disk Size-1	 687	1766	 875	1766	1599
+	DEFW	1023	; Dir Max	 767	1023	 767	1023	1023
+	DEFB	0FFH,0	; Alloc 0,1	 0FC	 0FF	 0FC	 0FF	 0FF
+	DEFW	0	; Check size	   0	   0	   0	   0	   0
+	DEFW	500	; Track offset	 344	 500	 250	 500	 500
+	  ENDIF
+
+;.....
+; Partition C.  ST-157N
+
+	  IF  DRV_G
+	DEFB	'Bower-157','C'+80H ; Id - 10 bytes
+	DEFB	FIXDSK		    ; Format type byte 0
+	DEFB	SPEED8+SEC512+ALC4K ; Format type byte 1
+	DEFB	-2		; Skew factor
+	DEFB	1		; Starting sector number
+	DEFB	16		; Logical Sectors per track
+	DEFB	0		; Physical tracks/side (No Meaning in HD)
+
+HSIZ2	EQU	2500		; # of blocks in third Partition (1250 tracks)
+
+				;	SQ-312	SQ312A	SQ-306	ST-225  ST125N
+				;	------	------	------	------  ------
+DPB52:	DEFW	64	; Scts/Trk	  64	   -	   -	  64	  64
+	DEFB	5	; Blk Shf Fctr	   5	   -	   -	   5	   5
+	DEFB	31	; Block Mask	  31	   -	   -	  31	  31
+	DEFB	1	; Extent Mask	   1	   -	   -	   1	   1
+	DEFW	HSIZ2-1	; Disk Size-1	 687	   -	   -	2766	2639
+	DEFW	1023	; Dir Max	 767	   -	   -	1023	1023
+	DEFB	0FFH,0	; Alloc 0,1	 0FC	   -	   -	 0FF	 0FF
+	DEFW	0	; Check size	   0	   -	   -	   0	   0
+	DEFW	1384	; Track offset	 688	   -	   -	1384	1300
+	  ENDIF
+;.....
+; Partition D. ST-157N
+
+	  IF  DRV_H
+	DEFB	'Bower-157','D'+80H ; Id - 10 bytes
+	DEFB	FIXDSK		    ; Format type byte 0
+	DEFB	SPEED8+SEC512+ALC4K ; Format type byte 1
+	DEFB	-2		; Skew factor
+	DEFB	1		; Starting sector number
+	DEFB	16		; Logical Sectors per track
+	DEFB	0		; Physical tracks/side (No Meaning in HD)
+
+HSIZ3	EQU	2762		; Number of blocks in Fourth Logical Drive
+
+				;	SQ-312	SQ312A	SQ-306	ST-225  ST125N
+				;	------	------	------	------  ------
+DPB53:	DEFW	16	; Scts/Trk	  64	   -	   -	   -	   -
+	DEFB	5	; Blk Shf Fctr	   5	   -	   -	   -	   -
+	DEFB	31	; Block Mask	  31	   -	   -	   -	   -
+	DEFB	1	; Extent Mask	   1	   -	   -	   -	   -
+	DEFW	HSIZ3-1	; Disk Size-1	 687 (701) -	   -	   -	   -
+	DEFW	1023	; Dir Max	 767	   -	   -	   -	   -
+	DEFB	0FFH,0	; Alloc 0,1	 0FC	   -	   -	   -	   -
+	DEFW	0	; Check size	   0	   -	   -	   -	   -
+	DEFW	2	; Track offset	1032	   -	   -	   -	   -
+	  ENDIF
+
+;---- The rest are dummies for the present.  Fill with your needs ----
+
+	  IF  DRV_I
+	DEFB	'         ',' '+80H ; Id - 10 bytes
+	DEFB	FIXDSK		    ; Format byte 0
+	DEFB	SPEED8+SEC512+ALC4K ; Format byte 1
+	DEFB	-2		; Skew
+	DEFB	1		; Start Sect
+	DEFB	16		; Logical SPT
+	DEFB	0		; Physical tracks/side (No Meaning in HD)
+
+HSIZ4	EQU	2764		; Number of blocks in Fourth Logical Drive
+
+DPB54:	DEFW	64	; Scts/Trk
+	DEFB	5	; Blk Shf Fctr
+	DEFB	31	; Block Mask
+	DEFB	1	; Extent Mask
+	DEFW	HSIZ4-1	; Disk Size - 1
+	DEFW	1023	; Dir Max
+	DEFB	0FFH,0	; Alloc 0,1
+	DEFW	0	; Check size
+	DEFW	2	; Track offset
+	  ENDIF
+
+	  IF  DRV_J
+	DEFB	'         ',' '+80H ; Id - 10 bytes
+	DEFB	FIXDSK		    ; Format type byte 0
+	DEFB	SPEED8+SEC512+ALC4K ; Format type byte 1
+	DEFB	-2		; Skew factor
+	DEFB	1		; Starting Sector Number
+	DEFB	16		; Logical Sectors per track
+	DEFB	0		; Physical tracks/side (No Meaning in HD)
+
+HSIZ5	EQU	2764		; Number of blocks in Fifth Logical Drive
+
+DPB55:	DEFW	64	; Scts/Trk
+	DEFB	5	; Blk Shf Fctr
+	DEFB	31	; Block Mask
+	DEFB	1	; Extent Mask
+	DEFW	HSIZ5-1	; Disk Size - 1
+	DEFW	1023	; Dir Max
+	DEFB	0FFH,0	; Alloc 0,1
+	DEFW	0	; Check size
+	DEFW	2	; Track offset
+	  ENDIF
+
+	  IF  DRV_K
+	DEFB	'         ',' '+80H ; Id - 10 bytes
+	DEFB	FIXDSK		    ; Format type byte 0
+	DEFB	SPEED8+SEC512+ALC4K ; Format type byte 1
+	DEFB	-2		; Skew factor
+	DEFB	1		; Starting Sector Number
+	DEFB	16		; Logical Sectors per track
+	DEFB	0		; Physical tracks/side (No Meaning in HD)
+
+HSIZ6	EQU	2764		; Number of blocks in Sixth Logical Drive
+
+DPB56:	DEFW	64	; Scts/Trk
+	DEFB	5	; Blk Shf Fctr
+	DEFB	31	; Block Mask
+	DEFB	1	; Extent Mask
+	DEFW	HSIZ6-1	; Disk Size - 1
+	DEFW	1023	; Dir Max
+	DEFB	0FFH,0	; Alloc 0,1
+	DEFW	0	; Check size
+	DEFW	2	; Track offset
+	  ENDIF
+
+	  IF  DRV_L
+	DEFB	'         ',' '+80H ; Id - 10 bytes
+	DEFB	FIXDSK		    ; Format type byte 0
+	DEFB	SPEED8+SEC512+ALC4K ; Format type byte 1
+	DEFB	-2		; Skew factor
+	DEFB	1		; Starting Sector Number
+	DEFB	16		; Logical Sectors per track
+	DEFB	0		; Physical tracks/side (No Meaning in HD)
+
+HSIZ7	EQU	2764		; Number of blocks in Seventh Logical Drive
+
+DPB57:	DEFW	64	; Scts/Trk
+	DEFB	5	; Blk Shf Fctr
+	DEFB	31	; Block Mask
+	DEFB	1	; Extent Mask
+	DEFW	HSIZ7-1	; Disk Size - 1
+	DEFW	1023	; Dir Max
+	DEFB	0FFH,0	; Alloc 0,1
+	DEFW	0	; Check size
+	DEFW	2	; Track offset
+	  ENDIF
+
+;<<< --- Drive M is used for RAM Drive --- >>>
+
+	  IF  DRV_N
+	DEFB	'         ',' '+80H ; Id - 10 bytes
+	DEFB	FIXDSK		    ; Format type byte 0
+	DEFB	SPEED8+SEC512+ALC4K ; Format type byte 1
+	DEFB	-2		; Skew factor
+	DEFB	1		; Starting Sector Number
+	DEFB	16		; Logical Sectors per track
+	DEFB	0		; Physical tracks/side (No Meaning in HD)
+
+HSIZ8	EQU	2764		; Number of blocks in Eighth Logical Drive
+
+DPB58:	DEFW	64	; Scts/Trk
+	DEFB	5	; Blk Shf Fctr
+	DEFB	31	; Block Mask
+	DEFB	1	; Extent Mask
+	DEFW	HSIZ8-1	; Disk Size - 1
+	DEFW	1023	; Dir Max
+	DEFB	0FFH,0	; Alloc 0,1
+	DEFW	0	; Check size
+	DEFW	2	; Track offset
+	  ENDIF
+
+	  IF  DRV_O
+	DEFB	'         ',' '+80H ; Id - 10 bytes
+	DEFB	FIXDSK		    ; Format type byte 0
+	DEFB	SPEED8+SEC512+ALC4K ; Format type byte 1
+	DEFB	-2		; Skew factor
+	DEFB	1		; Starting Sector Number
+	DEFB	16		; Logical Sectors per track
+	DEFB	0		; Physical tracks/side (No Meaning in HD)
+
+HSIZ9	EQU	2764		; Number of blocks in Ninth Logical Drive
+
+DPB59:	DEFW	64	; Scts/Trk
+	DEFB	5	; Blk Shf Fctr
+	DEFB	31	; Block Mask
+	DEFB	1	; Extent Mask
+	DEFW	HSIZ9-1	; Disk Size - 1
+	DEFW	1023	; Dir Max
+	DEFB	0FFH,0	; Alloc 0,1
+	DEFW	0	; Check size
+	DEFW	2	; Track offset
+	  ENDIF
+
+	  IF  DRV_P
+	DEFB	'         ',' '+80H ; Id - 10 bytes
+	DEFB	FIXDSK		    ; Format type byte 0
+	DEFB	SPEED8+SEC512+ALC4K ; Format type byte 1
+	DEFB	-2		; Skew factor
+	DEFB	1		; Starting Sector Number
+	DEFB	16		; Logical Sectors per track
+	DEFB	0		; Physical tracks/side (No Meaning in HD)
+
+HSIZ10	EQU	2764		; Number of blocks in Sixth Logical Drive
+
+DPB60:	DEFW	64	; Scts/Trk
+	DEFB	5	; Blk Shf Fctr
+	DEFB	31	; Block Mask
+	DEFB	1	; Extent Mask
+	DEFW	HSIZ10-1 ; Disk Size - 1
+	DEFW	1023	; Dir Max
+	DEFB	0FFH,0	; Alloc 0,1
+	DEFW	0	; Check size
+	DEFW	2	; Track offset
+	  ENDIF
+
+;=========== End of Hard Disk DPBs =============
+

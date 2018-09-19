@@ -1,0 +1,130 @@
+;
+;Simple example program to write a boot sector to the disk in drive A:.
+;
+;by Cliff Lawson
+;copyright (c) AMSTRAD plc. 1987
+;
+
+        .z80                          ;ignore this if not using M80
+
+bank1               equ  07FFDh    ;"horizontal" and RAM switch port
+bankm               equ  05B5Ch    ;associated system variable
+bank2               equ  01FFDh    ;"vertical" switch port
+bank678             equ  05B67h    ;associated system variable
+
+select              equ  01601h    ;BASIC routine to open stream
+dos_ref_xdpb        equ  0151h     ;
+dd_write_sector     equ  0166h     ;see part 27 of this chapter
+dd_login            equ  0175h     ;
+
+          org            0
+          .phase         07000h
+
+;
+;(This allows M80 to generate a .COM file that has addresses relative to 7000h.
+;Assemble with "M80 = prog" and link with "L80 /p:0,/d:0,prog,prog/n:p/y/e"
+;This can be headed with COPY...TO SPECTRUM FORMAT and loaded with
+;LOAD...CODE 28672.
+;
+start:
+
+     ld   (olstak),sp         ;save BASIC's stack pointer
+     ld   sp,mystak           ;put stack below switched RAM pages
+     push iy                  ;save IY on stack for the moment
+
+     ld   a,"A"               ;drive A:
+     ld   iy,dos_ref_xdpb     ;make IX point to XDPB A: (necessary for
+     call dodos               ;calling DD routines)
+
+     ld   c,0                 ;log in disk in unit 0 so that writing sectors
+     push ix                  ;wont say "disk has been changed"
+     ld   iy,dd_login
+     call dodos
+     pop  ix
+
+     ld   hl,bootsector
+     ld   bc,512              ;going to checksum 512 bytes of sector
+     xor  a
+     ld   (bootsector+15),a   ;reset checksum for starters
+     ld   e,a                 ;E will hold 8 bit sum
+
+ckloop:
+
+     ld   a,e
+     add  a,(hl)              ;this loop makes 8 bit checksum of 512 bytes
+     ld   e,a                 ;sector in E
+     inc  hl
+     dec  bc
+     ld   a,b
+     or   c
+     jr   nz,ckloop
+
+     ld   a,e                 ;A now has 8 bit checksum of the sector
+     cpl                      ;ones complement (+1 will give negative value)
+     add  a,4                 ;add 3 to make sum = 3 + 1 to make twos complement
+     ld   (bootsector+15),a   ;will make bytes checksum to 3 mod 256
+
+     ld   b,0                 ;page 0 at C000h
+     ld   c,0                 ;unit 0
+     ld   d,0                 ;track 0
+     ld   e,0                 ;sector 1 (0 because of logical/physical trans.)
+     ld   hl,bootsector       ;address of info. to write as boot sector
+     ld   iy,dd_write_sector
+     call dodos               ;actually write sector to disk
+     pop  iy                  ;put IY back to BASIC can reference its system
+                              ;variables
+     ld   sp,(olstak)         ;put original stack back
+     ret                      ;return to USR call in BASIC
+
+dodos:
+;
+;IY holds the address of the DOS routine to be run. All other registers are
+;passed intact to the DOS routine and are returned from it.
+;
+;Stack is somewhere in central 32K (conforming to DOS requirements), so save AF
+;and BC will not be switched out.
+;
+     push af
+     push bc                  ;temp save registers while switching
+     ld   a,(bankm)           ;RAM/ROM switching system variable
+     or   7                   ;want RAM page 7
+     res  4,a                 ;and DOS ROM
+     ld   bc,bank1            ;port used for horiz ROM switch and RAM paging
+     di
+     ld   (bankm),a           ;keep system variables up to date
+     out  (c),a               ;RAM page 7 to top and DOS ROM
+     ei
+     pop  bc
+     pop  af
+
+     call jumptoit            ;go sub routine address in IY
+
+     push af                  ;return from JP (IY) will be to here
+     push bc
+     ld   a,(bankm)
+     and  0F8h                ;reset bits for page 0
+     set  4,a                 ;switch to ROM 3 (48 BASIC)
+     ld   bc,bank1
+     di
+     ld   (bankm),a
+     out  (c),a               ;switch back to RAM page 0 and 48 BASIC
+     ei
+     pop  bc
+     pop  af
+     ret
+
+jumptoit:
+
+     jp   (iy)                ;standard way to CALL (IY), by calling this jump
+
+olstak:
+
+     dw   0                   ;somewhere to put BASIC's stack pointer
+     ds   100
+
+mystak:                       ;enough stack to meet +3DOS requirements
+
+bootsector:
+
+!! binclude !!
+     end

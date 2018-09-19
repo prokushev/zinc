@@ -1,0 +1,293 @@
+;:::::::::::::::::::::::::::::::::::::::::::::::**********************
+;  B/P BIOS Configuration and Equate File.	** System Dependant **
+;	Tailor your system here.		**********************
+;	  - MicroMint SB-180 -
+;
+;  5 Jun 04 - GPL release cleanup, added IDE HD code and Scott
+;		Coburn's mods for NOWAIT and Serial Baud Rates.	HFB
+;  4 Jan 97 - Added User Downcount byte on 100 mS Ticks, revised
+;		Floppy and Hard use of NOWAIT, cleaned source.	HFB
+;  4 Aug 95 - Saved a byte in IBMV, Fixed abort bug from Error
+;		with ^C, optional Xon/Xoff protocol.		HFB
+;  2 Jul 95 - Added Options to assemble ETS180 or DS-1216 clock
+;		code instead of Interrupt Date/Time.		HFB
+; 28 Feb 93 - Updated baseline.					HFB
+; 27 Dec 91 - Added NOWAIT to improve Hard Drive performance.	HFB
+; 22 Dec 91 - Added individual Drive & Unit equates		HFB
+;  9 Nov 91 - Deleted HDDSK2 equate				HFB
+; 23 Jun 91 - Initial Test Release.				HFB
+;:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+; BIOS Configuration Equates and Macros
+
+DATE	  MACRO
+	DEFB	'  5 Jun 04 '
+	  ENDM
+
+;--- Basic System and Z-System Section ---
+
+MOVCPM	EQU	no		; Integrate into MOVCPM "type" loader?
+	  IF  MOVCPM
+VERS	EQU	13H		; Version number in Hexidecimal (Major/Minor)
+	  ELSE
+VERS	EQU	21H		; Version number w/Device Swapping permitted
+	  ENDIF
+BANKED	EQU	yes 		; Is this a banked BIOS?
+ZSDOS2	EQU	yes		; Yes = Banked Dos, No = CP/M 2.2 Compatible
+INROM	EQU	NO  		; Alternate bank in ROM?
+MHZ	EQU	6		; Set to Speed in MHZ (6/9/12)
+FASTWB	EQU	YES		; True if restoring CPR from banked RAM
+				; ..false if restoring from Drive A
+CDROM	EQU	NO		; True sets 2kB Host Buffer, No for standard
+				;   1kB Host Buffer
+Z3	EQU	YES		; Include ZCPR init code?
+HAVIOP	EQU	yes		; Include IOP code into Jump table?
+
+;--- Memory configuration Section --- (Expansion Memory configured here)
+
+IBMOVS	EQU	YES		; Yes = Inter-bank Moves allowed (Z180/64180)
+				;  No = Include Common RAM transfer buffer
+
+;--- Character Device Section ---
+
+MORDEV	EQU	no		; YES = Include any extra Char Device Drivers
+				;  NO = Only use the 4 defined Char Devices
+BUFCON	EQU	YES		; Use interrupt driven typeahead on COM1?
+BUFAUX	EQU	NO		; Use interrupt driven typeahead on COM2?
+QSIZE	EQU	32		; size of COM1 and COM2 typeahead buffers
+				; ..must be 2^n with n<8
+XONOFF	EQU	yes		; Include Xon/Xoff handshaking in Serial lines?
+
+;--- Clock and Time Section ---
+
+CLOCK	EQU	YES		; Include ZSDOS Clock Driver Code?
+ETSCLK	EQU	yes		; Use the RTC on the ETS180IO+ for Date&Time?
+DS1216	EQU	no		; Use a Dallas DS-1216 for Date&Time?
+				; NOTE: Only one of the two above must be "Yes"
+CLKSET	EQU	no		; Allow Setting of ETS180IO+ or Dallas Clocks?
+TICTOC	EQU	NO		;== NOT USED IN SB180 (pseudo heartbeat count)
+
+;--- Floppy Diskette Section ---
+
+BIOERM	EQU	yes		; Print BIOS error messages?
+CALCSK	EQU	YES		; Calculate skew table?
+AUTOSL	EQU	YES		; Auto select floppy formats?
+				; If AUTOSL=True, the next two are active...
+FLOPY8	EQU	yes		; Include 8" Floppy Formats?
+FLOPYH	EQU	no		; Include "Hi-Density" Floppy Formats?
+				;  (SB-180 can't handle without H/W mods)
+MORDPB	EQU	NO		; Include additional Floppy DPB's?
+
+;--- RAM Disk Section ---
+
+RAMDSK	EQU	yes		; YES = Make RAM-Disk Code, NO = No code made
+
+;--- Hard Disk Section ---
+
+HARDDSK	EQU	YES		; YES = Make Hard-disk Code, NO = Floppy Only
+HDDMA	EQU	NO		; YES = DMA transfers, NO = (dflt) Polled IO
+IDE	EQU	NO		; YES = GIDE Subsystem, NO = SCSI
+UNIT_0	EQU	YES		; Hard Disk Physical Unit 1
+UNIT_1	EQU	YES		; Hard Disk Physical Unit 2
+UNIT_2	EQU	NO		; Hard Disk Physical Unit 3
+
+;--- Logical Drive Section ---
+
+DRV_A	EQU	YES		; Set each of these equates for the drive and
+DRV_B	EQU	YES		; partition complement of your system.  Assume
+DRV_C	EQU	YES		; that A-D are floppies
+DRV_D	EQU	yes
+DRV_E	EQU	YES		; Assume that E-L and N-P are Hard Disk
+DRV_F	EQU	YES		;  partitions
+DRV_G	EQU	YES
+DRV_H	EQU	yes
+DRV_I	EQU	no
+DRV_J	EQU	NO
+DRV_K	EQU	NO
+DRV_L	EQU	NO
+	  IF  RAMDSK
+DRV_M	EQU	YES		; Drive M Reserved for RAM Disk
+	  ELSE
+DRV_M	EQU	NO		; This is for drive if No RAM Drive present
+	  ENDIF
+DRV_N	EQU	no
+DRV_O	EQU	yes
+DRV_P	EQU	yes
+
+;========== Configuration Unique Equates  (MicroMint SB-180) ===========
+;>>>>>>>>>>>>>>>>>>>>>>>>>>> W A R N I N G <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+;>>>	 Do NOT Alter these unless you KNOW what you're doing	     <<<
+;>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+REFRSH	EQU	YES		; Set to YES for SB180 for dynamic RAMs,
+				;  NO for Static Mem (Still uses Refresh for
+				;  clocking DMA from the 9266 FDC Controller)
+FDRCR0	EQU	081H		; One selection for floppy refresh
+FDRCR1	EQU	083H		;  Slower selection for floppy refresh
+
+NOWAIT	EQU	yes		; YES = NO IO Wait States except for Floppy
+				; NO  = Use configured IO Wait State settings
+
+;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+; Equates for Z8S180 features (if grafted).		by Scott Coburn (dsc)
+; If you do not have a Z8S180 these should all be set to 'no'.
+; Phi will be dropped back to xtal/2 in the FDC access routines.
+; NOWAIT above must be 'yes' if phi2 is 'yes'.
+
+PHI2	EQU	no		; no = phi is xtal/2, yes = phi is xtal/1
+ESCCBRG	EQU	no		; use ESCC style baud rate generator instead
+				;  of the original ASCI fixed divisors.
+
+;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+;  For HD64180 systems, the Bank numbers should reflect Physical memory in
+; 32k increments.  In the SB-180, the ROM occupies the first 256k of the 512k
+; possible in the HD64180 memory map.  RAM starts at 4000H and extends to a
+; maximum of 7FFFFH, or 256k of RAM.  The bank numbers should be set as:
+
+BNK0	EQU	8		; First TPA Bank (switched in/out)	40000H
+BNK1	EQU	9		;   Second TPA Bank (Common Bank)	48000H
+BNK2	EQU	10		; Start of System Bank Area		50000H
+BNKU	EQU	0		; Start of User Bank Area	    (--none--)
+BNK3	EQU	11		; Bank #3 (first for RAM disk)		58000H
+				; Bank #4				60000H
+				; Bank #5				68000H
+				; Bank #6				70000H
+BNKM	EQU	15		; Bank #7 (maximum SB180 Bank number)	78000H
+
+;========= CPU-dependent Equates, Zilog Z-180/Hitachi HD64180 ==========
+;
+; New Z8S180 ports (only needed if Z8S180 grafted instead of HD64180) - dsc
+;
+ASEXT0	EQU	12H		; ASCI0 Extension Control Register
+ASEXT1	EQU	13H		; ASCI1 Extension Control Register
+FRC	EQU	18H		; Free Running Counter
+ASTC0L	EQU	1AH		; ASCI0 Time Constant Register Low
+ASTC0H	EQU	1BH		; ASCI0 Time Constant Register High
+ASTC1L	EQU	1CH		; ASCI1 Time Constant Register Low
+ASTC1H	EQU	1DH		; ASCI1 Time Constant Register High
+CMR	EQU	1EH		; Clock Multiplier Register
+CCR	EQU	1FH		; CPU Control Register
+IAR1B	EQU	2DH		; DMA I/O Address Register Channel 1
+;
+;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+;
+CNTLA0	EQU	00H		; Control Port ASCI 0
+CNTLA1	EQU	01H		; Control Port ASCI 1
+STAT0	EQU	04H		; Serial port 0 Status
+STAT1	EQU	05H		; Serial port 1 Status
+TDR0	EQU	06H		; Serial port 0 Output Data
+TDR1	EQU	07H		; Serial port 1 Output Data
+RDR0	EQU	08H		; Serial port 0 Input Data
+RDR1	EQU	09H		; Serial Port 1 Input Data
+CNTR	EQU	0AH		; HD64180 Counter port
+TRDR	EQU	0BH		; HD64180 Hi-Speed Serial port
+TMDR0L	EQU	0CH		; HD64180 DMA channel reg (low)
+TMDR0H	EQU	0DH		; HD64180 DMA channel reg (hi)
+RLDR0L	EQU	0EH		; CTC0 Reload Count, Low
+RLDR0H	EQU	0FH		; CTC0 Reload Count, High
+TCR	EQU	10H		; Interrupt Control Register
+SAR0L	EQU	20H		; DMA Channel 0 Register start (8 ports)
+MAR1L	EQU	28H		; DMA Channel 1 Register start (8 ports)
+DSTAT	EQU	30H		; DMA Status/Control port
+DMODE	EQU	31H		; DMA Mode Control port
+DCNTL	EQU	32H		; DMA/WAIT Control Register
+IL	EQU	33H		; Interrupt Segment Register
+ITC	EQU	34H		; Interrupt/Trap Control Register
+RCR	EQU	36H		; HD64180 Refresh Control register
+CBR	EQU	38H		; MMU Common Base Register
+BBR	EQU	39H		; MMU Bank Base Register
+CBAR	EQU	3AH		; MMU Common/Bank Area Register
+
+; Some bit definitions used with the HD64180 on-chip peripherals
+
+TDRE	EQU	02H		; ACSI Transmitter Buffer Empty
+RDRF	EQU	80H		; ACSI Received Character available
+
+;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+; Labels for Standard MicroSystems 9266 FDC on SB180
+
+FDCST	EQU	80H		; SB-180 9266 Status Port
+FDCDT	EQU	81H		; SB-180 9266 Data Port
+RSTON	EQU	82H		; SB-180 External reset circuit ON
+RSTOFF	EQU	84H		; SB-180 External reset circuit OFF
+
+DMAACK	EQU	0A0H		; DACK from DMA Controller to FDC
+
+;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+; Equates for Centronics port on SB-180
+
+CENDAT	EQU	0C0H		; Centronics Data port
+CENSTB	EQU	0C1H		; Centronics Strobe port
+
+;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	  IF  HARDDSK
+; I/O Equates for the NCR 5380 SCSI controller on ETS180IO & MicroMint
+
+	   IF  NOT IDE
+NCR	EQU	0F8H		; Base of NCR 53C80
+
+; 53C80 Chip Registers
+
+NCRDAT	EQU	NCR		; Current SCSI Data		(Read)
+				; Output Data Register		(Write)
+NCRCMD	EQU	NCR+1		; Initiator Command Register	(Read/Write)
+NCRMOD	EQU	NCR+2		; Mode Register			(Read/Write)
+NCRTGT	EQU	NCR+3		; Target Command Register	(Read/Write)
+NCRBUS	EQU	NCR+4		; Current SCSI Bus Status	(Read)
+NCRST	EQU	NCR+5		; Bus & Status Register		(Read)
+				; Start DMA Send		(Write)
+NCRINT	EQU	NCR+7		; Reset Parity/Interrupt	(Read)
+				; Start DMA Initiator Receive	(Write)
+
+; Bit Assignments for NCR 53C80 Ports as indicated
+
+B_ARST	EQU	10000000B	; Assert *RST		(NCRCMD)
+B_AACK	EQU	00010000B	; Assert *ACK		(NCRCMD)
+B_ASEL	EQU	00000100B	; Assert *SEL		(NCRCMD)
+B_ABUS	EQU	00000001B	; Assert *Data Bus	(NCRCMD)
+
+B_BSY	EQU	01000000B	; *Busy			(NCRBUS)
+B_REQ	EQU	00100000B	; *Request		(NCRBUS)
+B_MSG	EQU	00010000B	; *Message		(NCRBUS)
+B_CD	EQU	00001000B	; *Command/Data		(NCRBUS)
+B_IO	EQU	00000100B	; *I/O			(NCRBUS)
+B_SEL	EQU	00000010B	; *Select		(NCRBUS)
+
+B_PHAS	EQU	00001000B	; Phase Match		(NCRST)
+B_BBSY	EQU	00000100B	; Bus Busy		(NCRST)
+
+B_MBSY	EQU	00000100B	; Monitor Busy Flag	(NCRMOD)
+B_DMA	EQU	00000010B	; DMA Mode of transfer	(NCRMOD)
+	   ELSE		;~ide
+
+;++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+; Equates reflecting GIDE Base address from Address Jumpers (if GIDE added)
+; Set the base GIDE equate to the jumper setting on the GIDE board.
+
+GIDE	EQU	50H		; Set base of 16 byte address range
+
+IDEDOR	EQU	GIDE+6		; Digital Output Register
+IDEDat	EQU	GIDE+8		; IDE Data Register (16-bit wide)
+IDEErr	EQU	GIDE+9		; IDE Error Register
+IDESCnt	EQU	GIDE+0AH	; IDE Sector Count Register
+IDESNum	EQU	GIDE+0BH	; IDE Sector Number Register
+IDECLo	EQU	GIDE+0CH	; IDE Cylinder Number (Low)
+IDECHi	EQU	GIDE+0DH	; IDE Cylinter Number (High)
+IDESDH	EQU	GIDE+0EH	; IDE S-Drive-Head Register
+IDECmd	EQU	GIDE+0FH	; IDE Command/Status Register
+
+CMDHOM	EQU	10H		; Home Drive Heads
+CMDRD	EQU	20H		; Read Sector Command (w/retry)
+CMDWR	EQU	30H		; Write Sector Command (w/retry)
+CMDVER	EQU	40H		; Verify Sector(s) Command (w/retry)
+CMDFMT	EQU	50H		; Format Track Command
+CMDDIAG	EQU	90H		; Execute Diagnostics Command
+CMDINIT	EQU	91H		; Initialize Drive Params Command
+CMDPW0	EQU	0E0H		; Low Range of Power Control Commands
+CMDPW3	EQU	0E3H		; High Range of Power Control Commands
+CMDPWQ	EQU	0E5H		; Power Status Query Command
+CMDID	EQU	0ECH		; Read Drive Ident Data Command
+	   ENDIF	;ide
+	  ENDIF		;harddsk
+
+;=================== End Unique Equates =======================
+
