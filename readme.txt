@@ -43,7 +43,7 @@ DIR.COM
     Complete. Is Year 2000 compliant and supports I/O redirection. Several new output formats and sorting
     options.
 DUMP.COM
-    A version exists, but the CFCB library seems to produce bloated code; DUMP.COM is actually bigger than
+    Complete. A version exists, but the CFCB library seems to produce bloated code; DUMP.COM is actually bigger than
     the DRI original.
 ERASE.COM
     Complete. Can take more than one filespec on the command line (eg: ERASE *.PRN *.SYM )
@@ -120,5 +120,6 @@ To do
 1. Replace SYSLIB routines by LGPL code(?)
 2. Rewrite C3BIOS to use SBIOS (because SBIOS now portable)
 3. Add ROM define to prevent code self-modification and allow to have CP/M in ROM
-3. Translate 8080 asm sources to Z80 syntax
-4. Add to submit zinchead startup
+4. Add PRL support to CCP
+5. Downgrade CCP to hold only CCP 2.2 and CCP 3 resident commands
+6. Downgrade BDOS to support only CP/M 2.2 and CP/M 3 functions

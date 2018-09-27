@@ -164,7 +164,7 @@ NXTREC	EQU	32		; Next record number
 
 ; WARNING!!  Do NOT change labels or sequences of ZSDOS through ZSDOS+25H
 ;   ID string added for easy identification in running system (hfb)
-
+SERIAL:
 	  IF  ZS
 	DEFB	'ZSDOS '	; Used in CP/M for serial number. these bytes
 	  ELSE			; are patched by INSTALOS to contain the serial
@@ -356,9 +356,9 @@ ENTRY:	XOR	A		; Clear A
 
 	CP	98		; Is it less than Cmd98?
 	RET	C		; ..return if so
-	CP	103+1		; Is it greater than Cmd103?
+	CP	107+1		; Is it greater than Cmd107?
 	RET	NC		; ..quit if so
-	SUB	98-MAXCMD	; Rework so 98-->49..103-->54
+	SUB	98-MAXCMD	; Rework so 98-->49..107-->58
 	LD	C,A		; Save reworked function #
 			; ..fall thru to entry0..
 
@@ -450,6 +450,10 @@ MAXCMD	EQU	($-CTABLE)/2	; Jww
 	DEFW	CMD101		; Set Flags	; 52
 	DEFW	CMD102		; Get Stamp	; 53
 	DEFW	CMD103		; Put Stamp	; 54
+	DEFW	DUMMY		; 	; 55
+	DEFW	DUMMY		; 	; 56
+	DEFW	DUMMY		; 	; 57
+	DEFW	CMD107		; Get serial	; 58 CP/M 3
 
 	PAGE
 ;******************************************************
@@ -1092,8 +1096,14 @@ CMD17B:	CALL	SEARCH		; Do search
 CMD17C:	LD	HL,(DIRBUF)	; Copy directory buffer
 	LD	BC,128		; Directory=128 bytes
 MV2DMA:	LD	DE,(DMA)	; To DMA address
-	LDIR
+CMD17D:	LDIR
 	RET			; Exit
+
+; Return serial number
+
+CMD107:	LD	HL,SERIAL	; Return BDOS serial number
+        LD	C, 6
+	JR	CMD17D
 
 ; Search for Next Occurence of File
 
@@ -3124,18 +3134,18 @@ CKSLP:	ADD	A,(HL)		; Sum all bytes to A
 
 CODEND:
 	  IF  ROM
-	    IF  $-ZSDOS GT 0E00H
+	    IF  $-ZSDOS GT BDOSSIZE
 	*** ZSDOS TOO BIG !!!!!	***
 	    ENDIF		;$-zsdos
 	DSEG
 	  ELSE
 	    IF  ZS
-	      IF  $-ZSDOS GT 0DF1H
+	      IF  $-ZSDOS GT (BDOSSIZE-0FH+1)
 	*** ZSDOS TOO BIG !!!!! ***
 	      ENDIF		;$-zsdos
 	ORG	ZSDOS+0DF1H		; Set here for Internal Path
 	    ELSE
-	      IF  $-ZSDOS GT 0DF9H
+	      IF  $-ZSDOS GT (BDOSSIZE-07H+1)
 	*** ZDDOS TOO BIG !!!!! ***
 	      ENDIF		;$-zsdos
 	ORG	ZSDOS+0DF9H

@@ -37,7 +37,6 @@
 
 	CPU	.Z80
         CSEG
-	ORG	80H
 
 	JP	DD_INIT			; 0080h
 	JP	DD_SETUP		; 0083h
@@ -152,83 +151,4 @@ SCR_RUN_ROUTINE:
 FIND_FID:
         RET
 
-; Bellow code is based on ZX Spectrum +3 Manual
-; org  7000h
-
-mystak       equ 9FFFh  ;arbitrary value picked to be below BFE0h and above 4000h
-staksto      equ 9000h  ;somewhere to put BASIC's stack pointer
-bankm        equ 5B5Ch  ;system variable that holds the last value output to 7FFDh
-port1        equ 7FFDh  ;address of ROM/RAM switching port in I/O map
-catbuff      equ 8000h  ;somewhere for DOS to put its catalog
-dos_catalog  equ 011Eh  ;the DOS routine to call
-
-demo:
-
-     di                  ;unwise to switch RAM/ROM without disabling interrupts
-     ld   (staksto),sp   ;save BASIC's stack pointer
-     ld   bc,port1       ;the horizontal ROM switch/RAM switch I/O address
-     ld   a,(bankm)      ;system variable that holds current switch state
-     res  4,a            ;move right to left in horizontal ROM switch (3 to 2)
-     or   7              ;switch in RAM page 7
-     ld   (bankm),a      ;must keep system variable up to date (very important)
-     out  (c),a          ;make the switch
-     ld   sp,mystak      ;make sure stack is above 4000h and below BFE0h
-     ei                  ;interrupts can now be enabled
-
-;
-;The above will have switched in the DOS ROM and RAM page 7. The stack has also
-;been located in a "safe" position for calling DOS
-;
-;The following is the code to set up and call DOS CATALOG. This is where your
-;own code would be placed.
-;
-
-     ld   hl,catbuff     ;somewhere for DOS to put the catalog
-     ld   de,catbuff+1   ;
-     ld   bc,1024        ;maximum is actually 64x13+13 = 845
-     ld   (hl),0
-     ldir                ;make sure at least first entry is zeroised
-     ld   b,64           ;the number of entries in the buffer
-     ld   c,1            ;include system files in the catalog
-     ld   de,catbuff     ;the location to be filled with the disk catalog
-     ld   hl,stardstar   ;the file name ("*.*")
-     call dos_catalog    ;call the DOS entry
-     push af             ;save flags and possible error number returned by DOS
-     pop  hl
-     ld   (dosret),hl    ;put it where it can be seen from BASIC
-     ld   c,b            ;move number of files in catalog to low byte of BC
-     ld   b,0            ;this will be returned in BASIC by the USR function
-
-;
-;If the above worked, then BC holds number of files in catalog, the "catbuff"
-;will be filled with the alphanumerically sorted catalog and the carry flag but
-;in "dosret" will be set. This will be peeked from BASIC to check if all went
-;well.
-;
-;Having made the call to DOS, it is now necessary to undo the ROM and RAM
-;switch and put BASIC's stack back to where it was on entry. The following
-;will achieve this.
-
-     di                  ;about to ROM/RAM switch so be careful
-     push bc             ;save number of files
-     ld   bc,port1       ;I/O address of horizontal ROM/RAM switch
-     ld   a,(bankm)      ;get current switch state
-     set  4,a            ;move left to right (ROM 2 to ROM 3)
-     and  F8h            ;also want RAM page 0
-     ld   (bankm),a      ;update the system variable (very important)
-     out  (c),a          ;make the switch
-     pop  bc             ;get back the saved number of files in catalog
-     ld   sp,(staksto)   ;put BASIC's stack back
-     ret                 ;return to BASIC, value in BC is returned to USR
-
-stardstar:
-
-     defb "*.*",FFh      ;the file name, must be terminated with FFh
-
-dosret:
-
-     defw 0              ;a variable to be peeked from BASIC to see if it worked
-        
-        
-        
         END

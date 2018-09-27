@@ -1,20 +1,31 @@
+@echo off
 set ZXBINDIR=%cd%\tools\bin\
 set path=%path%;%cd%\tools
 rem **************
 rem * ZINC OS build
 rem **************
 
+rem Build boot sector
+zx zmac +bootstrap/bootsect.z80 -O +build/bootstrap/bootsect.rel -P +build/bootstrap/bootsect.lst -E +build/bootstrap/bootsect.err
+zx link +bin/bootsect.bin +-[LFE00]= +build/bootstrap/bootsect.rel
+
+rem Build SYS tool
+zx zmac +bootstrap/sys.z80 -O +build/bootstrap/sys.rel -P +build/bootstrap/sys.lst -E +build/bootstrap/sys.err
+zx link +bin/sys.bin +-[L7000]= +build/bootstrap/sys.rel
+
 rem Build XBIOS
 zx zmac +xbios/xbiosp3.z80 -O +build/xbios/xbiosp3.rel -P +build/xbios/xbiosp3.lst -E +build/xbios/xbiosp3.err
-zx link +bin/xbiosp3.bin +-[P0080]= +build/xbios/xbiosp3.rel
-exit
+zx link +bin/xbiosp3.bin +-[L0080]= +build/xbios/xbiosp3.rel
+
 rem Build 2BDOS
 zx zmac +2bdos.z80 -O +build/bdos/2bdos.rel -P +build/bdos/2bdos.lst -E +build/bdos/2bdos.err
-zx link +bin/bdos.bin +-[PE400]= +build/bdos/2bdos.rel
+zx link +bin/bdos.bin +-[LE400]= +build/bdos/2bdos.rel
 
 rem Build 2CCP
 zx zmac +2ccp.z80 -O +build/ccp/2ccp.rel -P +build/ccp/2ccp.lst -E +build/ccp/2ccp.err
-zx link +bin/ccp.bin +-[PDC00]= +build/ccp/2ccp.rel
+zx link +bin/ccp.bin +-[LDC00]= +build/ccp/2ccp.rel
+
+exit
 
 rem **************
 rem * SYSLIB build

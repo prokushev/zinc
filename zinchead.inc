@@ -37,6 +37,7 @@
 ; ; -- SECTION 1 -- Entry point
 ; MAIN: RET
 ;
+        INCLUDE ZINC.INC        ; ZINC configuration
 
         .Z80
         CSEG
