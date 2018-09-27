@@ -20,192 +20,192 @@ rem **************
 rem * SYSLIB build
 rem **************
 
-zx zmac +syslib/S0FILEIO.Z80 -O +zout/s0fileio.rel -P +zout/s0fileio.lst
-zx zmac +syslib/S1FILEIO.Z80 -O +zout/s1fileio.rel -P +zout/s1fileio.lst
-zx zmac +syslib/s2fileio.z80 -O +zout/s2fileio.rel -P +zout/s2fileio.lst
-zx zmac +syslib/S3FILEIO.Z80 -O +zout/S3FILEIO.rel -P +zout/s3fileio.lst
-zx zmac +syslib/SACAS1.Z80 -O +zout/SACAS1.rel -P +zout/SACAS1.lst
-zx zmac +syslib/SACAS2.Z80 -O +zout/SACAS2.rel -P +zout/SACAS2.lst
-zx zmac +syslib/SACAS3.Z80 -O +zout/SACAS3.rel -P +zout/SACAS3.lst
-zx zmac +syslib/SAGO1.Z80 -O +zout/SAGO1.rel  -P +zout/SAGO1.lst
-zx zmac +syslib/SAGO2.Z80 -O +zout/SAGO2.rel  -P +zout/SAGO2.lst
-zx zmac +syslib/SAIF1.Z80 -O +zout/SAIF1.rel -P +zout/SAIF1.lst
-zx zmac +syslib/SAIF2.Z80 -O +zout/SAIF2.rel -P +zout/SAIF2.lst   
-zx zmac +syslib/SALLOC.Z80 -O +zout/SALLOC.rel -P +zout/SALLOC.lst
-zx zmac +syslib/SARGV.Z80 -O +zout/SARGV.rel -P +zout/SARGV.lst
-zx zmac +syslib/SBBLINE.Z80 -O +zout/SBBLINE.rel -P +zout/SBBLINE.lst
-zx zmac +syslib/SBDOS.Z80 -O +zout/SBDOS.rel -P +zout/SBDOS.lst
-zx zmac +syslib/SFSIZE.Z80 -O +zout/SFSIZE.rel -P +zout/SFSIZE.lst
-zx zmac +syslib/SBGO1.Z80 -O +zout/SBGO1.rel -P +zout/SBGO1.ls
-zx zmac +syslib/SBGO2.Z80 -O +zout/SBGO2.rel -P +zout/SBGO2.lst
-zx zmac +syslib/SBIN.Z80 -O +zout/SBIN.rel -P +zout/SBIN.lst
-zx zmac +syslib/SBIOS.Z80 -O +zout/SBIOS.rel -P +zout/SBIOS.lst
-zx zmac +syslib/SBIST.Z80 -O +zout/SBIST.rel -P +zout/SBIST.lst
-zx zmac +syslib/SBLINE.Z80 -O +zout/SBLINE.rel -P +zout/SBLINE.lst
-zx zmac +syslib/SBOUT.Z80 -O +zout/SBOUT.rel -P +zout/SBOUT.lst
-zx zmac +syslib/SCAPIN.Z80 -O +zout/SCAPIN.rel -P +zout/SCAPIN.lst
-zx zmac +syslib/SCAPS.Z80 -O +zout/SCAPS.rel -P +zout/SCAPS.lst
-zx zmac +syslib/SCAPSTR.Z80 -O +zout/SCAPSTR.rel -P +zout/SCAPSTR.lst
-zx zmac +syslib/SCATH.Z80 -O +zout/SCATH.rel -P +zout/SCATH.lst
-zx zmac +syslib/SCCOUT.Z80 -O +zout/SCCOUT.rel -P +zout/SCCOUT.lst
-zx zmac +syslib/SCIN.Z80 -O +zout/SCIN.rel -P +zout/SCIN.lst
-zx zmac +syslib/SCLINE.Z80 -O +zout/SCLINE.rel -P +zout/SCLINE.lst
-zx zmac +syslib/SCLOUT.Z80 -O +zout/SCLOUT.rel -P +zout/SCLOUT.lst
-zx zmac +syslib/SCODEND.Z80 -O +zout/SCODEND.rel -P +zout/SCODEND.lst
-zx zmac +syslib/SCOMP.Z80 -O +zout/SCOMP.rel -P +zout/SCOMP.lst
-zx zmac +syslib/SCOMPHD.Z80 -O +zout/SCOMPHD.rel -P +zout/SCOMPHD.lst
-zx zmac +syslib/SCONDIN.Z80 -O +zout/SCONDIN.rel -P +zout/SCONDIN.lst
-zx zmac +syslib/SCOUT.z80 -O +zout/SCOUT.rel -P +zout/SCOUT.lst
-zx zmac +syslib/SCPOUT.Z80 -O +zout/SCPOUT.rel -P +zout/SCPOUT.lst
-zx zmac +syslib/SCRC.Z80 -O +zout/SCRC.rel -P +zout/SCRC.lst
-zx zmac +syslib/SCRC1.Z80 -O +zout/SCRC1.rel -P +zout/SCRC1.lst
-zx zmac +syslib/SCRC2.Z80 -O +zout/SCRC2.rel -P +zout/SCRC2.lst
-zx zmac +syslib/SCRLF.Z80 -O +zout/SCRLF.rel -P +zout/SCRLF.lst
-zx zmac +syslib/SCST.Z80 -O +zout/SCST.rel -P +zout/SCST.lst
-zx zmac +syslib/SDGO1.Z80 -O +zout/SDGO1.rel -P +zout/SDGO1.lst
-zx zmac +syslib/SDGO2.Z80 -O +zout/SDGO2.rel -P +zout/SDGO2.lst
-zx zmac +syslib/sdir.z80 -O +zout/sdir.rel -P +zout/sdir.lst
-zx zmac +syslib/sdir00.z80 -O +zout/sdir00.rel -P +zout/sdir00.lst
-zx zmac +syslib/sdir01.z80 -O +zout/sdir01.rel -P +zout/sdir01.lst
-zx zmac +syslib/sdir02.z80 -O +zout/sdir02.rel -P +zout/sdir02.lst
-zx zmac +syslib/sdir03.z80 -O +zout/sdir03.rel -P +zout/sdir03.lst
-zx zmac +syslib/sdir04.z80 -O +zout/sdir04.rel -P +zout/sdir04.lst
-zx zmac +syslib/sdir05.z80 -O +zout/sdir05.rel -P +zout/sdir05.lst
-zx zmac +syslib/sdir06.z80 -O +zout/sdir06.rel -P +zout/sdir06.lst
-zx zmac +syslib/sdir07.z80 -O +zout/sdir07.rel -P +zout/sdir07.lst
-zx zmac +syslib/sdir08.z80 -O +zout/sdir08.rel -P +zout/sdir08.lst
-zx zmac +syslib/sdir09.z80 -O +zout/sdir09.rel -P +zout/sdir09.lst
-zx zmac +syslib/sdir10.z80 -O +zout/sdir10.rel -P +zout/sdir10.lst
-zx zmac +syslib/SDIRBF.Z80 -O +zout/SDIRBF.rel -P +zout/SDIRBF.lst
-zx zmac +syslib/SDIRQ.Z80 -O +zout/SDIRQ.rel -P +zout/SDIRQ.lst
-zx zmac +syslib/SDIRQS.Z80 -O +zout/SDIRQS.rel -P +zout/SDIRQS.lst
-zx zmac +syslib/SEN.Z80 -O +zout/SEN.rel -P +zout/SEN.lst
-zx zmac +syslib/SEPRINT.Z80 -O +zout/SEPRINT.rel -P +zout/SEPRINT.lst
-zx zmac +syslib/SEPSTR.Z80 -O +zout/SEPSTR.rel -P +zout/SEPSTR.lst
-zx zmac +syslib/SEVAL.Z80 -O +zout/SEVAL.rel -P +zout/SEVAL.lst
-zx zmac +syslib/SEVAL1.Z80 -O +zout/SEVAL1.rel -P +zout/SEVAL1.lst
-zx zmac +syslib/SEVAL2.Z80 -O +zout/SEVAL2.rel -P +zout/SEVAL2.lst
-zx zmac +syslib/SEVAL3.Z80 -O +zout/SEVAL3.rel -P +zout/SEVAL3.lst
-zx zmac +syslib/SEVAL4.Z80 -O +zout/SEVAL4.rel -P +zout/SEVAL4.lst
-zx zmac +syslib/SFAPPEND.Z80 -O +zout/SFAPPEND.rel -P +zout/SFAPPEND.lst
-zx zmac +syslib/SFCLOSE.Z80 -O +zout/SFCLOSE.rel -P +zout/SFCLOSE.lst
-zx zmac +syslib/SFDELETE.Z80 -O +zout/SFDELETE.rel -P +zout/SFDELETE.lst
-zx zmac +syslib/SFEXIST.Z80 -O +zout/SFEXIST.rel -P +zout/SFEXIST.lst
-zx zmac +syslib/SFILL.Z80 -O +zout/SFILL.rel -P +zout/SFILL.lst
-zx zmac +syslib/SFMAKE.Z80 -O +zout/SFMAKE.rel -P +zout/SFMAKE.lst
-zx zmac +syslib/SFNAME.Z80 -O +zout/SFNAME.rel -P +zout/SFNAME.lst
-zx zmac +syslib/SFOPEN.z80 -O +zout/SFOPEN.rel -P +zout/SFOPEN.lst
-zx zmac +syslib/SFREAD.Z80 -O +zout/SFREAD.rel -P +zout/SFREAD.lst
-zx zmac +syslib/SFRENAME.Z80 -O +zout/SFRENAME.rel -P +zout/SFRENAME.lst
-zx zmac +syslib/SFWRITE.Z80 -O +zout/SFWRITE.rel -P +zout/SFWRITE.lst
-zx zmac +syslib/SFXIO.Z80 -O +zout/SFXIO.rel -P +zout/SFXIO.lst
-zx zmac +syslib/SFYIO.Z80 -O +zout/SFYIO.rel -P +zout/SFYIO.lst
-zx zmac +syslib/SGFA.Z80 -O +zout/SGFA.rel -P +zout/SGFA.lst
-zx zmac +syslib/SGRR.Z80 -O +zout/SGRR.rel -P +zout/SGRR.lst
-zx zmac +syslib/SGRR1.Z80 -O +zout/SGRR1.rel -P +zout/SGRR1.lst
-zx zmac +syslib/SGUA.Z80 -O +zout/SGUA.rel -P +zout/SGUA.lst
-zx zmac +syslib/SHCAS1.Z80 -O +zout/SHCAS1.rel -P +zout/SHCAS1.lst
-zx zmac +syslib/SHCAS2.Z80 -O +zout/SHCAS2.rel -P +zout/SHCAS2.lst
-zx zmac +syslib/SHCAS3.Z80 -O +zout/SHCAS3.rel -P +zout/SHCAS3.lst
-zx zmac +syslib/SHDR.Z80 -O +zout/SHDR.rel -P +zout/SHDR.lst
-zx zmac +syslib/SHGO1.Z80 -O +zout/SHGO1.rel -P +zout/SHGO1.lst
-zx zmac +syslib/SHGO2.Z80 -O +zout/SHGO2.rel -P +zout/SHGO2.lst
-zx zmac +syslib/SHIF1.Z80 -O +zout/SHIF1.rel -P +zout/SHIF1.lst
-zx zmac +syslib/SHIF2.Z80 -O +zout/SHIF2.rel -P +zout/SHIF2.lst
-zx zmac +syslib/SINITFCB.Z80 -O +zout/SINITFCB.rel -P +zout/SINITFCB.lst
-zx zmac +syslib/SINLINE.Z80 -O +zout/SINLINE.rel -P +zout/SINLINE.lst
-zx zmac +syslib/SINSTR.Z80 -O +zout/SINSTR.rel -P +zout/SINSTR.lst
-zx zmac +syslib/SISALNUM.Z80 -O +zout/SISALNUM.rel -P +zout/SISALNUM.lst
-zx zmac +syslib/SISALPHA.Z80 -O +zout/SISALPHA.rel -P +zout/SISALPHA.lst
-zx zmac +syslib/SISCTRL.Z80 -O +zout/SISCTRL.rel -P +zout/SISCTRL.lst
-zx zmac +syslib/SISDIGIT.Z80 -O +zout/SISDIGIT.rel -P +zout/SISDIGIT.lst
-zx zmac +syslib/SISGRAPH.Z80 -O +zout/SISGRAPH.rel -P +zout/SISGRAPH.lst
-zx zmac +syslib/SISHEX.Z80 -O +zout/SISHEX.rel -P +zout/SISHEX.lst
-zx zmac +syslib/SISPRINT.Z80 -O +zout/SISPRINT.rel -P +zout/SISPRINT.lst
-zx zmac +syslib/SISPUN.Z80 -O +zout/SISPUN.rel -P +zout/SISPUN.lst
-zx zmac +syslib/SISSP.Z80 -O +zout/SISSP.rel -P +zout/SISSP.lst
-zx zmac +syslib/SLA2HC.Z80 -O +zout/SLA2HC.rel -P +zout/SLA2HC.lst
-zx zmac +syslib/SLADC.Z80 -O +zout/SLADC.rel -P +zout/SLADC.lst
-zx zmac +syslib/SLAFDC.Z80 -O +zout/SLAFDC.rel -P +zout/SLAFDC.lst
-zx zmac +syslib/SLCRLF.Z80 -O +zout/SLCRLF.rel -P +zout/SLCRLF.lst
-zx zmac +syslib/SLFN1.Z80 -O +zout/SLFN1.rel -P +zout/SLFN1.lst
-zx zmac +syslib/SLFN2.Z80 -O +zout/SLFN2.rel -P +zout/SLFN2.lst
-zx zmac +syslib/SLFN3.Z80 -O +zout/SLFN3.rel -P +zout/SLFN3.lst
-zx zmac +syslib/SLHL4HC.Z80 -O +zout/SLHL4HC.rel -P +zout/SLHL4HC.lst
-zx zmac +syslib/SLHL5DC.Z80 -O +zout/SLHL5DC.rel -P +zout/SLHL5DC.lst
-zx zmac +syslib/SLHLFDC.Z80 -O +zout/SLHLFDC.rel -P +zout/SLHLFDC.lst
-zx zmac +syslib/SLOUT.Z80 -O +zout/SLOUT.rel -P +zout/SLOUT.lst
-zx zmac +syslib/SLPRINT.Z80 -O +zout/SLPRINT.rel -P +zout/SLPRINT.lst
-zx zmac +syslib/SLPSTR.Z80 -O +zout/SLPSTR.rel -P +zout/SLPSTR.lst
-zx zmac +syslib/SLUCLOSE.z80 -O +zout/SLUCLOSE.rel -P +zout/SLUCLOSE.lst
-zx zmac +syslib/SLUDIR.z80 -O +zout/SLUDIR.rel -P +zout/SLUDIR.lst
-zx zmac +syslib/SLUINIT.z80 -O +zout/SLUINIT.rel -P +zout/SLUINIT.lst
-zx zmac +syslib/SLUOPEN.z80 -O +zout/SLUOPEN.rel -P +zout/SLUOPEN.lst
-zx zmac +syslib/SMA2HC.Z80 -O +zout/SMA2HC.rel -P +zout/SMA2HC.lst
-zx zmac +syslib/SMADC.Z80 -O +zout/SMADC.rel -P +zout/SMADC.lst
-zx zmac +syslib/SMAFDC.Z80 -O +zout/SMAFDC.rel -P +zout/SMAFDC.lst
-zx zmac +syslib/SMFN1.Z80 -O +zout/SMFN1.rel -P +zout/SMFN1.lst
-zx zmac +syslib/SMFN2.Z80 -O +zout/SMFN2.rel -P +zout/SMFN2.lst
-zx zmac +syslib/SMFN3.Z80 -O +zout/SMFN3.rel -P +zout/SMFN3.lst
-zx zmac +syslib/SMHL4HC.Z80 -O +zout/SMHL4HC.rel -P +zout/SMHL4HC.lst
-zx zmac +syslib/SMHL5DC.Z80 -O +zout/SMHL5DC.rel -P +zout/SMHL5DC.lst
-zx zmac +syslib/SMHLFDC.Z80 -O +zout/SMHLFDC.rel -P +zout/SMHLFDC.lst
-zx zmac +syslib/SMOVE.Z80 -O +zout/SMOVE.rel -P +zout/SMOVE.lst
-zx zmac +syslib/SMTH01.Z80 -O +zout/SMTH01.rel -P +zout/SMTH01.lst
-zx zmac +syslib/SMTH02.Z80 -O +zout/SMTH02.rel -P +zout/SMTH02.lst  
-zx zmac +syslib/SMTH03.Z80 -O +zout/SMTH03.rel -P +zout/SMTH03.lst
-zx zmac +syslib/SMTH04.Z80 -O +zout/SMTH04.rel -P +zout/SMTH04.lst
-zx zmac +syslib/SMTH05.Z80 -O +zout/SMTH05.rel -P +zout/SMTH05.lst
-zx zmac +syslib/SMTH06.Z80 -O +zout/SMTH06.rel -P +zout/SMTH06.lst
-zx zmac +syslib/SMTH07.Z80 -O +zout/SMTH07.rel -P +zout/SMTH07.lst
-zx zmac +syslib/SMTH08.Z80 -O +zout/SMTH08.rel -P +zout/SMTH08.lst
-zx zmac +syslib/SMTH09.Z80 -O +zout/SMTH09.rel -P +zout/SMTH09.lst
-zx zmac +syslib/SMTH10.Z80 -O +zout/SMTH10.rel -P +zout/SMTH10.lst
-zx zmac +syslib/SMTH11.Z80 -O +zout/SMTH11.rel -P +zout/SMTH11.lst
-zx zmac +syslib/SMTH12.Z80 -O +zout/SMTH12.rel -P +zout/SMTH12.lst
-zx zmac +syslib/SPA2HC.Z80 -O +zout/SPA2HC.rel -P +zout/SPA2HC.lst
-zx zmac +syslib/SPADC.Z80 -O +zout/SPADC.rel -P +zout/SPADC.lst
-zx zmac +syslib/SPAFDC.Z80 -O +zout/SPAFDC.rel -P +zout/SPAFDC.lst
-zx zmac +syslib/SPAUSE.Z80 -O +zout/SPAUSE.rel -P +zout/SPAUSE.lst
-zx zmac +syslib/SPFN1.Z80 -O +zout/SPFN1.rel -P +zout/SPFN1.lst
-zx zmac +syslib/SPFN2.Z80 -O +zout/SPFN2.rel -P +zout/SPFN2.lst
-zx zmac +syslib/SPFN3.Z80 -O +zout/SPFN3.rel -P +zout/SPFN3.lst
-zx zmac +syslib/SPHL4HC.Z80 -O +zout/SPHL4HC.rel -P +zout/SPHL4HC.lst
-zx zmac +syslib/SPHL5DC.Z80 -O +zout/SPHL5DC.rel -P +zout/SPHL5DC.lst
-zx zmac +syslib/SPHLFDC.Z80 -O +zout/SPHLFDC.rel -P +zout/SPHLFDC.lst
-zx zmac +syslib/SPOUT.Z80 -O +zout/SPOUT.rel -P +zout/SPOUT.lst
-zx zmac +syslib/SPRINT.Z80 -O +zout/SPRINT.rel -P +zout/SPRINT.lst
-zx zmac +syslib/SPSTR.Z80 -O +zout/SPSTR.rel -P +zout/SPSTR.lst
-zx zmac +syslib/SRAND.Z80 -O +zout/SRAND.rel -P +zout/SRAND.lst
-zx zmac +syslib/SRIN.Z80 -O +zout/SRIN.rel -P +zout/SRIN.lst
-zx zmac +syslib/SRREAD.Z80 -O +zout/SRREAD.rel -P +zout/SRREAD.lst
-zx zmac +syslib/SRWRITE.Z80 -O +zout/SRWRITE.rel -P +zout/SRWRITE.lst
-zx zmac +syslib/SSA2HC.Z80 -O +zout/SSA2HC.rel -P +zout/SSA2HC.lst
-zx zmac +syslib/SSADC.Z80 -O +zout/SSADC.rel -P +zout/SSADC.lst
-zx zmac +syslib/SSAFDC.Z80 -O +zout/SSAFDC.rel -P +zout/SSAFDC.lst
-zx zmac +syslib/SSCANNER.Z80 -O +zout/SSCANNER.rel -P +zout/SSCANNER.lst
-zx zmac +syslib/SSCFA.Z80 -O +zout/SSCFA.rel -P +zout/SSCFA.lst
-zx zmac +syslib/SSCOUT.Z80 -O +zout/SSCOUT.rel -P +zout/SSCOUT.lst
-zx zmac +syslib/SSCRLF.Z80 -O +zout/SSCRLF.rel -P +zout/SSCRLF.lst
-zx zmac +syslib/SSCTLFL.Z80 -O +zout/SSCTLFL.rel -P +zout/SSCTLFL.lst
-zx zmac +syslib/SSDMA.Z80 -O +zout/SSDMA.rel -P +zout/SSDMA.lst
-zx zmac +syslib/SSFA.Z80 -O +zout/SSFA.rel -P +zout/SSFA.lst
-zx zmac +syslib/SSFN1.Z80 -O +zout/SSFN1.rel -P +zout/SSFN1.lst
-zx zmac +syslib/SSFN2.Z80 -O +zout/SSFN2.rel -P +zout/SSFN2.lst
-zx zmac +syslib/SSFN3.Z80 -O +zout/SSFN3.rel -P +zout/SSFN3.lst
-zx zmac +syslib/SSHL4HC.Z80 -O +zout/SSHL4HC.rel -P +zout/SSHL4HC.lst
-zx zmac +syslib/SSHL5DC.Z80 -O +zout/SSHL5DC.rel -P +zout/SSHL5DC.lst
-zx zmac +syslib/SSHLFDC.Z80 -O +zout/SSHLFDC.rel -P +zout/SSHLFDC.lst
-zx zmac +syslib/SSKPUN.Z80 -O +zout/SSKPUN.rel -P +zout/SSKPUN.lst
-zx zmac +syslib/SSKSP.Z80 -O +zout/SSKSP.rel -P +zout/SSKSP.lst
-zx zmac +syslib/SSORT.Z80 -O +zout/SSORT.rel -P +zout/SSORT.lst
-zx zmac +syslib/SSOUT.Z80 -O +zout/SSOUT.rel -P +zout/SSOUT.lst
-zx zmac +syslib/SSPRINT.Z80 -O +zout/SSPRINT.rel -P +zout/SSPRINT.lst
-zx zmac +syslib/SSPSTR.Z80 -O +zout/SSPSTR.rel -P +zout/SSPSTR.lst
-zx zmac +syslib/SSUA.Z80 -O +zout/SSUA.rel -P +zout/SSUA.lst
-zx zmac +syslib/SUD1.Z80 -O +zout/SUD1.rel -P +zout/SUD1.lst
-zx zmac +syslib/SUD2.Z80 -O +zout/SUD2.rel -P +zout/SUD2.lst
-zx zmac +syslib/SFILEIO.Z80 -O +zout/SFILEIO.rel -P +zout/SFILEIO.lst
+zx zmac +syslib/S0FILEIO.Z80 -O +build/syslib/s0fileio.rel -P +build/syslib/s0fileio.lst
+zx zmac +syslib/S1FILEIO.Z80 -O +build/syslib/s1fileio.rel -P +build/syslib/s1fileio.lst
+zx zmac +syslib/s2fileio.z80 -O +build/syslib/s2fileio.rel -P +build/syslib/s2fileio.lst
+zx zmac +syslib/S3FILEIO.Z80 -O +build/syslib/s3FILEIO.rel -P +build/syslib/s3fileio.lst
+zx zmac +syslib/SACAS1.Z80 -O +build/syslib/sACAS1.rel -P +build/syslib/sACAS1.lst
+zx zmac +syslib/SACAS2.Z80 -O +build/syslib/sACAS2.rel -P +build/syslib/sACAS2.lst
+zx zmac +syslib/SACAS3.Z80 -O +build/syslib/sACAS3.rel -P +build/syslib/sACAS3.lst
+zx zmac +syslib/SAGO1.Z80 -O +build/syslib/sAGO1.rel  -P +build/syslib/sAGO1.lst
+zx zmac +syslib/SAGO2.Z80 -O +build/syslib/sAGO2.rel  -P +build/syslib/sAGO2.lst
+zx zmac +syslib/SAIF1.Z80 -O +build/syslib/sAIF1.rel -P +build/syslib/sAIF1.lst
+zx zmac +syslib/SAIF2.Z80 -O +build/syslib/sAIF2.rel -P +build/syslib/sAIF2.lst   
+zx zmac +syslib/SALLOC.Z80 -O +build/syslib/sALLOC.rel -P +build/syslib/sALLOC.lst
+zx zmac +syslib/SARGV.Z80 -O +build/syslib/sARGV.rel -P +build/syslib/sARGV.lst
+zx zmac +syslib/SBBLINE.Z80 -O +build/syslib/sBBLINE.rel -P +build/syslib/sBBLINE.lst
+zx zmac +syslib/SBDOS.Z80 -O +build/syslib/sBDOS.rel -P +build/syslib/sBDOS.lst
+zx zmac +syslib/SFSIZE.Z80 -O +build/syslib/sFSIZE.rel -P +build/syslib/sFSIZE.lst
+zx zmac +syslib/SBGO1.Z80 -O +build/syslib/sBGO1.rel -P +build/syslib/sBGO1.ls
+zx zmac +syslib/SBGO2.Z80 -O +build/syslib/sBGO2.rel -P +build/syslib/sBGO2.lst
+zx zmac +syslib/SBIN.Z80 -O +build/syslib/sBIN.rel -P +build/syslib/sBIN.lst
+zx zmac +syslib/SBIOS.Z80 -O +build/syslib/sBIOS.rel -P +build/syslib/sBIOS.lst
+zx zmac +syslib/SBIST.Z80 -O +build/syslib/sBIST.rel -P +build/syslib/sBIST.lst
+zx zmac +syslib/SBLINE.Z80 -O +build/syslib/sBLINE.rel -P +build/syslib/sBLINE.lst
+zx zmac +syslib/SBOUT.Z80 -O +build/syslib/sBOUT.rel -P +build/syslib/sBOUT.lst
+zx zmac +syslib/SCAPIN.Z80 -O +build/syslib/sCAPIN.rel -P +build/syslib/sCAPIN.lst
+zx zmac +syslib/SCAPS.Z80 -O +build/syslib/sCAPS.rel -P +build/syslib/sCAPS.lst
+zx zmac +syslib/SCAPSTR.Z80 -O +build/syslib/sCAPSTR.rel -P +build/syslib/sCAPSTR.lst
+zx zmac +syslib/SCATH.Z80 -O +build/syslib/sCATH.rel -P +build/syslib/sCATH.lst
+zx zmac +syslib/SCCOUT.Z80 -O +build/syslib/sCCOUT.rel -P +build/syslib/sCCOUT.lst
+zx zmac +syslib/SCIN.Z80 -O +build/syslib/sCIN.rel -P +build/syslib/sCIN.lst
+zx zmac +syslib/SCLINE.Z80 -O +build/syslib/sCLINE.rel -P +build/syslib/sCLINE.lst
+zx zmac +syslib/SCLOUT.Z80 -O +build/syslib/sCLOUT.rel -P +build/syslib/sCLOUT.lst
+zx zmac +syslib/SCODEND.Z80 -O +build/syslib/sCODEND.rel -P +build/syslib/sCODEND.lst
+zx zmac +syslib/SCOMP.Z80 -O +build/syslib/sCOMP.rel -P +build/syslib/sCOMP.lst
+zx zmac +syslib/SCOMPHD.Z80 -O +build/syslib/sCOMPHD.rel -P +build/syslib/sCOMPHD.lst
+zx zmac +syslib/SCONDIN.Z80 -O +build/syslib/sCONDIN.rel -P +build/syslib/sCONDIN.lst
+zx zmac +syslib/SCOUT.z80 -O +build/syslib/sCOUT.rel -P +build/syslib/sCOUT.lst
+zx zmac +syslib/SCPOUT.Z80 -O +build/syslib/sCPOUT.rel -P +build/syslib/sCPOUT.lst
+zx zmac +syslib/SCRC.Z80 -O +build/syslib/sCRC.rel -P +build/syslib/sCRC.lst
+zx zmac +syslib/SCRC1.Z80 -O +build/syslib/sCRC1.rel -P +build/syslib/sCRC1.lst
+zx zmac +syslib/SCRC2.Z80 -O +build/syslib/sCRC2.rel -P +build/syslib/sCRC2.lst
+zx zmac +syslib/SCRLF.Z80 -O +build/syslib/sCRLF.rel -P +build/syslib/sCRLF.lst
+zx zmac +syslib/SCST.Z80 -O +build/syslib/sCST.rel -P +build/syslib/sCST.lst
+zx zmac +syslib/SDGO1.Z80 -O +build/syslib/sDGO1.rel -P +build/syslib/sDGO1.lst
+zx zmac +syslib/SDGO2.Z80 -O +build/syslib/sDGO2.rel -P +build/syslib/sDGO2.lst
+zx zmac +syslib/sdir.z80 -O +build/syslib/sdir.rel -P +build/syslib/sdir.lst
+zx zmac +syslib/sdir00.z80 -O +build/syslib/sdir00.rel -P +build/syslib/sdir00.lst
+zx zmac +syslib/sdir01.z80 -O +build/syslib/sdir01.rel -P +build/syslib/sdir01.lst
+zx zmac +syslib/sdir02.z80 -O +build/syslib/sdir02.rel -P +build/syslib/sdir02.lst
+zx zmac +syslib/sdir03.z80 -O +build/syslib/sdir03.rel -P +build/syslib/sdir03.lst
+zx zmac +syslib/sdir04.z80 -O +build/syslib/sdir04.rel -P +build/syslib/sdir04.lst
+zx zmac +syslib/sdir05.z80 -O +build/syslib/sdir05.rel -P +build/syslib/sdir05.lst
+zx zmac +syslib/sdir06.z80 -O +build/syslib/sdir06.rel -P +build/syslib/sdir06.lst
+zx zmac +syslib/sdir07.z80 -O +build/syslib/sdir07.rel -P +build/syslib/sdir07.lst
+zx zmac +syslib/sdir08.z80 -O +build/syslib/sdir08.rel -P +build/syslib/sdir08.lst
+zx zmac +syslib/sdir09.z80 -O +build/syslib/sdir09.rel -P +build/syslib/sdir09.lst
+zx zmac +syslib/sdir10.z80 -O +build/syslib/sdir10.rel -P +build/syslib/sdir10.lst
+zx zmac +syslib/SDIRBF.Z80 -O +build/syslib/sDIRBF.rel -P +build/syslib/sDIRBF.lst
+zx zmac +syslib/SDIRQ.Z80 -O +build/syslib/sDIRQ.rel -P +build/syslib/sDIRQ.lst
+zx zmac +syslib/SDIRQS.Z80 -O +build/syslib/sDIRQS.rel -P +build/syslib/sDIRQS.lst
+zx zmac +syslib/SEN.Z80 -O +build/syslib/sEN.rel -P +build/syslib/sEN.lst
+zx zmac +syslib/SEPRINT.Z80 -O +build/syslib/sEPRINT.rel -P +build/syslib/sEPRINT.lst
+zx zmac +syslib/SEPSTR.Z80 -O +build/syslib/sEPSTR.rel -P +build/syslib/sEPSTR.lst
+zx zmac +syslib/SEVAL.Z80 -O +build/syslib/sEVAL.rel -P +build/syslib/sEVAL.lst
+zx zmac +syslib/SEVAL1.Z80 -O +build/syslib/sEVAL1.rel -P +build/syslib/sEVAL1.lst
+zx zmac +syslib/SEVAL2.Z80 -O +build/syslib/sEVAL2.rel -P +build/syslib/sEVAL2.lst
+zx zmac +syslib/SEVAL3.Z80 -O +build/syslib/sEVAL3.rel -P +build/syslib/sEVAL3.lst
+zx zmac +syslib/SEVAL4.Z80 -O +build/syslib/sEVAL4.rel -P +build/syslib/sEVAL4.lst
+zx zmac +syslib/SFAPPEND.Z80 -O +build/syslib/sFAPPEND.rel -P +build/syslib/sFAPPEND.lst
+zx zmac +syslib/SFCLOSE.Z80 -O +build/syslib/sFCLOSE.rel -P +build/syslib/sFCLOSE.lst
+zx zmac +syslib/SFDELETE.Z80 -O +build/syslib/sFDELETE.rel -P +build/syslib/sFDELETE.lst
+zx zmac +syslib/SFEXIST.Z80 -O +build/syslib/sFEXIST.rel -P +build/syslib/sFEXIST.lst
+zx zmac +syslib/SFILL.Z80 -O +build/syslib/sFILL.rel -P +build/syslib/sFILL.lst
+zx zmac +syslib/SFMAKE.Z80 -O +build/syslib/sFMAKE.rel -P +build/syslib/sFMAKE.lst
+zx zmac +syslib/SFNAME.Z80 -O +build/syslib/sFNAME.rel -P +build/syslib/sFNAME.lst
+zx zmac +syslib/SFOPEN.z80 -O +build/syslib/sFOPEN.rel -P +build/syslib/sFOPEN.lst
+zx zmac +syslib/SFREAD.Z80 -O +build/syslib/sFREAD.rel -P +build/syslib/sFREAD.lst
+zx zmac +syslib/SFRENAME.Z80 -O +build/syslib/sFRENAME.rel -P +build/syslib/sFRENAME.lst
+zx zmac +syslib/SFWRITE.Z80 -O +build/syslib/sFWRITE.rel -P +build/syslib/sFWRITE.lst
+zx zmac +syslib/SFXIO.Z80 -O +build/syslib/sFXIO.rel -P +build/syslib/sFXIO.lst
+zx zmac +syslib/SFYIO.Z80 -O +build/syslib/sFYIO.rel -P +build/syslib/sFYIO.lst
+zx zmac +syslib/SGFA.Z80 -O +build/syslib/sGFA.rel -P +build/syslib/sGFA.lst
+zx zmac +syslib/SGRR.Z80 -O +build/syslib/sGRR.rel -P +build/syslib/sGRR.lst
+zx zmac +syslib/SGRR1.Z80 -O +build/syslib/sGRR1.rel -P +build/syslib/sGRR1.lst
+zx zmac +syslib/SGUA.Z80 -O +build/syslib/sGUA.rel -P +build/syslib/sGUA.lst
+zx zmac +syslib/SHCAS1.Z80 -O +build/syslib/sHCAS1.rel -P +build/syslib/sHCAS1.lst
+zx zmac +syslib/SHCAS2.Z80 -O +build/syslib/sHCAS2.rel -P +build/syslib/sHCAS2.lst
+zx zmac +syslib/SHCAS3.Z80 -O +build/syslib/sHCAS3.rel -P +build/syslib/sHCAS3.lst
+zx zmac +syslib/SHDR.Z80 -O +build/syslib/sHDR.rel -P +build/syslib/sHDR.lst
+zx zmac +syslib/SHGO1.Z80 -O +build/syslib/sHGO1.rel -P +build/syslib/sHGO1.lst
+zx zmac +syslib/SHGO2.Z80 -O +build/syslib/sHGO2.rel -P +build/syslib/sHGO2.lst
+zx zmac +syslib/SHIF1.Z80 -O +build/syslib/sHIF1.rel -P +build/syslib/sHIF1.lst
+zx zmac +syslib/SHIF2.Z80 -O +build/syslib/sHIF2.rel -P +build/syslib/sHIF2.lst
+zx zmac +syslib/SINITFCB.Z80 -O +build/syslib/sINITFCB.rel -P +build/syslib/sINITFCB.lst
+zx zmac +syslib/SINLINE.Z80 -O +build/syslib/sINLINE.rel -P +build/syslib/sINLINE.lst
+zx zmac +syslib/SINSTR.Z80 -O +build/syslib/sINSTR.rel -P +build/syslib/sINSTR.lst
+zx zmac +syslib/SISALNUM.Z80 -O +build/syslib/sISALNUM.rel -P +build/syslib/sISALNUM.lst
+zx zmac +syslib/SISALPHA.Z80 -O +build/syslib/sISALPHA.rel -P +build/syslib/sISALPHA.lst
+zx zmac +syslib/SISCTRL.Z80 -O +build/syslib/sISCTRL.rel -P +build/syslib/sISCTRL.lst
+zx zmac +syslib/SISDIGIT.Z80 -O +build/syslib/sISDIGIT.rel -P +build/syslib/sISDIGIT.lst
+zx zmac +syslib/SISGRAPH.Z80 -O +build/syslib/sISGRAPH.rel -P +build/syslib/sISGRAPH.lst
+zx zmac +syslib/SISHEX.Z80 -O +build/syslib/sISHEX.rel -P +build/syslib/sISHEX.lst
+zx zmac +syslib/SISPRINT.Z80 -O +build/syslib/sISPRINT.rel -P +build/syslib/sISPRINT.lst
+zx zmac +syslib/SISPUN.Z80 -O +build/syslib/sISPUN.rel -P +build/syslib/sISPUN.lst
+zx zmac +syslib/SISSP.Z80 -O +build/syslib/sISSP.rel -P +build/syslib/sISSP.lst
+zx zmac +syslib/SLA2HC.Z80 -O +build/syslib/sLA2HC.rel -P +build/syslib/sLA2HC.lst
+zx zmac +syslib/SLADC.Z80 -O +build/syslib/sLADC.rel -P +build/syslib/sLADC.lst
+zx zmac +syslib/SLAFDC.Z80 -O +build/syslib/sLAFDC.rel -P +build/syslib/sLAFDC.lst
+zx zmac +syslib/SLCRLF.Z80 -O +build/syslib/sLCRLF.rel -P +build/syslib/sLCRLF.lst
+zx zmac +syslib/SLFN1.Z80 -O +build/syslib/sLFN1.rel -P +build/syslib/sLFN1.lst
+zx zmac +syslib/SLFN2.Z80 -O +build/syslib/sLFN2.rel -P +build/syslib/sLFN2.lst
+zx zmac +syslib/SLFN3.Z80 -O +build/syslib/sLFN3.rel -P +build/syslib/sLFN3.lst
+zx zmac +syslib/SLHL4HC.Z80 -O +build/syslib/sLHL4HC.rel -P +build/syslib/sLHL4HC.lst
+zx zmac +syslib/SLHL5DC.Z80 -O +build/syslib/sLHL5DC.rel -P +build/syslib/sLHL5DC.lst
+zx zmac +syslib/SLHLFDC.Z80 -O +build/syslib/sLHLFDC.rel -P +build/syslib/sLHLFDC.lst
+zx zmac +syslib/SLOUT.Z80 -O +build/syslib/sLOUT.rel -P +build/syslib/sLOUT.lst
+zx zmac +syslib/SLPRINT.Z80 -O +build/syslib/sLPRINT.rel -P +build/syslib/sLPRINT.lst
+zx zmac +syslib/SLPSTR.Z80 -O +build/syslib/sLPSTR.rel -P +build/syslib/sLPSTR.lst
+zx zmac +syslib/SLUCLOSE.z80 -O +build/syslib/sLUCLOSE.rel -P +build/syslib/sLUCLOSE.lst
+zx zmac +syslib/SLUDIR.z80 -O +build/syslib/sLUDIR.rel -P +build/syslib/sLUDIR.lst
+zx zmac +syslib/SLUINIT.z80 -O +build/syslib/sLUINIT.rel -P +build/syslib/sLUINIT.lst
+zx zmac +syslib/SLUOPEN.z80 -O +build/syslib/sLUOPEN.rel -P +build/syslib/sLUOPEN.lst
+zx zmac +syslib/SMA2HC.Z80 -O +build/syslib/sMA2HC.rel -P +build/syslib/sMA2HC.lst
+zx zmac +syslib/SMADC.Z80 -O +build/syslib/sMADC.rel -P +build/syslib/sMADC.lst
+zx zmac +syslib/SMAFDC.Z80 -O +build/syslib/sMAFDC.rel -P +build/syslib/sMAFDC.lst
+zx zmac +syslib/SMFN1.Z80 -O +build/syslib/sMFN1.rel -P +build/syslib/sMFN1.lst
+zx zmac +syslib/SMFN2.Z80 -O +build/syslib/sMFN2.rel -P +build/syslib/sMFN2.lst
+zx zmac +syslib/SMFN3.Z80 -O +build/syslib/sMFN3.rel -P +build/syslib/sMFN3.lst
+zx zmac +syslib/SMHL4HC.Z80 -O +build/syslib/sMHL4HC.rel -P +build/syslib/sMHL4HC.lst
+zx zmac +syslib/SMHL5DC.Z80 -O +build/syslib/sMHL5DC.rel -P +build/syslib/sMHL5DC.lst
+zx zmac +syslib/SMHLFDC.Z80 -O +build/syslib/sMHLFDC.rel -P +build/syslib/sMHLFDC.lst
+zx zmac +syslib/SMOVE.Z80 -O +build/syslib/sMOVE.rel -P +build/syslib/sMOVE.lst
+zx zmac +syslib/SMTH01.Z80 -O +build/syslib/sMTH01.rel -P +build/syslib/sMTH01.lst
+zx zmac +syslib/SMTH02.Z80 -O +build/syslib/sMTH02.rel -P +build/syslib/sMTH02.lst  
+zx zmac +syslib/SMTH03.Z80 -O +build/syslib/sMTH03.rel -P +build/syslib/sMTH03.lst
+zx zmac +syslib/SMTH04.Z80 -O +build/syslib/sMTH04.rel -P +build/syslib/sMTH04.lst
+zx zmac +syslib/SMTH05.Z80 -O +build/syslib/sMTH05.rel -P +build/syslib/sMTH05.lst
+zx zmac +syslib/SMTH06.Z80 -O +build/syslib/sMTH06.rel -P +build/syslib/sMTH06.lst
+zx zmac +syslib/SMTH07.Z80 -O +build/syslib/sMTH07.rel -P +build/syslib/sMTH07.lst
+zx zmac +syslib/SMTH08.Z80 -O +build/syslib/sMTH08.rel -P +build/syslib/sMTH08.lst
+zx zmac +syslib/SMTH09.Z80 -O +build/syslib/sMTH09.rel -P +build/syslib/sMTH09.lst
+zx zmac +syslib/SMTH10.Z80 -O +build/syslib/sMTH10.rel -P +build/syslib/sMTH10.lst
+zx zmac +syslib/SMTH11.Z80 -O +build/syslib/sMTH11.rel -P +build/syslib/sMTH11.lst
+zx zmac +syslib/SMTH12.Z80 -O +build/syslib/sMTH12.rel -P +build/syslib/sMTH12.lst
+zx zmac +syslib/SPA2HC.Z80 -O +build/syslib/sPA2HC.rel -P +build/syslib/sPA2HC.lst
+zx zmac +syslib/SPADC.Z80 -O +build/syslib/sPADC.rel -P +build/syslib/sPADC.lst
+zx zmac +syslib/SPAFDC.Z80 -O +build/syslib/sPAFDC.rel -P +build/syslib/sPAFDC.lst
+zx zmac +syslib/SPAUSE.Z80 -O +build/syslib/sPAUSE.rel -P +build/syslib/sPAUSE.lst
+zx zmac +syslib/SPFN1.Z80 -O +build/syslib/sPFN1.rel -P +build/syslib/sPFN1.lst
+zx zmac +syslib/SPFN2.Z80 -O +build/syslib/sPFN2.rel -P +build/syslib/sPFN2.lst
+zx zmac +syslib/SPFN3.Z80 -O +build/syslib/sPFN3.rel -P +build/syslib/sPFN3.lst
+zx zmac +syslib/SPHL4HC.Z80 -O +build/syslib/sPHL4HC.rel -P +build/syslib/sPHL4HC.lst
+zx zmac +syslib/SPHL5DC.Z80 -O +build/syslib/sPHL5DC.rel -P +build/syslib/sPHL5DC.lst
+zx zmac +syslib/SPHLFDC.Z80 -O +build/syslib/sPHLFDC.rel -P +build/syslib/sPHLFDC.lst
+zx zmac +syslib/SPOUT.Z80 -O +build/syslib/sPOUT.rel -P +build/syslib/sPOUT.lst
+zx zmac +syslib/SPRINT.Z80 -O +build/syslib/sPRINT.rel -P +build/syslib/sPRINT.lst
+zx zmac +syslib/SPSTR.Z80 -O +build/syslib/sPSTR.rel -P +build/syslib/sPSTR.lst
+zx zmac +syslib/SRAND.Z80 -O +build/syslib/sRAND.rel -P +build/syslib/sRAND.lst
+zx zmac +syslib/SRIN.Z80 -O +build/syslib/sRIN.rel -P +build/syslib/sRIN.lst
+zx zmac +syslib/SRREAD.Z80 -O +build/syslib/sRREAD.rel -P +build/syslib/sRREAD.lst
+zx zmac +syslib/SRWRITE.Z80 -O +build/syslib/sRWRITE.rel -P +build/syslib/sRWRITE.lst
+zx zmac +syslib/SSA2HC.Z80 -O +build/syslib/sSA2HC.rel -P +build/syslib/sSA2HC.lst
+zx zmac +syslib/SSADC.Z80 -O +build/syslib/sSADC.rel -P +build/syslib/sSADC.lst
+zx zmac +syslib/SSAFDC.Z80 -O +build/syslib/sSAFDC.rel -P +build/syslib/sSAFDC.lst
+zx zmac +syslib/SSCANNER.Z80 -O +build/syslib/sSCANNER.rel -P +build/syslib/sSCANNER.lst
+zx zmac +syslib/SSCFA.Z80 -O +build/syslib/sSCFA.rel -P +build/syslib/sSCFA.lst
+zx zmac +syslib/SSCOUT.Z80 -O +build/syslib/sSCOUT.rel -P +build/syslib/sSCOUT.lst
+zx zmac +syslib/SSCRLF.Z80 -O +build/syslib/sSCRLF.rel -P +build/syslib/sSCRLF.lst
+zx zmac +syslib/SSCTLFL.Z80 -O +build/syslib/sSCTLFL.rel -P +build/syslib/sSCTLFL.lst
+zx zmac +syslib/SSDMA.Z80 -O +build/syslib/sSDMA.rel -P +build/syslib/sSDMA.lst
+zx zmac +syslib/SSFA.Z80 -O +build/syslib/sSFA.rel -P +build/syslib/sSFA.lst
+zx zmac +syslib/SSFN1.Z80 -O +build/syslib/sSFN1.rel -P +build/syslib/sSFN1.lst
+zx zmac +syslib/SSFN2.Z80 -O +build/syslib/sSFN2.rel -P +build/syslib/sSFN2.lst
+zx zmac +syslib/SSFN3.Z80 -O +build/syslib/sSFN3.rel -P +build/syslib/sSFN3.lst
+zx zmac +syslib/SSHL4HC.Z80 -O +build/syslib/sSHL4HC.rel -P +build/syslib/sSHL4HC.lst
+zx zmac +syslib/SSHL5DC.Z80 -O +build/syslib/sSHL5DC.rel -P +build/syslib/sSHL5DC.lst
+zx zmac +syslib/SSHLFDC.Z80 -O +build/syslib/sSHLFDC.rel -P +build/syslib/sSHLFDC.lst
+zx zmac +syslib/SSKPUN.Z80 -O +build/syslib/sSKPUN.rel -P +build/syslib/sSKPUN.lst
+zx zmac +syslib/SSKSP.Z80 -O +build/syslib/sSKSP.rel -P +build/syslib/sSKSP.lst
+zx zmac +syslib/SSORT.Z80 -O +build/syslib/sSORT.rel -P +build/syslib/sSORT.lst
+zx zmac +syslib/SSOUT.Z80 -O +build/syslib/sSOUT.rel -P +build/syslib/sSOUT.lst
+zx zmac +syslib/SSPRINT.Z80 -O +build/syslib/sSPRINT.rel -P +build/syslib/sSPRINT.lst
+zx zmac +syslib/SSPSTR.Z80 -O +build/syslib/sSPSTR.rel -P +build/syslib/sSPSTR.lst
+zx zmac +syslib/SSUA.Z80 -O +build/syslib/sSUA.rel -P +build/syslib/sSUA.lst
+zx zmac +syslib/SUD1.Z80 -O +build/syslib/sUD1.rel -P +build/syslib/sUD1.lst
+zx zmac +syslib/SUD2.Z80 -O +build/syslib/sUD2.rel -P +build/syslib/sUD2.lst
+zx zmac +syslib/SFILEIO.Z80 -O +build/syslib/sFILEIO.rel -P +build/syslib/sFILEIO.lst
 cd zout
 zx lib slib=s3fileio,sacas1,sacas2,sacas3,sago1,sago2
 zx lib slib1=slib,saif1,saif2,salloc,sargv,sbbline,sbdos
@@ -242,47 +242,47 @@ zx lib slib31=slib30,sud1,sud2,sfileio,s0fileio,smove
 zx lib syslib=slib31,s1fileio,scout,sccout,scin,sbout,scaps
 cd ..
 rem Build C3LIB
-zx zmac +c3lib/c3a2date.z80
-zx zmac +c3lib/c3a2time.z80
-zx zmac +c3lib/c3bios.z80
-zx zmac +c3lib/c3brk.z80
-zx zmac +c3lib/c3cmod.z80
-zx zmac +c3lib/c3com.z80
-zx zmac +c3lib/c3date2a.z80
-zx zmac +c3lib/c3day.z80
-zx zmac +c3lib/c3devc.z80
-zx zmac +c3lib/c3devg.z80
-zx zmac +c3lib/c3devl.z80
-zx zmac +c3lib/c3dfmt.z80
-zx zmac +c3lib/c3dini.z80 -O +zout/c3dini.rel -P +zout/c3dini.lst
-zx zmac +c3lib/c3dmy.z80
-zx zmac +c3lib/c3dname.z80
-zx zmac +c3lib/c3dosopt.z80
-zx zmac +c3lib/c3dtbl.z80
-zx zmac +c3lib/c3err.z80
-zx zmac +c3lib/c3fbcd.z80
-zx zmac +c3lib/c3gtime.z80
-zx zmac +c3lib/c3int.z80
-zx zmac +c3lib/c3opt.z80
-zx zmac +c3lib/c3page.z80
-zx zmac +c3lib/c3passwd.z80
-zx zmac +c3lib/c3pmerr.z80
-zx zmac +c3lib/c3pmin.z80
-zx zmac +c3lib/c3pminit.z80
-zx zmac +c3lib/c3pmout.z80
-zx zmac +c3lib/c3pmpage.z80
-zx zmac +c3lib/c3pmpb.z80
-zx zmac +c3lib/c3pmpr.z80
-zx zmac +c3lib/c3pmstat.z80
-zx zmac +c3lib/c3pmstr.z80
-zx zmac +c3lib/c3pmver.z80
-zx zmac +c3lib/c3push.z80
-zx zmac +c3lib/c3scbget.z80
-zx zmac +c3lib/c3scbput.z80
-zx zmac +c3lib/c3smin.z80
-zx zmac +c3lib/c3stime.z80
-zx zmac +c3lib/c3tbcd.z80
-zx zmac +c3lib/c3time2a.z80
+zx zmac +c3lib/c3a2date.z80 -O +build/c3lib/c3a2date.rel -P +build/c3lib/c3a2date.lst
+zx zmac +c3lib/c3a2time.z80 -O +build/c3lib/c3a2time.rel -P +build/c3lib/c3a2time.lst
+zx zmac +c3lib/c3bios.z80 -O +build/c3lib/c3bios.rel -P +build/c3lib/c3bios.lst
+zx zmac +c3lib/c3brk.z80 -O +build/c3lib/c3brk.rel -P +build/c3lib/c3brk.lst
+zx zmac +c3lib/c3cmod.z80 -O +build/c3lib/c3cmod.rel -P +build/c3lib/c3cmod.lst
+zx zmac +c3lib/c3com.z80 -O +build/c3lib/c3com.rel -P +build/c3lib/c3com.lst
+zx zmac +c3lib/c3date2a.z80 -O +build/c3lib/c3date2a.rel -P +build/c3lib/c3date2a.lst
+zx zmac +c3lib/c3day.z80 -O +build/c3lib/c3day.rel -P +build/c3lib/c3day.lst
+zx zmac +c3lib/c3devc.z80 -O +build/c3lib/c3devc.rel -P +build/c3lib/c3devc.lst
+zx zmac +c3lib/c3devg.z80 -O +build/c3lib/c3devg.rel -P +build/c3lib/c3devg.lst
+zx zmac +c3lib/c3devl.z80 -O +build/c3lib/c3devl.rel -P +build/c3lib/c3devl.lst
+zx zmac +c3lib/c3dfmt.z80 -O +build/c3lib/c3dfmt.rel -P +build/c3lib/c3dfmt.lst
+zx zmac +c3lib/c3dini.z80 -O +build/c3lib/c3dini.rel -P +build/c3lib/c3dini.lst
+zx zmac +c3lib/c3dmy.z80 -O +build/c3lib/c3dmy.rel -P +build/c3lib/c3dmy.lst
+zx zmac +c3lib/c3dname.z80 -O +build/c3lib/c3dname.rel -P +build/c3lib/c3dname.lst
+zx zmac +c3lib/c3dosopt.z80 -O +build/c3lib/c3dosopt.rel -P +build/c3lib/c3dosopt.lst
+zx zmac +c3lib/c3dtbl.z80 -O +build/c3lib/c3dtbl.rel -P +build/c3lib/c3dtbl.lst
+zx zmac +c3lib/c3err.z80 -O +build/c3lib/c3err.rel -P +build/c3lib/c3err.lst
+zx zmac +c3lib/c3fbcd.z80 -O +build/c3lib/c3fbcd.rel -P +build/c3lib/c3fbcd.lst
+zx zmac +c3lib/c3gtime.z80 -O +build/c3lib/c3gtime.rel -P +build/c3lib/c3gtime.lst
+zx zmac +c3lib/c3int.z80 -O +build/c3lib/c3int.rel -P +build/c3lib/c3int.lst
+zx zmac +c3lib/c3opt.z80 -O +build/c3lib/c3opt.rel -P +build/c3lib/c3opt.lst
+zx zmac +c3lib/c3page.z80 -O +build/c3lib/c3page.rel -P +build/c3lib/c3page.lst
+zx zmac +c3lib/c3passwd.z80 -O +build/c3lib/c3passwd.rel -P +build/c3lib/c3passwd.lst
+zx zmac +c3lib/c3pmerr.z80 -O +build/c3lib/c3pmerr.rel -P +build/c3lib/c3pmerr.lst
+zx zmac +c3lib/c3pmin.z80 -O +build/c3lib/c3pmin.rel -P +build/c3lib/c3pmin.lst
+zx zmac +c3lib/c3pminit.z80 -O +build/c3lib/c3pminit.rel -P +build/c3lib/c3pminit.lst
+zx zmac +c3lib/c3pmout.z80 -O +build/c3lib/c3pmout.rel -P +build/c3lib/c3pmout.lst
+zx zmac +c3lib/c3pmpage.z80 -O +build/c3lib/c3pmpage.rel -P +build/c3lib/c3pmpage.lst
+zx zmac +c3lib/c3pmpb.z80 -O +build/c3lib/c3pmpb.rel -P +build/c3lib/c3pmpb.lst
+zx zmac +c3lib/c3pmpr.z80 -O +build/c3lib/c3pmpr.rel -P +build/c3lib/c3pmpr.lst
+zx zmac +c3lib/c3pmstat.z80 -O +build/c3lib/c3pmstat.rel -P +build/c3lib/c3pmstat.lst
+zx zmac +c3lib/c3pmstr.z80 -O +build/c3lib/c3pmstr.rel -P +build/c3lib/c3pmstr.lst
+zx zmac +c3lib/c3pmver.z80 -O +build/c3lib/c3pmver.rel -P +build/c3lib/c3pmver.lst
+zx zmac +c3lib/c3push.z80 -O +build/c3lib/c3push.rel -P +build/c3lib/c3push.lst
+zx zmac +c3lib/c3scbget.z80 -O +build/c3lib/c3scbget.rel -P +build/c3lib/c3scbget.lst
+zx zmac +c3lib/c3scbput.z80 -O +build/c3lib/c3scbput.rel -P +build/c3lib/c3scbput.lst
+zx zmac +c3lib/c3smin.z80 -O +build/c3lib/c3smin.rel -P +build/c3lib/c3smin.lst
+zx zmac +c3lib/c3stime.z80 -O +build/c3lib/c3stime.rel -P +build/c3lib/c3stime.lst
+zx zmac +c3lib/c3tbcd.z80 -O +build/c3lib/c3tbcd.rel -P +build/c3lib/c3tbcd.lst
+zx zmac +c3lib/c3time2a.z80 -O +build/c3lib/c3time2a.rel -P +build/c3lib/c3time2a.lst
 cd zout
 zx lib c3lib=c3pmpage,c3pmpr,c3pmstr
 zx lib c3lib1=c3lib.rel,c3pminit,c3pmin,c3pmout,c3pmerr,c3pmstat,c3pmpb
