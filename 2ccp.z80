@@ -1952,5 +1952,6 @@ PRNLE:
 	OR	A		;SET FLAG
 	RET	
 ;
+ENDFILL	DS	800H+ENTRY-ENDFILL
 	END	
 

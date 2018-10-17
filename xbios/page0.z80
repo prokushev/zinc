@@ -1,0 +1,9 @@
+0000	RST 0: Default timer interrupt handler.
+0020	RST 20: SVC_CATCHUP — perform a subset of timer interrupt functions.
+0030	RST 30: Kernel panic
+0038	IM 1 interrupt handler.
+003B	Step down the 50Hz system clock to a 1Hz ticker for CP/M.
+0054	Set the border colour to A.
+0075	0FFh if a second floppy drive is present, else 0
+
+

@@ -1,0 +1,11 @@
+;:::::::::::::::::::::::::::::::::::::::************************************
+;	Warm  Boot  Routine		***  Machine Dependant for Moves ***
+;	  ZX Spectrum +3		***  and custom load formatting  ***
+;					************************************
+;:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+	CSEG
+
+WBOOT:
+;	set Page 0 and JP to CCP
+	RET

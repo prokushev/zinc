@@ -1,0 +1,121 @@
+;:::::::::::::::::::::::::::::::::::::::::::::::::*************************
+;		 Byte I/O Routines		  *** Hardware Specific ***
+; Input routines do NOT mask MSB for 8-bit data.  *************************
+;		- MicroMint SB-180 -
+;
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+	CSEG
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+;	   Byte  Device  Control  Tables
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+DEVCFG:
+CRT:	DEFB	'CRT '		; 4-Char ID
+	DEFB	00000000B	; Baud Rate (None)
+;		||||||||
+;		||||++++---- Baud Rate setting (9600 bps)
+;		++++-------- Maximum Baud Rate (38.4 kbps)
+; Rates are as:
+; 0000 = None	0001 = 134.5	0011 = 50	0011 = 75
+; 0100 = 150	0101 = 300	0110 = 600	0111 = 1200
+; 1000 = 2400	1001 = 4800	1010 = 9600	1011 = 19200
+; 1100 = 38400	1101 = 76800	1110 = 115200	1111 = Fixed
+
+	DEFB	11000000B	; Config Byte
+;		|||||||+---------- Stop Bits 1 (1), 2 (0)
+;		||||||+----------- Parity Enable (1), Disable (0)
+;		|||||+------------ Parity Even (1), Odd (0)
+;		||||+------------- Bits 8 (0), 7 (1)
+;		|||+-------------- Xon-Xoff Handshake
+;		||+--------------- CTS/RTS Handshake
+;		|+---------------- Input Device No (0), Yes (1)
+;		+----------------- Output Device No (0), Yes (1)
+
+	DEFB	0FFH		; Input Data Mask
+	DEFB	0FFH		; Output Data Mask
+
+	DEFW	CRTOT		; COM 1 byte output
+	DEFW	CRTOS		; COM 1 output status
+	DEFW	CRTIN		; COM 1 byte input
+	DEFW	CRTIS		; COM 1 input status
+
+LPT:	DEFB	'LPT '		; 4-Char ID
+	DEFB	00000000B	; Baud Rate (None)
+	DEFB	10000001B	; Config Byte
+	DEFB	0FFH		; Input Data Mask
+	DEFB	07FH		; Output Data Mask
+
+	DEFW	LPTOT		; COM 2 byte output
+	DEFW	LPTOS		; COM 2 output status
+	DEFW	LPTIN		; COM 2 byte input
+	DEFW	LPTIS		; COM 2 input status
+
+SIO:	DEFB	'SIO'		; 4-Char ID
+	DEFB	10111010B	; Baud Rate (19200 Max 9600 set)
+	DEFB	11000000B	; Config Byte (Output Only)
+	DEFB	0FFH		; Input Data Mask
+	DEFB	0FFH		; Output Data Mask
+
+	DEFW	SIOOT		; PIO byte output
+	DEFW	SIOOS		; PIO output status
+	DEFW	SIOIN		; PIO byte input
+	DEFW	SIOIS		; PIO input status
+
+NULL:	DEFB	'NULL'		; 4-Char ID
+	DEFB	00000000B	; Baud Rate (None)
+	DEFB	11000000B	; Config Byte
+	DEFB	0FFH		; Input Data Mask
+	DEFB	0FFH		; Output Data Mask
+
+	DEFW	ISFALSE		; Null output
+	DEFW	ISTRUE		; Null output status
+	DEFW	ISFALSE		; Null input
+	DEFW	ISTRUE		; Null input status
+	DEFB	0		; - End-of-Table marker
+
+MAXBDV	EQU	[$-DEVCFG-1]/[LPT-CRT] ; Number of Character Devices Defined
+
+DEVTBL:	LD	HL,DEVCFG	; BYTE device table
+	RET			; CP/M-3 device init
+
+
+CRTOT:
+CRTOS:
+CRTIN:
+CRTIS:
+LPTOT:
+LPTOS:
+LPTIN:
+LPTIS:
+SIOOT:
+SIOOS:
+SIOIN:
+SIOIS:
+	RET
+
+ISTRUE:	OR	0FFH
+	RET
+
+;:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+;::	  D e v i c e    I n i t i a l i z a t i o n	    ::
+;:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+; This routine must set all configurable devices in the system dynamically.
+; Many support routines and possibly user applications will vary some of
+; the data structures for optimum performance.  Ill-behaved routines that
+; directly address hardware and exit with altered states may be restored
+; by calling this routine via the Jump Table.
+;  If the Bios is assembled for Boot Track installation (MOVCPM True),
+; the Device swapping, and attendant dynamic configuration is disabled
+; resulting in fixed device configurations.
+
+	CSEG
+DEVINI:
+	  IF  BANKED
+	CALL	BIOSTK
+	CALL	GOSYSB
+	JP	JDVINI
+	COMMON	/BANK2/
+JDVINI:
+	  ENDIF
+	RET

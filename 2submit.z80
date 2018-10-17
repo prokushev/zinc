@@ -1,5 +1,5 @@
 ;
-;    STAT: SUBMIT packet command execution (GPLed clone of CP/M 2 SUBMIT)
+;    SUBMIT: packet command execution (GPLed clone of CP/M 2 SUBMIT)
 ;    Copyright (C) 1981  Ron Fowler
 ;    Copyright (C) 1981  George Gary
 ;    Copyright (C) 2018  Yuri Prokushev <yuri.prokushev@gmail.com>

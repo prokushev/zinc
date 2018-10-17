@@ -7,4 +7,11 @@ v3.2
    - LOUT routine now uses BDOS instead of BIOS
  * ZCPR1 public domain as CP/M 2.2 CCP clone base.
  * ZSDOS GPL as CP/M 2.2 BDOS clone base.
- * In all programs direct BDOS calls replaced by SYSLIB BDOS call 
+ * B/P BIOS GPL as CP/M 2.2 and CP/M 3 BIOS clone base.
+ * In all ZINC programs direct BDOS calls replaced by SYSLIB BDOS call 
+ * Function 30 of B/P BIOS removed. Added USERF functions 30 for 
+   Amstrad CP/M Plus compatibility.
+ * bootsector for +3DOS
+ * bootsector installer for +3DOS
+ * BIOS/BDOS/CCP combined to one image ZINC. Bootsector rewritten to use ZINC.BIN.
+ * XBIOS with Fint8x8 and Font5x8 combined to one image. Bootsector modified to use XBIOS.BIN.

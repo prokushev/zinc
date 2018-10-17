@@ -1,5 +1,5 @@
 ;
-;    Spectrum +3 XBIOS: Spectrum +3 XBIOS implementation for ZINC
+;    Spectrum +2A/+3 XBIOS: Spectrum +2A/+3 XBIOS implementation for ZINC
 ;    Copyright (C) 2018  Yuri Prokushev <yuri.prokushev@gmail.com>
 ;
 ;    This program is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 ;    along with this program; if not, write to the Free Software
 ;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 ;
-; XBIOS functions called using USERF function of CP/M 3 BIOS. 
+; XBIOS functions called using USERF function of ZINC BIOS. 
 ; For portability use bellow code:
 ;
 ; USERF:	PUSH	HL
@@ -31,124 +31,657 @@
 ; Typically XBIOS placed in BANK 0 (SYSTEM BANK). This means BIOS must switch to
 ; BANK 0, call XBIOS and switch bank back.
 ; Documented functions are 80H-EEH
-
-; In most cases just forwarders to +3DOS functions
+;
+; This XBIOS implementation reuses as many original ZX Spectrum +3 ROM functions as possible.
+;
+; Memory Map
+;
+; 0000-2FFF XBIOS
+; 3000-3FFF Font 8x8 and 5x8
+; 4000-7FFF Screen, System variables and XBIOS +3DOS gate
+; 8000-BFFF Reserved by +3DOS cache and RAM disk
+; C000-FFFF top of TPA and resident CCP/BDOS/BIOS
 ;
 
-	CPU	.Z80
-        CSEG
+			.Z80
+		        CSEG
 
-	JP	DD_INIT			; 0080h
-	JP	DD_SETUP		; 0083h
-	JP	DD_READ_SECTOR		; 0086h
-	JP	DD_WRITE_SECTOR		; 0089h
-	JP	DD_CHECK_SECTOR		; 008Ch
-	JP	DD_FORMAT		; 008Fh
-	JP	DD_LOGIN		; 0092h
-	JP	DD_SEL_FORMAT		; 0095h
-	JP	DD_DRIVE_STATUS		; 0098h
-	JP	DD_READ_ID		; 009Bh
-	JP	DD_L_DPB		; 009Eh
-	JP	DD_L_XDPB		; 00A1h
-	JP	DD_L_ON_MOTOR		; 00A4h
-	JP	DD_L_T_OFF_MOTOR	; 00A7h
-	JP	DD_L_OFF_MOTOR		; 00AAh
-	JP	DD_L_READ		; 00ADh
-	JP	DD_L_WRITE		; 00B0h
-	JP	DD_L_SEEK		; 00B3h
-	JP	CD_SA_INIT		; 00B6h
-	JP	CD_SA_BAUD		; 00B9h
-	JP	CD_SA_PARAMS		; 00BCh
-	JP	TE_ASK			; 00BFh
-	JP	TE_RESET		; 00C2h
-	JP	TE_STL_ASK		; 00C5h
-	JP	TE_STL_ON_OFF		; 00C8h
-	JP	TE_SET_INK		; 00CBh
-	JP	TE_SET_BORDER		; 00CEh
-	JP	TE_SET_SPEED		; 00D1h
-	JP	KM_SET_EXPAND		; 00D4h
-	JP	KM_SET_KEY		; 00D7h
-	JP	KM_KT_GET		; 00DAh
-	JP	KM_KT_PUT		; 00DDh
-	JP	KM_SET_SPEED		; 00E0h
-	JP	CD_VERSION		; 00E3h
-	JP	CD_INFO			; 00E6h
-	JP	SCR_RUN_ROUTINE		; 00E9h
-	JP	FIND_FID		; 00ECh
+; 
+; +3DOS Low level floppy disk driving routines
+; 
+DD_INTERFACE            EQU     0157H 
+DD_INIT                 EQU     015AH 
+DD_SETUP                EQU     015DH 
+DD_SET_RETRY            EQU     0160H 
+DD_READ_SECTOR          EQU     0163H 
+DD_WRITE_SECTOR         EQU     0166H 
+DD_CHECK_SECTOR         EQU     0169H 
+DD_FORMAT               EQU     016CH 
+DD_READ_ID              EQU     016FH 
+DD_TEST_UNSUITABLE	EQU     0172H 
+DD_LOGIN                EQU     0175H 
+DD_SEL_FORMAT           EQU     0178H 
+DD_ASK_1                EQU     017BH 
+DD_DRIVE_STATUS         EQU     017EH 
+DD_EQUIPMENT            EQU     0181H 
+DD_ENCODE               EQU     0184H 
+DD_L_XDPB               EQU     0187H 
+DD_L_DPB                EQU     018AH 
+DD_L_SEEK               EQU     018DH 
+DD_L_READ               EQU     0190H 
+DD_L_WRITE              EQU     0193H 
+DD_L_ON_MOTOR           EQU     0196H 
+DD_L_T_OFF_MOTOR        EQU     0199H 
+DD_L_OFF_MOTOR          EQU     019CH 
+;
+; Memory control system variables
+;
+BANKM			EQU	05B5CH
+BANK678			EQU	05B67H
 
-DD_INIT:
-        RET
-DD_SETUP:
-        RET
-DD_READ_SECTOR:
-        RET
-DD_WRITE_SECTOR:
-        RET
-DD_CHECK_SECTOR:
-        RET
-DD_FORMAT:
-        RET
-DD_LOGIN:
-        RET
-DD_SEL_FORMAT:
-        RET
-DD_DRIVE_STATUS:
-        RET
-DD_READ_ID:
-        RET
-DD_L_DPB:
-        RET
-DD_L_XDPB:
-        RET
-DD_L_ON_MOTOR:
-        RET
-DD_L_T_OFF_MOTOR:
-        RET
-DD_L_OFF_MOTOR:
-        RET
-DD_L_READ:
-        RET
-DD_L_WRITE:
-        RET
-DD_L_SEEK:
-        RET
-CD_SA_INIT:
-        RET
-CD_SA_BAUD:
-        RET
-CD_SA_PARAMS:
-        RET
-TE_ASK:
-        RET
-TE_RESET:
-        RET
-TE_STL_ASK:
-        RET
-TE_STL_ON_OFF:
-        RET
-TE_SET_INK:
-        RET
-TE_SET_BORDER:
-        RET
-TE_SET_SPEED:
-        RET
-KM_SET_EXPAND:
-        RET
-KM_SET_KEY:
-        RET
-KM_KT_GET:
-        RET
-KM_KT_PUT:
-        RET
-KM_SET_SPEED:
-        RET
-CD_VERSION:
-        RET
-CD_INFO:
-        RET
-SCR_RUN_ROUTINE:
-        RET
-FIND_FID:
+; Memory control I/O ports
+BANK1			EQU	07FFDh		;"horizontal" and RAM switch port
+
+			CSEG
+
+			ORG	080H
+;
+; XBIOS Jump table
+;
+JUMPTABLE:
+			JP	XDD_INIT			; 0080h
+			JP	XDD_SETUP			; 0083h
+			JP	XDD_READ_SECTOR			; 0086h
+			JP	XDD_WRITE_SECTOR		; 0089h
+			JP	XDD_CHECK_SECTOR		; 008Ch
+			JP	XDD_FORMAT			; 008Fh
+			JP	XDD_LOGIN			; 0092h
+			JP	XDD_SEL_FORMAT			; 0095h
+			JP	XDD_DRIVE_STATUS		; 0098h
+			JP	XDD_READ_ID			; 009Bh
+			JP	XDD_L_DPB			; 009Eh
+			JP	XDD_L_XDPB			; 00A1h
+			JP	XDD_L_ON_MOTOR			; 00A4h
+			JP	XDD_L_T_OFF_MOTOR		; 00A7h
+			JP	XDD_L_OFF_MOTOR			; 00AAh
+			JP	XDD_L_READ			; 00ADh
+			JP	XDD_L_WRITE			; 00B0h
+			JP	XDD_L_SEEK			; 00B3h
+			JP	XCD_SA_INIT			; 00B6h
+			JP	XCD_SA_BAUD			; 00B9h
+			JP	XCD_SA_PARAMS			; 00BCh
+			JP	XTE_ASK				; 00BFh
+			JP	XTE_RESET			; 00C2h
+			JP	XTE_STL_ASK			; 00C5h
+			JP	XTE_STL_ON_OFF			; 00C8h
+			JP	XTE_SET_INK			; 00CBh
+			JP	XTE_SET_BORDER			; 00CEh
+			JP	XTE_SET_SPEED			; 00D1h
+			JP	XKM_SET_EXPAND			; 00D4h
+			JP	XKM_SET_KEY			; 00D7h
+			JP	XKM_KT_GET			; 00DAh
+			JP	XKM_KT_PUT			; 00DDh
+			JP	XKM_SET_SPEED			; 00E0h
+			JP	XCD_VERSION			; 00E3h
+			JP	XCD_INFO			; 00E6h
+			JP	XSCR_RUN_ROUTINE		; 00E9h
+			JP	XFIND_FID			; 00ECh
+			JP	XCD_SA_INTSTATUS		; 00EFh
+			JP	XCD_COLDBOOT			; 00F2h
+			JP	XSVC_D_CHANGED			; 00F5h
+			JP	XDD_CALLDRIVER			; 00F8h
+			JP	XMSG_RETRYMSG			; 00FBh
+			JP	XMSG_INSERT			; 00FEh
+			JP	XMSG_SYSMSG			; 0101h
+
+
+;00EFh:  (CD SA INTSTATUS) Return serial port interrupt status.
+;	A = wait/ready bits at last character read.
+;	BC = 0.
+;00F5h:  (SVC_D_CHANGED) report that the disc in a drive may have been changed.
+;00F8h:  (DD CALLDRIVER) Call a third-party disc driver. 
+;	 Top word of stack = address of routine (in bank 0).
+;         The word at 0FFF8h gives the address of a 512-byte buffer in bank
+;	 0, which will be passed to the driver in IY.
+;	 Note that this can't be called through USERF, because USERF doesn't
+;	 preserve the top word of the stack.
+;00FBh:  (MSG RETRYMSG) Display error message, ask whether to retry, ignore or cancel.
+;00FEh:  (MSG INSERT)   Ask user to insert the disc for A: or B:.
+;0101h:  (MSG SYSMSG)   Output a system message.
+
+;
+; Starting from here BANK term used as in ZX Spectrum +3 Manual
+;
+; XBIOS entered with memory map 4,5,6,3
+; Bank 5 contains system variables, so we can use BANKM, and BANK768
+; Because we switched here from ZINC, BIOS already updated BANKM and BANK768
+; by actual values and we can just turn on +3DOS, call function and turn off
+; back to 4,5,6,3 map, of course, updating BANK* system variables.
+;
+; DD_* set of functions is a forwarders to +3DOS functions
+; CD_* implements RS-232 support
+; TE_* is terminal emulator with 51 column mode support
+; KM_* keyboard manager
+;
+
+;************************
+;* DD: Disk Devices
+;************************
+
+;		ORG	01790H
+
+;
+; DD INIT 0080H
+; 
+; Initialise the disk driver.
+;
+; ENTRY CONDITIONS
+;
+; None
+;
+; EXIT CONDITIONS
+;
+; Always:
+;
+; AF BC DE HL IX corrupt
+; All other registers preserved
+;
+
+XDD_INIT:	LD IY, DD_INTERFACE	; Check disk interface presense
+		JP DODOS
+		JR C, INIT2
+
+		LD HL, JUMPTABLE+3	; If no then fix jump table 17 DD_*
+		LD B, 17		; functions except DD_INIT
+INIT1:		INC HL			; to return Drive not found error
+		LD (HL), LOW NODRIVE
+		INC HL
+		LD (HL), HIGH NODRIVE
+		INC HL
+		DEC B
+		JR NZ, INIT1
+		RET
+
+INIT2:		LD IY, DD_INIT		; Initialize disk interface if present
+		JP DODOS
+
+;
+; Check HL is greate then 0C000H
+;
+; Corrupts: AF
+;
+; Returns: Carry set if OK
+
+MEMCHK:
+		LD	A,H
+		CP	0C0H
+		JR	NC, MOK
+		LD	A, 7	; Unknown error
+		CCF
+		RET
+MOK:		SCF
+		RET
+
+;
+; DD SETUP - 0083h
+;
+; Set up the floppy disc driver.
+;
+; Entered with:
+;	HL=address of parameter block, above 0C000h.
+;
+; The parameter block is formed:
+;
+;	DB	motor on timeout, 10ths of a second
+;	DB	motor off timeout, 10ths of a second
+;	DB	write current off time in 10 uS units
+;	DB	head settle time, milliseconds.
+;	DB	step rate, milliseconds.
+;	DB	head unload delay in 32ms units.
+;	DB	(2*head load delay in 4ms units)+non DMA mode.
+;
+; In recent PCW versions (roughly, 1.11 / 2.11 or later): If HL=0, set up only one
+; drive - the one whose number is given in C. DE holds the address of the parameter block.
+;
+; Returns:
+;	Carry set of OK
+;
+; Corrupts:
+;	AF, BC, DE and HL.
+;
+
+XDD_SETUP:
+	CALL	MEMCHK
+	RET	C
+	LD IY, DD_SETUP
+	JP DODOS
+;
+; DD READ SECTOR - 0086h
+;
+; Read a floppy disc sector.
+;
+; Entered with:
+;	B=CP/M bank, C=disc unit(0 or 1), 
+;	D=track(0 based), E=sector (0 based),
+;	HL=load address within bank,
+;	IX=address of drive XDPB.
+;
+; Returns:
+;	Carry set if OK, reset if error. 
+;	A=error number 0-9.
+;
+; Corrupts:
+;	BC, DE and HL
+;
+; Error codes are:
+;
+; 0: Drive not ready
+; 1: Write protected
+; 2: Seek fail
+; 3: Data error
+; 4: No data
+; 5: Missing address mark
+; 6: Bad format
+; 7: Unknown error
+; 8: Media changed
+;   -- If a disc operation has failed, a secondary check is performed. This
+;     attempts to read the sector ID of the sector the user was trying to 
+;     read. If the top 2 bits of the sector number do not match the top 2
+;     bits of the requested sector, or the cylinder number does not match
+;     the requested cylinder, then the disc is assumed to have been changed
+;     (eg: from PCW to CPC, or single-track to double-track) and this error
+;     is returned. 
+; 9: Unsuitable media
+;
+
+XDD_READ_SECTOR:
+	CALL	MEMCHK
+	RET	C
+	LD IY, DD_READ_SECTOR
+	JP DODOS
+
+;
+; DD WRITE SECTOR - 0089h
+;
+; Write a floppy disc sector.
+;
+; Entered with:
+;	B=CP/M bank, C=disc unit(0 or 1), 
+;	D=track(0 based), E=sector (0 based),
+;	HL=address within bank of sector,
+;	IX=address of drive XDPB.
+;
+; Returns:
+;	Carry set if OK, reset if error.
+;	A=error number 0-9.
+; Corrupts:
+;	BC, DE and HL
+;
+
+XDD_WRITE_SECTOR:
+	CALL	MEMCHK
+	RET	C
+	LD IY, DD_WRITE_SECTOR
+	JP DODOS
+
+XDD_CHECK_SECTOR:
         RET
 
-        END
+XDD_FORMAT:
+        RET
+
+XDD_LOGIN:
+        RET
+
+XDD_SEL_FORMAT:
+        RET
+
+XDD_DRIVE_STATUS:
+        RET
+
+XDD_READ_ID:
+        RET
+
+XDD_L_DPB:
+        RET
+
+XDD_L_XDPB:
+        RET
+
+XDD_L_ON_MOTOR:
+        RET
+
+XDD_L_T_OFF_MOTOR:
+        RET
+
+XDD_L_OFF_MOTOR:
+        RET
+
+XDD_L_READ:
+        RET
+
+XDD_L_WRITE:
+        RET
+
+XDD_L_SEEK:
+        RET
+
+;********************************
+;* CD: RS232 serial port driver 
+;********************************
+
+;		ORG 004D0H
+XCD_SA_INIT:
+        RET
+
+XCD_SA_BAUD:
+        RET
+
+XCD_SA_PARAMS:
+        RET
+
+;********************************
+;* TE: Terminal emulator
+;********************************
+
+;		ORG 01010H
+
+XTE_ASK:
+        RET
+
+XTE_RESET:
+        RET
+
+XTE_STL_ASK:
+        RET
+
+XTE_STL_ON_OFF:
+        RET
+
+XTE_SET_INK:
+        RET
+
+XTE_SET_BORDER:
+        RET
+
+;
+; TE SET SPEED - 00D1h
+;
+; Set the flash period.
+;
+; This routine has no effect on a Spectrum +2A/+3 because all flashing is done by hardware.
+;
+; Entered with:
+;	No conditions
+;
+; Returns:
+;	Carry set of OK
+;
+; Corrupts:
+;	AF and HL.
+;
+
+XTE_SET_SPEED:
+        RET
+
+
+;********************************
+;* KM: Keyboard Manager
+;********************************
+
+;		ORG 005B0H
+
+XKM_SET_EXPAND:
+        RET
+
+XKM_SET_KEY:
+        RET
+
+XKM_KT_GET:
+        RET
+
+XKM_KT_PUT:
+        RET
+
+XKM_SET_SPEED:
+        RET
+
+;
+; CD VERSION - 00E3h
+;
+; Get version numbers.
+;
+; Returns: A=machine type, B=BIOS major version number, C=BIOS minor version number,
+; HL=machine specific version number.
+;
+; Machine types are:
+;
+; 0  CPC6128
+; 1  PCW8000/9000/10 series
+; 3  Spectrum +3
+; 65 PCW16 (65 = 'A', ie "Anne")
+;
+; The BIOS major version number is 2 for a PCW9512 or 9512+, 1 otherwise.
+;
+; On a CPC6128, the machine specific version number is the ROM version.
+;
+; On recent versions of PCW CP/M, H=0 and L is a bitmap of hardware detected:
+;
+;    Bit 0: Set if the PCW is a 9256, 9512+ or 10; else reset.
+;    Bit 1: Set if PCW9512 printer controller failed.
+;    Bit 2: Set if PCW9512 printer controller is present.
+;    Bit 3: Parallel+Serial interface (CPS8256) is present.
+;    Bit 4: Set if PCW8256 printer controller is present.
+;    Bit 5: Parallel (but no serial) interface is present.
+;    Bits 6-7: Appear to be always zero.
+;
+; On earlier PCW versions this word is zero.
+;
+; On the PCW16, the machine specific version number is the address in bank 0 of a zero-terminated ASCII 
+; string containing the Rosanne version.
+;
+
+XCD_VERSION:
+	LD	A, 3
+	LD	BC, 0100H
+	LD	HL, 0
+        RET
+
+;
+; CD INFO - 00E6h
+;
+; Get system information..
+;
+; Returns:
+;
+;    A=0FFh if second floppy drive fitted, otherwise 0
+;    B=memory size (in 16k blocks)
+;    C=0FFh if serial port present, otherwise 0
+;    D=Drive B: equipment flags (PCW versions 1.11 / 2.11 or later)
+;    E=Drive A: equipment flags (PCW versions 1.11 / 2.11 or later)
+;    DE corrupt (CPC, Spectrum +3, PCW versions before 1.11 / 2.11)
+;    HL=address of buffer table (not PCW16).
+;
+; Implemented on the PCW16, but HL returns 0.
+;
+; The buffer table holds addresses of memory that is available to CP/M for disc buffers.
+; Memory in this table is used by DISCKIT on the CPC6128 and Spectrum +3 when copying from
+; one disc to another.
+;
+;	DB	CP/M bank, 0FFh for end of table
+;	DW	start
+;	DW	length
+;
+; The drive equipment flags implemented on recent PCW CP/M versions are:
+;
+; Bits 0-1: Sidedness
+;		0: Unknown
+;		1: Single-sided
+;		2: Double-sided
+; Bits 2-3: Track spacing
+;		0: Unknown
+;		1: Single track
+;		2: Double track
+; Bit 5:    Drive type
+;		0: 3"
+;		1: 3.5"
+;
+; Example values:
+;
+;    00h: Drive not present.
+;    05h: Drive is 3" 180k drive (single sided, single track).
+;    0Ah: Drive is 3" 720k drive (double sided, double track).
+;    2Ah: Drive is 3.5" 720k drive (double sided, double track, 3.5").
+;
+; These values correspond to those returned by the DD EQUIPMENT call on the Spectrum +3 under +3DOS.
+; DD EQUIPMENT (and DD TEST UNSUITABLE and DD ASK 1) are implemented on these versions of PCW CP/M,
+; but there are no jumpblock entries for them.
+;
+XCD_INFO:
+	LD	IY, DD_ASK_1
+	CALL	DODOS
+	LD	A, 0FFH
+	JR	C, INFO1
+	XOR	A
+INFO1:	LD	C, 0FFH
+	LD	B, 8
+;	LD	HL, BUFFER_TABLE
+	RET
+
+
+XSCR_RUN_ROUTINE:
+        RET
+
+XFIND_FID:
+        RET
+
+
+DODOS:
+;
+; IY holds the address of the DOS routine to be run. All other registers are
+; passed intact to the DOS routine and are returned from it.
+;
+; Stack is somewhere in central 32K (conforming to DOS requirements), so saved
+; AF and BC will not be switched out.
+;
+			PUSH	AF
+			PUSH	BC			; temp save registers while switching
+			LD	A, (BANKM)		; RAM/ROM switching system variable
+			OR	7			; want RAM page 7
+			RES	4, A			; and DOS ROM
+			LD	BC, BANK1		; port for horiz ROM and RAM paging
+			DI
+			LD	(BANKM), A		; keep system variables up to date
+			OUT	(C), A			; RAM page 7 to top and DOS ROM
+			EI
+			POP	BC
+			POP	AF
+			CALL	jumptoit		; go sub routine address in IY
+			PUSH	AF			; return from JP (IY) will be to here
+			PUSH	BC
+			LD	A, (BANKM)
+			AND	0F8h			; reset bits for page 0
+			SET	4, A			; switch to ROM 3 (48 BASIC)
+			LD	BC, BANK1
+			DI
+			LD	(BANKM), a
+			OUT	(C), a			; switch back to RAM page 0 and 48 BASIC
+			EI
+			POP	BC
+			POP	AF
+			RET
+jumptoit:		JP	(IY)			; standard way to CALL (IY)
+
+
+NODRIVE:		LD A, 22
+			CCF
+			RET
+
+XCD_SA_INTSTATUS:
+			RET
+
+;
+; CD_COLDBOOT - 00F2h
+;
+; Initialise the XBIOS. 
+;
+; Entered with:
+;	DE = address of CP/M clock tick function (called once a second).
+;
+; Returns:
+;	Carry set of OK
+; 
+;
+
+XCD_COLDBOOT:
+
+; **********************************
+; *                                *
+; * MMU: 4, 5, 6, 3 / ZINC: Bank 0 *
+; *                                *
+; **********************************
+
+			SCF
+			RET
+
+XSVC_D_CHANGED:
+			RET
+XDD_CALLDRIVER:
+			RET
+XMSG_RETRYMSG:
+			RET
+XMSG_INSERT:
+			RET
+XMSG_SYSMSG:
+			RET
+
+; The eight bit character matrices used for the 32 column mode can be found at #3000,
+
+			ORG	03000H
+			INCLUDE B0:font8x8.z80
+
+; and the five bit character matrices used for the other modes can be found at #3800.
+
+			ORG	03800H
+			INCLUDE B0:font5x8.z80
+
+			END
+
+
+;
+; The screen is laid out in the normal Spectrum way, except that both screens live at
+; address #4000 in their respective banks, with their attribute RAM at #5B00.
+;
+
+0000-007F	Zero Page (see below). Contains the hard-wired timer interrupt handler.
+0080-016F	XBIOS jumpblock and initialisation code.
+0170-01EF	The same library of helper routines as on the PCW9512. This despite the fact that they're only used by the 9512 daisywheel printer driver, which the Spectrum doesn't have.
+01F0-039F	System messages.
+03A0-04CF	CD: General character device management.
+04D0-05AF	CD: RS232 serial port driver
+05B0-08FF	KM: Keyboard Manager
+0900-0F5F	SCR: Screen functions
+0F60-100F	Default keyboard layout
+1010-1517	TE: Terminal emulator
+1518-178F	MSG: System message display
+1790-1DDF	DD: Disk Devices
+1DE0-21C7	Data segments for the internal device drivers, in the order MSG, KM, SCR, TE, DD, CD
+21C8-21ED	Device driver tables
+21EE-2417	Unknown
+2418-2FFF	Available for loadable drivers or disc buffers.
+3000-3FFF	Fonts
+
+
+
+
+4000-5AFF	Video RAM. There is a second page of video RAM in CP/M bank 2 for the right-hand half of the 24x80 video mode.
+5B00-8BFF	Available for loadable drivers or disc buffers.
+8C00-B9FF	CP/M banked BDOS
+BA00-BFFF	CP/M banked BIOS
+C000-F3FF	The top of the TPA.
+F400-F9FF	CP/M resident BDOS.
+FA00-FD4C	CP/M resident BIOS.
+FD4D-FDDB	Available for loadable drivers: additional disc DPBs.
+FDDC-FF53	Serial port driver routines. These are timing-critical and need to run in uncontended memory.
+FF54-FFDF	Floppy transfer code.
+FFE0-FFFF 	XBIOS data transfer area. On the +3 this contains, inter alia, the BANKM and BANK678 variables.

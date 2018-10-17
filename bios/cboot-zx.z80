@@ -1,0 +1,93 @@
+;:::::::::::::::::::::::::::::::::::::::::::::::::::***********************
+;  CBOOT.	B/P BIOS Cold Boot Module.	    ** Hardware Specific **
+;  This MUST be the Last Module in the BIOS	    ** for prompts, Env  **
+;   because it is overwritten by RAM Data.	    ** and Termcap Dflts **
+;           - ZX Spectrum +3 -			    ***********************
+;
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+; I/O ports
+
+BANK1			EQU	07FFDH		;"horizontal" and RAM switch port
+BANK2			EQU	01FFDH		;"vertical" switch port
+
+; Sysvars
+
+BANKM			EQU	05B5CH		;
+BANK678			EQU	05B67H		;
+
+; ZINC copy of System Variables
+
+CBANK678		EQU	0FFFFH
+CBANKM			EQU	0FFFEH
+
+			DSEG
+;
+;  Cold boot entry.  This code is executed only once and so may be
+;  overwritten subsequently by the BIOS.  In Non-banked systems, this code
+;  is placed in the Host Buffer, HSTBUF, allowing up to 1024 bytes in the
+;  section, although much less will fit on the boot tracks.  In Banked
+;  systems, a small resident part (up to 128 bytes) occupies the Directory
+;  Sector Buffer, DIRBUF, while the remainder is placed in the banked
+;  HSTBUF, allowing both sectors to be overwritten without penalty.
+;  To insure minimum disruption in assembling and linking the BIOS, this
+;  module must be one of the first linked to place HSTBUF/DIRBUF at the
+;  beginning of B2RAM and DSEG.
+
+CBOOT:
+
+; **********************************
+; *                                *
+; * MMU: 0, 1, 2, 3 / ZINC: Bank 1 *
+; *                                *
+; **********************************
+
+			DI
+
+; Switch to 48 BASIC
+			LD	A, (CBANK678)
+			LD	L, A
+			LD	A, (CBANKM)
+			AND	0F8H
+			OR	010H
+			LD	BC, BANK1
+			OUT	(C), A
+
+			LD	BC, BANK2
+			OUT	(C), L
+
+			LD	(BANKM), A
+			LD	A, L
+			LD	(BANK678), A
+
+; ********************
+; *                  *
+; * MMU: R3, 5, 2, 3 *
+; *                  *
+; ********************
+
+; Say 'H'
+; Switch back to ZINC Bank 1
+
+; **********************************
+; *                                *
+; * MMU: 0, 1, 2, 3 / ZINC: Bank 1 *
+; *                                *
+; **********************************
+
+	  IF  BANKED
+	COMMON	/B2RAM/
+	  ENDIF
+
+CBOOT0:			JP	WBOOT
+			RET
+
+BCODEE	EQU	$
+	  IF  BANKED
+INITCS	EQU	BCODEE-CBOOT0	; Size of Banked (B2RAM) part of Init Code
+	  ELSE
+INITCS	EQU	BCODEE-CBOOT	; Size of Complete Init Code in DSEG
+	  ENDIF
+
+;======================== End of CBOOT =============================
+

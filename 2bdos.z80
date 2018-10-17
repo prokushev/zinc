@@ -356,7 +356,11 @@ ENTRY:	XOR	A		; Clear A
 
 	CP	98		; Is it less than Cmd98?
 	RET	C		; ..return if so
+	IF	CPM3API		; CP/M 3 API
 	CP	107+1		; Is it greater than Cmd107?
+	ELSE			; CP/M 2 API
+	CP	103+1		; Is it greater than Cmd103?
+	ENDIF
 	RET	NC		; ..quit if so
 	SUB	98-MAXCMD	; Rework so 98-->49..107-->58
 	LD	C,A		; Save reworked function #
@@ -450,10 +454,12 @@ MAXCMD	EQU	($-CTABLE)/2	; Jww
 	DEFW	CMD101		; Set Flags	; 52
 	DEFW	CMD102		; Get Stamp	; 53
 	DEFW	CMD103		; Put Stamp	; 54
+	IF	CPM3API		; CP/M 3 API
 	DEFW	DUMMY		; 	; 55
 	DEFW	DUMMY		; 	; 56
 	DEFW	DUMMY		; 	; 57
 	DEFW	CMD107		; Get serial	; 58 CP/M 3
+	ENDIF
 
 	PAGE
 ;******************************************************
@@ -1099,11 +1105,13 @@ MV2DMA:	LD	DE,(DMA)	; To DMA address
 CMD17D:	LDIR
 	RET			; Exit
 
+	IF	CPM3API		; CP/M 3 API
 ; Return serial number
 
 CMD107:	LD	HL,SERIAL	; Return BDOS serial number
         LD	C, 6
 	JR	CMD17D
+	ENDIF
 
 ; Search for Next Occurence of File
 

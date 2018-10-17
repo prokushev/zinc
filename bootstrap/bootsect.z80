@@ -1,0 +1,436 @@
+;
+;    ZINC boot sector: This file contains ZX Spectrum +3 boot sector for ZINC
+;    Copyright (C) 2018  Yuri Prokushev <yuri.prokushev@gmail.com>
+;
+;    This program is free software; you can redistribute it and/or modify
+;    it under the terms of the GNU General Public License as published by
+;    the Free Software Foundation; either version 2 of the License, or
+;    (at your option) any later version.
+;
+;    This program is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;    GNU General Public License for more details.
+;
+;    You should have received a copy of the GNU General Public License
+;    along with this program; if not, write to the Free Software
+;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;
+; General logic:
+;
+;   Move code to BOOTMOVE (Page 5)
+;   Load XBIOS, fonts, BIOS, BDOS and CCP
+;   Call XBIOS coldboot code
+;   Move code to BOOTMOVE2 (Page 3)
+;   Jump BIOS coldboot code
+;
+;	org	0FE00h
+;
+			.Z80
+			CSEG
+
+PAPER_COLOR:		EQU	7
+INK_COLOR:		EQU	0
+
+BOOTMOVE:		EQU	07000H		; Relocated boot code
+BOOTMOVE2:		EQU	0C000H		; Relocated boot code
+
+; I/O ports
+
+BANK1			EQU	07FFDH		; "horizontal" and RAM switch port
+BANK2			EQU	01FFDH		; "vertical" switch port
+
+; Sysvars
+
+BANKM			EQU	05B5CH		;
+BANK678			EQU	05B67H		;
+ATTR_T:			EQU	05C8DH
+ATTR_P:			EQU	05C8FH
+ERRNR:			EQU	05C3AH
+
+; +3DOS API
+
+DOS_INITIALISE:		EQU	00100H
+DOS_OPEN:		EQU	00106H
+DOS_CLOSE:		EQU	00109H
+DOS_READ:		EQU	00112H
+DOS_GET_1346:		EQU	0013CH
+DOS_SET_1346:		EQU	0013FH
+
+; 48K BASIC API
+
+CHAN_OPEN:		EQU	01601H
+CL_ALL:			EQU	00DAFH
+BORDER:			EQU	0229BH
+PO_MSG:			EQU	00C0AH
+
+; XBIOS API
+
+CD_COLDBOOT		EQU	000F2H
+
+; BIOS API
+
+CBOOT			EQU	0F200H
+
+; BIOS data area
+
+CBANK678		EQU	0FFFFH
+CBANKM			EQU	0FFFEH
+
+;
+; The bootstrap sector contains the 16 bytes disk specification at the start.
+; The following values are for a AMSTRAD PCW range CF2/Spectrum +3 format disk.
+;
+BOOTSTART:		DB	0		;+3 format
+			DB	0		;single sided
+			DB	40		;40 tracks per side
+			DB	9		;9 sectors per track
+
+			DB	2		;log2(512)-7 = sector size
+			DB	1		;1 reserved track
+			DB	3		;blocks
+			DB	2		;2 directory blocks
+
+			DB	02AH		;gap length (r/w)
+			DB	052H		;page length (format)
+			DS	5,0		;5 reserved bytes
+
+			DB	0		;checksum must = 3 mod 256 for the sector
+
+;
+; *******************
+; *                 *
+; * MMU: 4, 7, 6, 3 *
+; *                 *
+; *******************
+;
+; The bootstrap will be entered here with the 4, 7, 6, 3 RAM pages switched in.
+; Switch to 48 BASIC memmap to access system variables and ROM functions.
+; Because bootstrap and stack started at FE00h in page 3 we have acces to code
+; and stack after switch.
+;
+
+			LD	A, 013H			; Gives ROM 1/3 and RAM page 3
+			LD	BC, BANK1
+			OUT	(C), A			; Switch RAM and horizontal ROM
+
+			LD	L, 014H			; ROM 2/3, motor on, strobe inactive
+			LD	BC, BANK2
+			OUT	(C), L			; Switch from RAM-only config
+
+;
+; ********************
+; *                  *
+; * MMU: R3, 5, 2, 3 *
+; *                  *
+; ********************
+;
+
+			LD	(BANKM), A
+			LD	A, L
+			LD	(BANK678), A
+
+; Point to BASIC sysvars before acting
+
+			LD	IY, ERRNR
+
+; Free pages 2 and CPU windows 0C000H-0FFFFH from 48 BASIC
+; (set RAMTOP to 7FFF)
+
+	di
+        ld   hl,0000h
+        add  hl,sp           ;HL=stack pointer
+        ld   de,(23730)      ;(RAMTOP) = old RAMTOP
+        ex   de,hl
+        and  a
+        sbc  hl,de           ;(RAMTOP)-SP
+        ld   b,0
+        ld   c,l
+        inc  bc              ;BC=number of bytes to copy
+        add  hl,de
+        ld   ix,(23653)      ;STKEND
+        ld   d,(ix-2)
+        ld   e,(ix-3)        ;DE=new RAMTOP
+        ld   (23730),de
+        push hl
+        sbc  hl,de           ;old - new
+        pop  hl
+        jr   c,COPYON
+        dec  bc              ;old > new
+        sbc  hl,bc
+        ex   de,hl
+        sbc  hl,bc
+        ex   de,hl
+        inc  bc
+        ldir
+        jr   COPYDO
+COPYON: lddr                 ;old < new
+        inc  de
+COPYDO: sbc  hl,de           ;HL=displacement
+        ld   de,(23613)      ;(ERR_SP)
+        ex   de,hl
+        and  a
+        sbc  hl,de
+        ld   (23613),hl      ;move (ERRSP)
+        ld   hl,0000h
+        add  hl,sp
+        sbc  hl,de
+        ld   sp,hl           ;move SP
+        ei
+
+; Clear screen and set attributes
+
+			LD	A, PAPER_COLOR * 8 + INK_COLOR
+			LD	(ATTR_P), A
+			LD	(ATTR_T), A
+			CALL	CL_ALL
+			LD	A, PAPER_COLOR
+			CALL	BORDER
+
+; Open stream #2 for printing
+
+			LD	A, 2
+			CALL	CHAN_OPEN
+
+; Because +3DOS requires turn page 7 on place of page 3 we need to move code
+; (and stack) down in memory to somewhere lower. After ZINC will be loaded we
+; need to initialize XBIOS which will need 4,5,6,3 memory map. So it is good
+; idea to move code to 04000H-07FFFH in page 5 at place after channels info. This
+; is Basic program area.
+
+			LD	BC, END_BOOT_PHASE2-BOOT_PHASE2
+			LD	HL, BOOT_PHASE2	
+			LD	DE, BOOTMOVE
+			LDIR
+
+			LD	SP, BOOTMOVE
+
+			JP	BOOTMOVE		; Jump to it at the new location.
+
+BOOT_PHASE2:
+			.PHASE BOOTMOVE
+
+
+			LD	A, 0H
+			CALL	PRN_MSG
+
+			LD	A, (BANKM)
+			OR	7			; RAM page 7 (for DOS functions)
+			RES	4, A			; left-hand ROMs (0/2)
+			LD	BC, BANK1
+			LD	(BANKM), A
+			OUT	(C), A			; switch RAM page
+
+;
+; ********************
+; *                  *
+; * MMU: R2, 5, 2, 7 *
+; *                  *
+; ********************
+;
+			IM	1			; Explicitly set mode 1
+			EI				; Can re-enable interrupts here, as the DD
+							; routines assume interrupts are enabled.
+
+			CALL	DOS_INITIALISE
+			LD	A, 2
+			JP	NC, ERROR
+
+; Free pages 1, 3, 4. We keep the size of the cache the same, relocate both
+; cache and ramdisk to page 6, and make the ramdisk use the remainder of the
+; page.
+
+			CALL	DOS_GET_1346
+			LD	D, 96		; SECTORS_PAGE6_START
+			LD	A, E
+			ADD	D
+			LD	H, A		; Ramdisk start
+
+			LD	A, 32		; SECTORS_PER_PAGE
+			SUB	E
+			LD	L, A		; Ramdisk size (SECTORS_PER_PAGE - cache size)
+
+			CALL	DOS_SET_1346
+			LD	A, 2
+			JP	NC, ERROR
+
+; XBIOS
+			LD	HL, xbiosname
+			CALL	OPEN
+
+			LD	BC, 4		; ld b, 0 (fd); ld c, 4 (RAM page 4)
+			LD	HL, 0C000H
+			LD	DE, 03FFFH
+			CALL	READ
+
+			CALL	CLOSE
+
+; ZINC (CPP,BDOS,BIOS)
+			LD	HL, ZINCNAME
+			CALL	OPEN
+			LD	BC, 3		; ld b, 0 (fd); ld c, 3 (RAM page 3)
+			LD	HL, 0DC00H
+			LD	DE, 02400H
+			CALL	READ
+			CALL	CLOSE
+
+
+; Now that we have finished with DOS for a bit, disable interrupts before
+; jumping to the ZINC. This leaves the ZINC to perform its setup and
+; re-enable interrupts at the appropriate time.
+
+			DI
+
+; Call XBIOS initialization code
+
+			LD	A, (BANK678)
+			AND	11111000b
+			OR	00000101b
+			LD	BC, BANK2
+			OUT	(C), A			
+			LD	(BANK678), A
+
+; *******************
+; *                 *
+; * MMU: 4, 5, 6, 3 *
+; *                 *
+; *******************
+
+			CALL	CD_COLDBOOT	; Init XBIOS
+
+; boot_phase3
+
+			LD	BC, END_BOOT_PHASE3-BOOT_PHASE3
+			LD	HL, BOOT_PHASE3
+			LD	DE, BOOTMOVE2
+			LDIR
+
+			LD	SP, BOOTMOVE2
+
+			JP	BOOTMOVE2		; Jump to it at the new location.
+
+;*************************************************
+;* Functions                                     *
+;*************************************************
+
+
+PRN_MSG:		LD	DE, MSGTABLE
+			JP	PO_MSG
+
+OPEN:			LD	BC, 1		; ld b, 0 (fd); ld c, 1 (excl_rd)
+			LD	DE, 1		; ld d, 0 (no create); ld e, 1 (open)
+			CALL	DOS_OPEN
+			LD	A, 3
+			JR	NC, ERROR
+			RET
+
+CLOSE:			LD	B, 0		; File #
+			CALL	DOS_CLOSE
+			LD	A, 5
+			JR	NC, ERROR
+			RET
+
+READ:			CALL 	DOS_READ
+			LD	A, 4
+			JR	NC, ERROR
+			RET
+
+; Common error handler. Switch ROMs back to ROM3 and print error message.
+; Then wait for a while before loading ROM0 back in and calling rst 0.
+
+ERROR:
+			DI
+			PUSH	AF
+			LD	A, (BANKM)
+			AND	0F8H			; Select RAM page 0
+			OR	010H			; set 4, a (ROM1/3)
+			LD	BC, BANK1
+			LD	(BANKM), A
+			OUT	(C), A			; Switch RAM and horizontal ROM
+;
+; ********************
+; *                  *
+; * MMU: R3, 5, 2, 0 *
+; *                  *
+; ********************
+;
+
+			EI
+
+			LD	A, 1			; 'Failed to '
+			CALL	PRN_MSG
+			POP	AF			; A contains message number
+			CALL	PRN_MSG
+
+; Now wait for 5 seconds, by halting 5*50=250 times.
+
+			LD	B, 250
+HLT_LOOP:		HALT
+			DEC	B
+			JP	NZ, HLT_LOOP
+
+; Turn ROM0 on and reset system
+
+			DI
+			XOR	A
+			LD	BC, BANK1
+			OUT	(C), A
+			LD	BC, BANK2
+			OUT	(C), A
+			RST	0			
+
+
+xbiosname:		DB	"X"
+biosname:		DB	"BIOS.BIN", 0FFH
+ZINCNAME:		DB	"ZINC.BIN", 0FFH
+
+MSGTABLE:		DB	080H
+			DB	"ZINC loading",13+080H
+			DB	"Failed to", ' '+080H
+			DB	"ini", 't'+080H
+			DB	"ope", 'n'+080H
+			DB	"rea", 'd'+080H
+			DB	"clos", 'e'+080H
+
+			.DEPHASE
+
+; Call BIOS initialization code
+
+; Here we need to store copy of BANK678 and BANKM variables because page 5 out of access
+
+BOOT_PHASE3:
+			.PHASE	BOOTMOVE2
+
+; *******************
+; *                 *
+; * MMU: 4, 5, 6, 3 *
+; *                 *
+; *******************
+			LD	A, (BANKM)
+			LD	L, A
+			LD	A, (BANK678)
+			AND	11111000b
+			OR	00000001b
+			LD	BC, BANK2
+			OUT	(C), A			
+			LD	(CBANK678), A
+			LD	A, L
+			LD	(CBANKM), A
+
+; *******************
+; *                 *
+; * MMU: 0, 1, 2, 3 *
+; *                 *
+; *******************
+
+
+			JP	CBOOT		; Start ZINC
+
+			.DEPHASE
+
+END_BOOT_PHASE2:
+END_BOOT_PHASE3:
+
+ENDFILL			DS	512+BOOTSTART-ENDFILL
+
+			END

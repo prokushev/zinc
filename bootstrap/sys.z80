@@ -1,5 +1,23 @@
 ;
-; Simple example program to write a boot sector to the disk in drive A:.
+; sys.bin tool for ZINC installer to produce bootable
+; disk.
+;
+;    Spectrum +2A/+3 XBIOS: Spectrum +2A/+3 XBIOS implementation for ZINC
+;    Copyright (C) 2018  Yuri Prokushev <yuri.prokushev@gmail.com>
+;
+;    This program is free software; you can redistribute it and/or modify
+;    it under the terms of the GNU General Public License as published by
+;    the Free Software Foundation; either version 2 of the License, or
+;    (at your option) any later version.
+;
+;    This program is distributed in the hope that it will be useful,
+;    but WITHOUT ANY WARRANTY; without even the implied warranty of
+;    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;    GNU General Public License for more details.
+;
+;    You should have received a copy of the GNU General Public License
+;    along with this program; if not, write to the Free Software
+;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 ;
 ; based on example program from zx spectrum +3 manual
 ; by Cliff Lawson
@@ -12,11 +30,9 @@
 
 ; I/O ports
 bank1		equ	07FFDh		;"horizontal" and RAM switch port
-bank2		equ	01FFDh		;"vertical" switch port
 ; Sysvars
 bankm		equ	05B5Ch		;
-bank678		equ	05B67h		;
-; API
+; +3DOS API
 dos_ref_xdpb	equ	0151h     	;
 dd_write_sector	equ	0166h     	;
 dd_login	equ	0175h     	;
@@ -112,18 +128,6 @@ ckloop:
 	add	a, 4			; add 3 to make sum = 3 + 1 to make twos complement
 	ld	(bootsector + 15), a	; will make bytes checksum to 3 mod 256
 
-	ld	b, 0			; page 0 at C000h
-	ld	c, 0			; unit 0
-	ld	d, 0			; track 0
-	ld	e, 0			; sector 1 (0 because of logical/physical trans.)
-	ld	hl, bootsector		; address of info. to write as boot sector
-	ld	iy, dd_write_sector
-	call	dodos			; actually write sector to disk
-
-	pop	iy			; put IY back so BASIC can reference its system
-					; variables
-	ld	sp, (olstak)		; put original stack back
-
 ;
 ;DD WRITE SECTOR
 ;0166h (358)
@@ -150,6 +154,18 @@ ckloop:
 ;		All other registers preserved
 ;
 ; Undoc? seems BC will contain size of of bytes in sector
+
+	ld	b, 0			; page 0 at C000h
+	ld	c, 0			; unit 0
+	ld	d, 0			; track 0
+	ld	e, 0			; sector 1 (0 because of logical/physical trans.)
+	ld	hl, bootsector		; address of info. to write as boot sector
+	ld	iy, dd_write_sector
+	call	dodos			; actually write sector to disk
+
+	pop	iy			; put IY back so BASIC can reference its system
+					; variables
+	ld	sp, (olstak)		; put original stack back
 
 ;	ld	c, a			; error number from dd_write_sector
 ;	ld	b, 0

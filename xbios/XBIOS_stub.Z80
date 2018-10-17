@@ -73,6 +73,9 @@
 	JP	CD_INFO			; 00E6h
 	JP	SCR_RUN_ROUTINE		; 00E9h
 	JP	FIND_FID		; 00ECh
+;-------------------------------------------------------------------------
+; Here additional machine specific entry points, no common entry addresses
+;-------------------------------------------------------------------------
 
 DD_INIT:        
         RET
@@ -148,5 +151,14 @@ SCR_RUN_ROUTINE:
         RET
 FIND_FID:
         RET
+
+
+; The eight bit character matrices used for the 32 column mode can be found at #3000,
+
+			INCLUDE B0:font8x8.z80
+
+; and the five bit character matrices used for the other modes can be found at #3800.
+
+			INCLUDE B0:font5x8.z80
 
         END

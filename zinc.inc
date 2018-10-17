@@ -87,9 +87,10 @@ BIAS		EQU	0		; ZINC BIAS
 
 ZEROSIZE	EQU	0100H		; Zero page size
 CCPSIZE		EQU	0800H		; CPP size
+
 		IF	BANKED
-BDOSSIZE	EQU	0E00H		; BDOS size
-BIOSSIZE	EQU	0E00H		; BIOS size
+BDOSSIZE	EQU	0E00H		; RESIDENT BDOS size
+BIOSSIZE	EQU	0E00H		; RESIDENT BIOS size
 		ENDIF
 
 		IF	NOT BANKED
@@ -103,3 +104,9 @@ TPALOC          EQU     CPMLOC+ZEROSIZE	; TPA address
 CCPLOC          EQU     BIAS+03400H	; CCP Location
 BDOSLOC         EQU     CCPLOC+CCPSIZE	; BDOS Location
 BIOSLOC		EQU	BDOSLOC+BDOSSIZE; BIOS Location
+
+;*******************************************************************
+;* ZINC features control
+;*******************************************************************
+
+CPM3API		EQU	0		; CP/M 3 API extensions
