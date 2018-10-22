@@ -17,11 +17,11 @@ echo * ZINC OS build *
 echo *****************
 
 rem Build boot sector
-zx zmac +bootstrap/bootsect.z80 -O +build/bootstrap/bootsect.rel -P +build/bootstrap/bootsect.lst -E +build/bootstrap/bootsect.err
+zx zmac +bootstrap/bootsect.z80 -O +build/bootstrap/ -P +build/bootstrap/ -E +build/bootstrap/
 zx link +bin/bootsect.bin +-[LFE00]= +build/bootstrap/bootsect.rel
 
 rem Build SYS tool
-zx zmac +bootstrap/sys.z80 -O +build/bootstrap/sys.rel -P +build/bootstrap/sys.lst -E +build/bootstrap/sys.err
+zx zmac +bootstrap/sys.z80 -O +build/bootstrap/ -P +build/bootstrap/ -E +build/bootstrap/
 zx link +bin/sys.bin +-[L7000]= +build/bootstrap/sys.rel
 
 rem Build XBIOS
@@ -29,13 +29,13 @@ zx zmac +xbios/xbiosp3.z80 -O +build/xbios/ -P +build/xbios/ -E +build/xbios/
 zx link +bin/xbios.bin +-[L0000]= +build/xbios/xbiosp3.rel
 
 rem Build 2BIOS
-zx zmac +bios/bpbio-zx.z80 -O +build/bios/2bios.rel -P +build/bios/2bios.prn -E +build/bios/2bios.err
+zx zmac +bios/bpbio-zx.z80 -O +build/bios/2bios.rel -P +build/bios/ -E +build/bios/
 
 rem Build 2BDOS
-zx zmac +2bdos.z80 -O +build/bdos/2bdos.rel -P +build/bdos/2bdos.lst -E +build/bdos/2bdos.err
+zx zmac +2bdos.z80 -O +build/bdos/ -P +build/bdos/ -E +build/bdos/
 
 rem Build 2CCP
-zx zmac +2ccp.z80 -O +build/ccp/2ccp.rel -P +build/ccp/2ccp.lst -E +build/ccp/2ccp.err
+zx zmac +2ccp.z80 -O +build/ccp/ -P +build/ccp/ -E +build/ccp/
 
 zx link +bin/zinc.bin +-[LDC00]= +build/ccp/2ccp.rel +-, +build/bdos/2bdos.rel +-, +build/bios/2bios.rel
 
@@ -438,11 +438,11 @@ rem **********************
 
 rem Build 2STAT
 zx zmac +2stat.z80 -O +zout/2stat.rel -P +zout/2stat.lst
-zx link +bin/stat= +zout/2stat.rel, +zout/syslib.rel +-[s]
+zx link +bin/stat +-[OP]= +zout/2stat.rel, +zout/syslib.rel +-[s]
 
 rem Build 2SUBMIT
 zx zmac +2submit.z80 -O +zout/2submit.rel -P +zout/2submit.lst
-zx link +bin/submit= +zout/2submit.rel, +zout/syslib.rel +-[s]
+zx link +bin/submit +-[OP]= +zout/2submit.rel, +zout/syslib.rel +-[s]
 
 rem Build 2GO
 zmac --zmac 2go.z80
@@ -454,11 +454,11 @@ rem **********************
 
 rem Build ENDLIST
 zx zmac +nendlist.z80
-zx link +bin/endlist= +zout/nendlist.rel, +zout/syslib.rel +-[s]
+zx link +bin/endlist +-[OP]= +zout/nendlist.rel, +zout/syslib.rel +-[s]
 
 rem Build LOGOFF
 zx zmac +nlogoffc.z80
-zx link +bin/logoff= +zout/nlogoffc.rel +-, +zout/netlib.rel +-[s], +zout/syslib.rel +-[s]
+zx link +bin/logoff +-[OP]= +zout/nlogoffc.rel +-, +zout/netlib.rel +-[s], +zout/syslib.rel +-[s]
 
 rem **************
 rem * CP/M 3 tools build
@@ -466,35 +466,34 @@ rem **************
 
 rem Build 3TYPE
 zx zmac +3type.z80
-zx link +bin/type= +zout/3type.rel, +zout/last.rel, +zout/cpm3lib.rel  +-[s], +zout/cfcb.rel  +-[s], +zout/syslib +-[s]
+zx link +bin/type +-[OP]= +zout/3type.rel, +zout/last.rel, +zout/cpm3lib.rel  +-[s], +zout/cfcb.rel  +-[s], +zout/syslib +-[s]
 
 rem Build 3DATE
 zx zmac +3date.z80
-zx link +bin/date= +zout/3date.rel, +zout/last.rel, +zout/cpm3lib.rel  +-[s], +zout/syslib +-[s]
+zx link +bin/date +-[OP]= +zout/3date.rel, +zout/last.rel, +zout/cpm3lib.rel  +-[s], +zout/syslib +-[s]
 
 rem Build 3DEVICE
 zx zmac +3device.z80
-zx link +bin/device= +zout/3device.rel, +zout/last.rel, +zout/cpm3lib.rel  +-[s], +zout/strlib.rel  +-[s], +zout/syslib +-[s]
+zx link +bin/device +-[OP]= +zout/3device.rel, +zout/last.rel, +zout/cpm3lib.rel  +-[s], +zout/strlib.rel  +-[s], +zout/syslib +-[s]
 
 rem Build 3DIR
 zx zmac +3dir.z80
 zx zmac +3diropt.z80
 zx zmac +3dirpage.z80
-zx link +bin/dir= +zout/3dir.rel, +zout/3dirpage.rel, +zout/3diropt.rel, +zout/last.rel, +zout/cpm3lib.rel  +-[s], +zout/cfcb.rel  +-[s], +zout/syslib +-[s]
+zx link +bin/dir +-[OP]= +zout/3dir.rel, +zout/3dirpage.rel, +zout/3diropt.rel, +zout/last.rel, +zout/cpm3lib.rel  +-[s], +zout/cfcb.rel  +-[s], +zout/syslib +-[s]
 
 rem Build 3DUMP
 zx zmac +3dump.z80 -O +zout/3dump.rel -P +zout/3dump.lst
-zx link +bin/dump= +zout/3dump.rel, +zout/last.rel, +zout/cpm3lib.rel  +-[s], +zout/cfcb.rel  +-[s], +zout/syslib +-[s]
+zx link +bin/dump +-[OP]= +zout/3dump.rel, +zout/last.rel, +zout/cpm3lib.rel  +-[s], +zout/cfcb.rel  +-[s], +zout/syslib +-[s]
 
 rem Build 3ERASE
 zx zmac +3erase.z80 -O +zout/3erase.rel -P +zout/3erase.lst
-zx link +bin/erase= +zout/3erase.rel, +zout/last.rel, +zout/cpm3lib.rel  +-[s], +zout/cfcb.rel  +-[s], +zout/syslib +-[s]
+zx link +bin/erase +-[OP]= +zout/3erase.rel, +zout/last.rel, +zout/cpm3lib.rel  +-[s], +zout/cfcb.rel  +-[s], +zout/syslib +-[s]
 
 rem Build 3SETDEF
 zx zmac +3setdef.z80 -O +zout/3setdef.rel -P +zout/3setdef.lst
-zx link +bin/setdef= +zout/3setdef.rel, +zout/last.rel, +zout/cpm3lib.rel  +-[s], +zout/cfcb.rel  +-[s], +zout/syslib +-[s]
+zx link +bin/setdef +-[OP]= +zout/3setdef.rel, +zout/last.rel, +zout/cpm3lib.rel  +-[s], +zout/cfcb.rel  +-[s], +zout/syslib +-[s]
 
 rem Build 3SHOW
 zx zmac +3show.z80 -O +zout/3show.rel -P +zout/3show.lst
-zx link +bin/show= +zout/3show.rel, +zout/last.rel, +zout/cpm3lib.rel  +-[s], +zout/cfcb.rel  +-[s], +zout/strlib.rel  +-[s], +zout/syslib +-[s]
-
+zx link +bin/show +-[OP]= +zout/3show.rel, +zout/last.rel, +zout/cpm3lib.rel  +-[s], +zout/cfcb.rel  +-[s], +zout/strlib.rel  +-[s], +zout/syslib +-[s]

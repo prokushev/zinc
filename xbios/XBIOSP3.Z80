@@ -84,7 +84,28 @@ BANK1			EQU	07FFDh		;"horizontal" and RAM switch port
 
 			CSEG
 
-			ORG	080H
+			ORG	00H
+
+RST00H:			RET
+
+			ORG	08H
+RST08H:			RET
+			ORG	10H
+RST10H:			RET
+			ORG	18H
+RST18H: 	        RET
+			ORG	20H
+RST20H:			RET
+			ORG	28H
+RST28H:			RET
+			ORG	30H
+RST30H:			RET
+			ORG	38H
+RST38H:			RET
+			ORG	66H
+NMI:			RETN
+
+			ORG	80H
 ;
 ; XBIOS Jump table
 ;

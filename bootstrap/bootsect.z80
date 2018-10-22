@@ -18,10 +18,11 @@
 ;
 ; General logic:
 ;
-;   Move code to BOOTMOVE (Page 5)
+;   Set memory for 48 BASIC to minimal (free all user RAM pages except page 5)
+;   Move code to BOOTMOVE (to end of page 5)
 ;   Load XBIOS, fonts, BIOS, BDOS and CCP
 ;   Call XBIOS coldboot code
-;   Move code to BOOTMOVE2 (Page 3)
+;   Move code to BOOTMOVE2 (to start of page 3)
 ;   Jump BIOS coldboot code
 ;
 ;	org	0FE00h
@@ -47,6 +48,7 @@ BANK678			EQU	05B67H		;
 ATTR_T:			EQU	05C8DH
 ATTR_P:			EQU	05C8FH
 ERRNR:			EQU	05C3AH
+UDG:			EQU	23675 	
 
 ; +3DOS API
 
@@ -109,14 +111,14 @@ BOOTSTART:		DB	0		;+3 format
 ; Because bootstrap and stack started at FE00h in page 3 we have acces to code
 ; and stack after switch.
 ;
-
-			LD	A, 013H			; Gives ROM 1/3 and RAM page 3
+			DI
+			LD	A, 013H		; Gives ROM 1/3 and RAM page 3
 			LD	BC, BANK1
-			OUT	(C), A			; Switch RAM and horizontal ROM
+			OUT	(C), A		; Switch RAM and horizontal ROM
 
-			LD	L, 014H			; ROM 2/3, motor on, strobe inactive
+			LD	L, 014H		; ROM 2/3, motor on, strobe inactive
 			LD	BC, BANK2
-			OUT	(C), L			; Switch from RAM-only config
+			OUT	(C), L		; Switch from RAM-only config
 
 ;
 ; ********************
@@ -137,46 +139,37 @@ BOOTSTART:		DB	0		;+3 format
 ; Free pages 2 and CPU windows 0C000H-0FFFFH from 48 BASIC
 ; (set RAMTOP to 7FFF)
 
-	di
-        ld   hl,0000h
-        add  hl,sp           ;HL=stack pointer
-        ld   de,(23730)      ;(RAMTOP) = old RAMTOP
-        ex   de,hl
-        and  a
-        sbc  hl,de           ;(RAMTOP)-SP
-        ld   b,0
-        ld   c,l
-        inc  bc              ;BC=number of bytes to copy
-        add  hl,de
-        ld   ix,(23653)      ;STKEND
-        ld   d,(ix-2)
-        ld   e,(ix-3)        ;DE=new RAMTOP
-        ld   (23730),de
-        push hl
-        sbc  hl,de           ;old - new
-        pop  hl
-        jr   c,COPYON
-        dec  bc              ;old > new
-        sbc  hl,bc
-        ex   de,hl
-        sbc  hl,bc
-        ex   de,hl
-        inc  bc
-        ldir
-        jr   COPYDO
-COPYON: lddr                 ;old < new
-        inc  de
-COPYDO: sbc  hl,de           ;HL=displacement
-        ld   de,(23613)      ;(ERR_SP)
-        ex   de,hl
-        and  a
-        sbc  hl,de
-        ld   (23613),hl      ;move (ERRSP)
-        ld   hl,0000h
-        add  hl,sp
-        sbc  hl,de
-        ld   sp,hl           ;move SP
-        ei
+;			LD	HL, 0000H
+;			ADD	HL, SP		;HL=stack pointer
+;			LD	DE, (23730)	;(RAMTOP) = old RAMTOP
+;			EX	DE, HL
+;			AND	A
+;			SBC	HL, DE		;(RAMTOP)-SP
+;			LD	B, 0
+;			LD	C, L
+;			INC	BC		;BC=number of bytes to copy
+;			ADD	HL, DE
+;			LD	IX, (23653)	;STKEND
+;			LD	D, (IX-2)
+;			LD	E, (IX-3)	;DE=new RAMTOP
+;			LD	(23730), DE
+;			DEC	BC		;old > new
+;			SBC	HL, BC
+;			EX	DE, HL
+;			SBC	HL, BC
+;			EX	DE, HL
+;			INC	BC
+;			LDIR
+;			SBC	HL, DE		;HL=displacement
+;			LD	DE, (23613)	;(ERR_SP)
+;			EX	DE, HL
+;			AND	A
+;			SBC	HL, DE
+;			LD	(23613), HL	;move (ERRSP)
+;			LD	HL, 0000h
+;			ADD	HL, SP
+;			SBC	HL, DE
+;			LD	SP, HL		;move SP
 
 ; Clear screen and set attributes
 
@@ -191,6 +184,10 @@ COPYDO: sbc  hl,de           ;HL=displacement
 
 			LD	A, 2
 			CALL	CHAN_OPEN
+
+; Set UDG first char address
+			LD	HL, UDG_CHARS
+			LD	(UDG), HL
 
 ; Because +3DOS requires turn page 7 on place of page 3 we need to move code
 ; (and stack) down in memory to somewhere lower. After ZINC will be loaded we
@@ -207,13 +204,17 @@ COPYDO: sbc  hl,de           ;HL=displacement
 
 			JP	BOOTMOVE		; Jump to it at the new location.
 
+
 BOOT_PHASE2:
 			.PHASE BOOTMOVE
 
-
+; Print banner
 			LD	A, 0H
 			CALL	PRN_MSG
-
+; Open bottom screen stream
+			LD	A, 1
+			CALL	CHAN_OPEN
+; Switch to +3DOS memmap
 			LD	A, (BANKM)
 			OR	7			; RAM page 7 (for DOS functions)
 			RES	4, A			; left-hand ROMs (0/2)
@@ -301,9 +302,10 @@ BOOT_PHASE2:
 ; boot_phase3
 
 			LD	BC, END_BOOT_PHASE3-BOOT_PHASE3
-			LD	HL, BOOT_PHASE3
+			LD	HL, BOOTMOVE+BOOT_SIZE2
 			LD	DE, BOOTMOVE2
 			LDIR
+
 
 			LD	SP, BOOTMOVE2
 
@@ -385,12 +387,50 @@ biosname:		DB	"BIOS.BIN", 0FFH
 ZINCNAME:		DB	"ZINC.BIN", 0FFH
 
 MSGTABLE:		DB	080H
-			DB	"ZINC loading",13+080H
+			DB	22,21,0			; AT 21, 0
+			DB	11h, 00h		; PAPER 0 - Black
+			DB	10h, 07h		; INK 0   - White
+			DB	13h, 01h		; BRIGHT 1
+			DB	"+3 ZINC loader"
+			DB	17h, 1Ah, 00h		; TAB 0
+			DB	10h, 02h		; INK 2   - Red
+			DB	' '
+			DB	11h, 02h		; PAPER 2 - Red
+			DB	10h, 06h		; INK 6   - Yellow
+			DB	' '
+			DB	11h, 06h		; PAPER 6 - Yellow
+			DB	10h, 04h		; INK 4   - Green
+			DB	' '
+			DB	11h, 04h		; PAPER 4 - Green
+			DB	10h, 05h		; INK 5   - Cyan
+			DB	' '
+			DB	11h, 05h		; PAPER 5 - Cyan
+			DB	10h, 00h		; INK 0   - Black
+			DB	' '
+			DB	11h, 00h		; PAPER 0 - Black
+			DB	' ', 
+			DB	11h, 07h		; PAPER 7 - White
+			DB	10h, 00h		; INK 0   - Black
+			DB	13h, 00h		; BRIGHT 0
+			DB	13+80H
 			DB	"Failed to", ' '+080H
 			DB	"ini", 't'+080H
 			DB	"ope", 'n'+080H
 			DB	"rea", 'd'+080H
 			DB	"clos", 'e'+080H
+
+
+UDG_CHARS:
+			DB	00000001B
+			DB	00000011B
+			DB	00000111B
+			DB	00001111B
+			DB	00011111B
+			DB	00111111B
+			DB	01111111B
+			DB	11111111B
+
+BOOT_SIZE2		EQU	$-BOOTMOVE
 
 			.DEPHASE
 
@@ -412,7 +452,7 @@ BOOT_PHASE3:
 			AND	11111000b
 			OR	00000001b
 			LD	BC, BANK2
-			OUT	(C), A			
+			OUT	(C), A
 			LD	(CBANK678), A
 			LD	A, L
 			LD	(CBANKM), A

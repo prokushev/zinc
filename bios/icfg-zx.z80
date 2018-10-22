@@ -27,7 +27,7 @@ IOBYT:	DEFB	00000001B	; LST:=COM1, AUX:=COM1, CON:=COM2
 SYSDRV:	DEFB	0		; System drive (a=0, b=1...)
 OPTF1:	DEFB	OPT1		; Option flags
 
-HICOMM:	DEFB	80H		; Page address of start of high common memory
+HICOMM:	DEFB	C0H		; Page address of start of high common memory
 DPBSZ:	DEFB	DPBSIZ		; Size of DPB
 NUMDPB:
 	  IF  BANKED

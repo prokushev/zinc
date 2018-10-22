@@ -73,14 +73,14 @@ RAMDSK	EQU	no		; YES = Make RAM-Disk Code, NO = No code made
 HARDDSK	EQU	NO		; YES = Make Hard-disk Code, NO = Floppy Only
 HDDMA	EQU	NO		; YES = DMA transfers, NO = (dflt) Polled IO
 IDE	EQU	NO		; YES = GIDE Subsystem, NO = SCSI
-UNIT_0	EQU	YES		; Hard Disk Physical Unit 1
-UNIT_1	EQU	YES		; Hard Disk Physical Unit 2
+UNIT_0	EQU	NO		; Hard Disk Physical Unit 1
+UNIT_1	EQU	NO		; Hard Disk Physical Unit 2
 UNIT_2	EQU	NO		; Hard Disk Physical Unit 3
 
 ;--- Logical Drive Section ---
 
-DRV_A	EQU	YES		; Set each of these equates for the drive and
-DRV_B	EQU	YES		; partition complement of your system.  Assume
+DRV_A	EQU	no		; Set each of these equates for the drive and
+DRV_B	EQU	no		; partition complement of your system.  Assume
 DRV_C	EQU	no		; that A-D are floppies
 DRV_D	EQU	no
 DRV_E	EQU	no		; Assume that E-L and N-P are Hard Disk
@@ -97,7 +97,6 @@ DRV_M	EQU	YES		; Drive M Reserved for RAM Disk
 DRV_M	EQU	NO		; This is for drive if No RAM Drive present
 	  ENDIF
 DRV_N	EQU	no
-DRV_O	EQU	yes
-DRV_P	EQU	yes
+DRV_O	EQU	no
+DRV_P	EQU	no
 
-

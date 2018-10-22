@@ -139,6 +139,7 @@ BIOSJT:	JP	CBOOT		; 00 Cold Boot
 	JP	RETMEM		; 39 Return Current Active Memory Bank
 
 
+; !!TODO!! Use ZINC.INC for address config
 CPR	EQU	BIOSJT-800H-0E00H
 DOS	EQU	BIOSJT-0E00H
 
@@ -204,7 +205,7 @@ HSTBUF	EQU	CBOOT
 	  IF  CDROM
 	DEFS	2048-(INITCS)	; Use a 2k buffer for CDROM block size
 	  ELSE
-	DEFS	1024-(INITCS)	; Use a 1 k buffer
+;	DEFS	1024-(INITCS)	; Use a 1 k buffer
 	  ENDIF		;cdrom
 
 HSTSIZ	EQU	$-HSTBUF	; Needed for Hard Drive Direct Access
@@ -533,6 +534,8 @@ PAOR:	DEFS	1		; Parallel Output Ready Flag
 BRAME:	DEFS	2		; Use as dynamic sizing label for Hard Drive
 				;  ALV buffers, and storage area for sizing.
 				; ALV Buffers build up from here in memory.
+
+DATAE	EQU	$-CBOOT
 	CSEG
 
 ; Display warning if we are assembling for MOVCPM integration and the
@@ -563,6 +566,6 @@ NSECTS	EQU	($+INITCS-BIOSJT)/128+1
 	INCLUDE	BOOTRAM.Z80
 	  ENDIF
 
-ENDFILL	DS	0E00H+BIOSJT-ENDFILL
+	DEFS	0E00H-($-BIOSJT)-DATAE
+
 	END
-

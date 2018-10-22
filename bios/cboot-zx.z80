@@ -46,10 +46,12 @@ CBOOT:
 
 ; Switch to 48 BASIC
 			LD	A, (CBANK678)
+			AND	11111000B
+			OR	00000100B
 			LD	L, A
 			LD	A, (CBANKM)
-			AND	0F8H
-			OR	010H
+			AND	11101000B
+			OR	00010011B
 			LD	BC, BANK1
 			OUT	(C), A
 
@@ -67,7 +69,21 @@ CBOOT:
 ; ********************
 
 ; Say 'H'
+			LD	A, 'H'
+			RST	10H
+
 ; Switch back to ZINC Bank 1
+
+			LD	A, (BANKM)
+			LD	L, A
+			LD	A, (BANK678)
+			AND	11111000b
+			OR	00000001b
+			LD	BC, BANK2
+			OUT	(C), A
+			LD	(CBANK678), A
+			LD	A, L
+			LD	(CBANKM), A
 
 ; **********************************
 ; *                                *

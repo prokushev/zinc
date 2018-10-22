@@ -34,43 +34,45 @@ Current status (version 3.2.0)
 
 The following programs have been done:
 
-DATE.COM
+DATE.PRL
     Complete. Is Year 2000 compliant and supports date entry in US, UK and ISO formats.
-DEVICE.COM
+DEVICE.PRL
     Complete. Optionally supports the Amstrad TIMEOUT extension so that it can also replace TIMEOUT.COM on
     Amstrad computers.
-DIR.COM
+DIR.RPL
     Complete. Is Year 2000 compliant and supports I/O redirection. Several new output formats and sorting
     options.
-DUMP.COM
+DUMP.RPL
     Complete. A version exists, but the CFCB library seems to produce bloated code; DUMP.COM is actually bigger than
     the DRI original.
-ERASE.COM
+ERASE.RPL
     Complete. Can take more than one filespec on the command line (eg: ERASE *.PRN *.SYM )
-SETDEF.COM
+SETDEF.PRL
     Complete. Supports the multiple date formats used by DATE, DIR and SHOW.
-SHOW.COM
+SHOW.PRL
     Complete. Year 2000 compliant and supports I/O redirection.
-TYPE.COM
+TYPE.PRL
     Same caveat as for DUMP.COM - it's bloated.
-ENDLIST.COM
+ENDLIST.PRL
     Complete.
-LOGOFF.COM
+LOGOFF.PRL
     Complete.
-ASM.COM
+ASM.PRL
     Alpha.
-LOAD.COM
+LOAD.PRL
     Alpha. Based on load.c from ftp://oak.oakland.edu/pub/unix-c/cpm
-PIP.COM
+PIP.PRL
     Alpha. Based on ppip.c from https://github.com/ptrrkssn/ppip
-STAT.COM
+STAT.PRL
     Alpha. Based on XSTAT2.ASM from CPMUG vol008
-SUBMIT.COM
+SUBMIT.PRL
     Alpha. Based on SUPERSUB.ASM from CPMUG vol081
 BDOS
     Alpha. Based on ZSDOS
 CCP
     Alpha. Based on ZCPR1
+BIOS
+    Alpha. Based on B/P BIOS
 
 The Grandiose Vision
 --------------------
@@ -121,7 +123,8 @@ To do/ideas
 4. Add PRL support to CCP
 5. Downgrade CCP to hold only CCP 2.2 and CCP 3 resident commands
 6. Downgrade BDOS to support only CP/M 2.2 and CP/M 3 functions
-7. Fix B/P BIOS to support USERF CP/M function
+7. Use ZINC.INC for B/P BIOS config
+8. Rumor ZX Interface 1 can be used on +2A/+3 machines. If so then think about microdrive support.
 
 Platform specific distributions of ZINC
 =======================================
@@ -129,13 +132,19 @@ Platform specific distributions of ZINC
 +2A ZINC
 --------
 
-+2A ZINC is a ZX Spectrum +3 build of ZINC system. +2A ZINC is a diskless (in minimal distribution)
-version of system.
++2A ZINC is a ZX Spectrum +3 build of ZINC system. +2A ZINC is a diskless CP/M with only tape and memdisk
+support. If external drive detected then works as +3 ZINC.
 
 +3 ZINC
 -------
 
-+3 ZINC is a ZX Spectrum +3 build of ZINC system. Works fine on ZX Spectrum +3e and ZX Spectrum Next too.
++3 ZINC is a ZX Spectrum +3 build of ZINC system. Works fine on ZX Spectrum +3e and ZX
+Spectrum Next too.
+
++3e ZINC
+-------
+
++3e ZINC is a ZX Spectrum +3e build of ZINC system. IDE support added.
 
 ZX Library
 ----------
@@ -190,4 +199,4 @@ Follow table says about implementation status
 | CD_COLDBOOT (1)  |   Done   |  Done   |
 
 1 - No clock tick call are implemented
-2 - If no disk drive interface presented then all DD_* functions patched to return NO DRIVE error
+2 - If no disk drive interface presented then all DD_* functions patched to return NO DRIVE error.

@@ -246,7 +246,7 @@ HSTBUF	EQU	CBOOT
 	  IF  CDROM
 	DEFS	2048-(INITCS)	; Use a 2k buffer for CDROM block size
 	  ELSE
-	DEFS	1024-(INITCS)	; Use a 1 k buffer
+	;DEFS	1024-(INITCS)	; Use a 1 k buffer
 	  ENDIF		;cdrom
 
 HSTSIZ	EQU	$-HSTBUF	; Needed for Hard Drive Direct Access

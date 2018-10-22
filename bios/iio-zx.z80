@@ -35,10 +35,10 @@ CRT:	DEFB	'CRT '		; 4-Char ID
 	DEFB	0FFH		; Input Data Mask
 	DEFB	0FFH		; Output Data Mask
 
-	DEFW	CRTOT		; COM 1 byte output
-	DEFW	CRTOS		; COM 1 output status
-	DEFW	CRTIN		; COM 1 byte input
-	DEFW	CRTIS		; COM 1 input status
+	DEFW	CRTOT		; CRT 1 byte output
+	DEFW	CRTOS		; CRT 1 output status
+	DEFW	CRTIN		; CRT 1 byte input
+	DEFW	CRTIS		; CRT 1 input status
 
 LPT:	DEFB	'LPT '		; 4-Char ID
 	DEFB	00000000B	; Baud Rate (None)
@@ -80,7 +80,56 @@ DEVTBL:	LD	HL,DEVCFG	; BYTE device table
 	RET			; CP/M-3 device init
 
 
-CRTOT:
+CRTOT:                  PUSH	BC
+; Switch to 48 BASIC
+			LD	A, (CBANK678)
+			AND	11111000B
+			OR	00000100B
+			LD	L, A
+			LD	A, (CBANKM)
+			AND	11101000B
+			OR	00010011B
+			LD	BC, BANK1
+			OUT	(C), A
+
+			LD	BC, BANK2
+			OUT	(C), L
+
+			LD	(BANKM), A
+			LD	A, L
+			LD	(BANK678), A
+; ********************
+; *                  *
+; * MMU: R3, 5, 2, 3 *
+; *                  *
+; ********************
+
+; Say C
+			POP	BC
+			LD	A, C
+			CP	0AH		; No LF support
+			JR	Z, SKIP
+			RST	10H
+SKIP:
+; Switch back to ZINC Bank 1
+
+			LD	A, (BANKM)
+			LD	L, A
+			LD	A, (BANK678)
+			AND	11111000b
+			OR	00000001b
+			LD	BC, BANK2
+			OUT	(C), A
+			LD	(CBANK678), A
+			LD	A, L
+			LD	(CBANKM), A
+
+; **********************************
+; *                                *
+; * MMU: 0, 1, 2, 3 / ZINC: Bank 1 *
+; *                                *
+; **********************************
+
 CRTOS:
 CRTIN:
 CRTIS:

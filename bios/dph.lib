@@ -210,7 +210,8 @@ DIRBUF	EQU	CBOOT	; Resident Init code in here
 	  ELSE
 DIRBUF	EQU	$
 	  ENDIF
-	ORG	DIRBUF+128	; Directory buffer
+;	ORG	DIRBUF+128	; Directory buffer
+	DS	128		; Directory buffer
 
 ; If we are using autoselection of drives, we copy the XDPB/DPB structure
 ; for the identified format to RAM thereby allowing emulation of formats by

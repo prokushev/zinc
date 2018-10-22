@@ -54,25 +54,25 @@ M_ZXEVO		EQU     4       ; ZX Evolution
                 IF      MACHINE=M_ZXP2A
 BANKED          EQU     1               ; Banked version
 ROM             EQU     0               ; Not ROM based version
-BIAS		EQU	0		; ZINC BIAS
+BIAS		EQU	0A800H		; ZINC BIAS
                 ENDIF
 
                 IF      MACHINE=M_ZXP3
 BANKED          EQU     0               ; Banked version ; !!! For prototype only !!!
 ROM             EQU     0               ; Not ROM based version
-BIAS		EQU	0		; ZINC BIAS
+BIAS		EQU	0A800H		; ZINC BIAS
                 ENDIF
                 
                 IF      MACHINE=M_ZXP3E
 BANKED          EQU     1               ; Banked version
 ROM             EQU     0               ; Not ROM based version
-BIAS		EQU	0		; ZINC BIAS
+BIAS		EQU	0A800H		; ZINC BIAS
                 ENDIF
 
                 IF      MACHINE=M_ZXNEXT
 BANKED          EQU     1               ; Banked version
 ROM             EQU     0               ; Not ROM based version
-BIAS		EQU	0		; ZINC BIAS
+BIAS		EQU	0A800H		; ZINC BIAS
                 ENDIF
 
                 IF      MACHINE=M_ZXEVO
@@ -81,9 +81,9 @@ ROM             EQU     1               ; ROM based version
 BIAS		EQU	0		; ZINC BIAS
                 ENDIF
                 
-;*******************************************************************
-;* ZINC bank 1 memory map (resident part, CP/M 2 sizes comatibility)
-;*******************************************************************
+;*********************************************************************
+;* ZINC bank 1 memory map (resident part, CP/M 2 sizes comatibility) *
+;*********************************************************************
 
 ZEROSIZE	EQU	0100H		; Zero page size
 CCPSIZE		EQU	0800H		; CPP size
@@ -105,8 +105,8 @@ CCPLOC          EQU     BIAS+03400H	; CCP Location
 BDOSLOC         EQU     CCPLOC+CCPSIZE	; BDOS Location
 BIOSLOC		EQU	BDOSLOC+BDOSSIZE; BIOS Location
 
-;*******************************************************************
-;* ZINC features control
-;*******************************************************************
+;*********************************************************************
+;* ZINC features control                                             *
+;*********************************************************************
 
 CPM3API		EQU	0		; CP/M 3 API extensions
