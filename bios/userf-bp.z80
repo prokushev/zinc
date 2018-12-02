@@ -1,9 +1,0 @@
-;:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-;	Return  BIOS  Addresses
-;:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-
-USERF:	LD	BC,BIOSJT	; Get address of bios base
-	LD	DE,CONFIG	; Point to configuration area
-	LD	HL,DEVCFG	; Point to Device Table (for Device swap)
-	LD	A,VERS		; Return BIOS Version
-	RET
