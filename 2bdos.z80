@@ -126,9 +126,6 @@ VERS	EQU	VERMAJ*10H+VERMIN
 
 CONTC	EQU	03H		; Key to generate warm boot
 CONTH	EQU	08H		; Backspace
-TAB	EQU	09H		; Tab
-LF	EQU	0AH		; Line feed
-CR	EQU	0DH		; Carriage return
 CONTP	EQU	10H		; Set/reset print flag
 CONTR	EQU	12H		; Retype line
 CONTS	EQU	13H		; Stop console output
@@ -867,12 +864,7 @@ MSEL:	DEFB	'No Drive$'
 MFILRO:	DEFB	'File '
 
 MRO:	DEFB	'W/P$'
-	 IF ZS
-MBERR:	DEFB	'ZSDOS'
-	 ELSE
-MBERR:	DEFB	'ZDDOS'
-	 ENDIF
-	DEFB	' error on $'
+MBERR:	DEFB	'BDOS error on $'
 	 
 MBFUNC:	DEFB	CR,LF,'Call'
 MDRIVE:	DEFB	': $'
@@ -3184,4 +3176,3 @@ BGLOWL	EQU	BGHIRAM-BGLORAM	   ; Size of Low RAM save
 BGHIL	EQU	BGRAMTOP-BGHIRAM   ; Size of Hi RAM save
 
 	END			; End program
-

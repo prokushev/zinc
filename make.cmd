@@ -39,7 +39,7 @@ zx zmac +2ccp.z80 -O +build/ccp/ -P +build/ccp/ -E +build/ccp/
 
 zx link +bin/zinc.bin +-[LDC00]= +build/ccp/2ccp.rel +-, +build/bdos/2bdos.rel +-, +build/bios/2bios.rel
 
-exit
+exit 
 
 echo ****************
 echo * SYSLIB build *
@@ -264,6 +264,7 @@ zx lib slib29=slib28,ssfn3,sshl4hc,sshl5dc,sshlfdc,sskpun
 zx lib slib30=slib29,ssksp,ssort,ssout,ssprint,sspstr,ssua
 zx lib slib31=slib30,sud1,sud2,sfileio,s0fileio,smove
 zx lib syslib=slib31,s1fileio,scout,sccout,scin,sbout,scaps
+copy syslib.rel ..\..\lib
 cd ..\..
 
 rem **************
@@ -321,7 +322,7 @@ zx lib c3lib5=c3lib4.rel,c3devl,c3devg,c3devc
 zx lib c3lib6=c3lib5.rel,c3dtbl,c3dini,c3bios
 zx lib c3lib7=c3lib6.rel,c3page,c3scbput,c3scbget,c3brk,c3cmod,c3err
 zx lib c3lib8=c3lib7.rel,c3passwd,c3fbcd,c3tbcd
-zx lib cpm3lib=c3lib8.rel,c3opt,c3dosopt,c3int,c3push
+zx lib +lib/cpm3lib=c3lib8.rel,c3opt,c3dosopt,c3int,c3push
 cd ..\..
 
 rem ****************
@@ -336,7 +337,7 @@ zx zmac +strlib/token.z80 -O +build/strlib/ -P +build/strlib/ -E +build/strlib/
 zx zmac +strlib/tokeng.z80 -O +build/strlib/ -P +build/strlib/ -E +build/strlib/
 zx zmac +strlib/tokenl.z80 -O +build/strlib/ -P +build/strlib/ -E +build/strlib/
 cd build\strlib
-zx lib strlib=strchr, strlen, tlookup, token, tokeng, tokenl,lexer
+zx lib +lib/strlib=strchr, strlen, tlookup, token, tokeng, tokenl,lexer
 cd ..\..
 
 rem **************
@@ -402,7 +403,7 @@ zx lib flib6=flib5,cmake,cmkdev,copen,ccfixf,ccirec
 zx lib flib7=flib6,cpwset,crbyti,crclose,ccrrrc
 zx lib flib8=flib7,crdtst,cread,cseek,cseof,ctell,ctmake
 zx lib flib9=flib8,cwrite,tdos,cdvini,cdevio,cifdev,ccblen,ccirrc
-zx lib cfcb=flib9,cifnul,ccdma,ccget,cczfcb,ccpw,copfcb,cparse,cclast,ccgusr,ccgdrv,ccdev
+zx lib +lib/cfcb=flib9,cifnul,ccdma,ccget,cczfcb,ccpw,copfcb,cparse,cclast,ccgusr,ccgdrv,ccdev
 cd ..\..
 
 rem ****************
@@ -427,7 +428,7 @@ cd build\netlib
 zx lib nlib=nacsdrv,ncfgtbl,ndefpwd,nerrmode,nfredrv
 zx lib nlib1=nlib,nlockrec,nlogin,nlogoff,nnetstat
 zx lib nlib2=nlib1,nrcvmsg,nscattr,nscfgtbl
-zx lib netlib=nlib2,nsendmsg,nulckrec
+zx lib +lib/netlib=nlib2,nsendmsg,nulckrec
 cd ..\..
 
 zx zmac +last.z80
@@ -437,12 +438,12 @@ rem * CP/M 2 tools build
 rem **********************
 
 rem Build 2STAT
-zx zmac +2stat.z80 -O +zout/2stat.rel -P +zout/2stat.lst
-zx link +bin/stat +-[OP]= +zout/2stat.rel, +zout/syslib.rel +-[s]
+zx zmac +2stat.z80 -O +zout/ -P +zout/ -E +zout/
+zx link +bin/stat +-[OP]= +zout/2stat.rel, +lib/syslib.rel +-[s]
 
 rem Build 2SUBMIT
-zx zmac +2submit.z80 -O +zout/2submit.rel -P +zout/2submit.lst
-zx link +bin/submit +-[OP]= +zout/2submit.rel, +zout/syslib.rel +-[s]
+zx zmac +2submit.z80 -O +zout/ -P +zout/ -E +zout/
+zx link +bin/submit +-[OP]= +zout/2submit.rel, +lib/syslib.rel +-[s]
 
 rem Build 2GO
 zmac --zmac 2go.z80

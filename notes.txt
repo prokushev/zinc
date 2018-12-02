@@ -1,2 +1,11 @@
 CBANK678 temporary at ffffH
 CBANKM temporary at fffEH
+
+
+AMSOFT CF-2 - Compact Flash/3" floppy disk
+AMSOFT PL-1 - Printer Link (?)/printer interconnecting lead
+AMSTRAD DMP range of printers (e.g. models DMP2000, DMP3000, DMP3160 or DMP4000)
+AMSTRAD FD-1 - Floppy Drive (for +3)
+AMSOFT DL-2 disk interconnecting lead.
+Amstrad SI-1
+SDI-1 - SI-1 clone brand new

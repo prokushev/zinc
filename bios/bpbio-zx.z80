@@ -1,5 +1,5 @@
 ;
-;    BIOS: Basic Input/Output System (GPLed clone of CP/M 2/3 BIOS)
+;    BIOS: Basic Input/Output System (GPLed clone of CP/M 3 BIOS)
 ;    Copyright (C) 2018  Yuri Prokushev <yuri.prokushev@gmail.com>
 ;
 ; Based on:
@@ -46,28 +46,103 @@
 
 ;***************************************************************************
 
-	NAME	BPBIO
+		NAME	BPBIO
 
-FALSE	EQU	0
-TRUE	EQU	NOT FALSE
-NO	EQU	FALSE
-YES	EQU	TRUE
-				; << ******  SYSTEM SPECIFIC  ****** >>
-				; <<  Insert DEF-xxxx.LIB definition >>
-	INCLUDE	B0:DEF-ZX.LIB	; <<   file for your configuration.  >>
+		INCLUDE	"A0:ZINC.INC"
 
-	CSEG
-;.....
-; Ascii Character Equates
 
-ETX	EQU	03H		; End-of-Text
-ACK	EQU	06H		; Acknowledge
-BELL	EQU	07H		; Bell Character
-CR	EQU	0DH
-LF	EQU	0AH
-XON	EQU	11H		; X-On  (Control-Q)
-XOFF	EQU	13H		; X-Off (Control-S)
-ESC	EQU	1BH
+; def-zx.z80 start
+;:::::::::::::::::::::::::::::::::::::::::::::::**********************
+;  B/P BIOS Configuration and Equate File.	** System Dependant **
+;	Tailor your system here.		**********************
+;	  - ZX Spectrum +3 -
+;
+;:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+; BIOS Configuration Equates and Macros
+
+
+;--- Basic System and Z-System Section ---
+
+MOVCPM	EQU	NO		; Integrate into MOVCPM "type" loader?
+	  IF  MOVCPM
+VERS	EQU	13H		; Version number in Hexidecimal (Major/Minor)
+	  ELSE
+VERS	EQU	21H		; Version number w/Device Swapping permitted
+	  ENDIF
+
+MHZ	EQU	6		; Set to Speed in MHZ (6/9/12)
+FASTWB	EQU	YES		; True if restoring CPR from banked RAM
+				; ..false if restoring from Drive A
+CDROM	EQU	NO		; True sets 2kB Host Buffer, No for standard
+				;   1kB Host Buffer
+Z3	EQU	NO		; Include ZCPR init code?
+HAVIOP	EQU	YES		; Include IOP code into Jump table?
+
+;--- Memory configuration Section --- (Expansion Memory configured here)
+
+IBMOVS	EQU	NO		; Yes = Inter-bank Moves allowed (Z180/64180)
+				;  No = Include Common RAM transfer buffer
+
+;--- Character Device Section ---
+
+MORDEV	EQU	NO		; YES = Include any extra Char Device Drivers
+				;  NO = Only use the 4 defined Char Devices
+XONOFF	EQU	yes		; Include Xon/Xoff handshaking in Serial lines?
+
+;--- Clock and Time Section ---
+
+CLOCK	EQU	NO		; Include ZSDOS Clock Driver Code?
+ETSCLK	EQU	no		; Use the RTC on the ETS180IO+ for Date&Time?
+DS1216	EQU	no		; Use a Dallas DS-1216 for Date&Time?
+				; NOTE: Only one of the two above must be "Yes"
+CLKSET	EQU	no		; Allow Setting of ETS180IO+ or Dallas Clocks?
+TICTOC	EQU	NO		;== NOT USED IN SB180 (pseudo heartbeat count)
+
+;--- Floppy Diskette Section ---
+
+BIOERM	EQU	YES		; Print BIOS error messages?
+CALCSK	EQU	YES		; Calculate skew table?
+AUTOSL	EQU	NO		; Auto select floppy formats?
+				; If AUTOSL=True, the next two are active...
+FLOPY8	EQU	NO		; Include 8" Floppy Formats?
+FLOPYH	EQU	NO		; Include "Hi-Density" Floppy Formats?
+				;  (SB-180 can't handle without H/W mods)
+MORDPB	EQU	NO		; Include additional Floppy DPB's?
+
+;--- RAM Disk Section ---
+
+RAMDSK	EQU	NO		; YES = Make RAM-Disk Code, NO = No code made
+
+;--- Hard Disk Section ---
+
+HARDDSK	EQU	NO		; YES = Make Hard-disk Code, NO = Floppy Only
+HDDMA	EQU	NO		; YES = DMA transfers, NO = (dflt) Polled IO
+IDE	EQU	NO		; YES = GIDE Subsystem, NO = SCSI
+UNIT_0	EQU	NO		; Hard Disk Physical Unit 1
+UNIT_1	EQU	NO		; Hard Disk Physical Unit 2
+UNIT_2	EQU	NO		; Hard Disk Physical Unit 3
+
+
+;--- ZX Spectrum +3/+2A
+
+; I/O ports
+
+BANK1			EQU	07FFDH		;"horizontal" and RAM switch port
+BANK2			EQU	01FFDH		;"vertical" switch port
+
+; Sysvars
+
+BANKM			EQU	05B5CH		;
+BANK678			EQU	05B67H		;
+LAST_K			EQU	05C08H		;
+
+; ZINC copy of System Variables
+
+CBANK678		EQU	0FFFFH
+CBANKM			EQU	0FFFEH
+
+; def-zx.z80 end
+		CSEG
 
 ; Miscellaneous Equates
 
@@ -85,11 +160,11 @@ ALONE	EQU	FALSE		; Boot code equate
 
 	CSEG
 
-BIOSJT:	JP	CBOOT		; 00 Cold Boot
-	JP	WBOOT		; 01 Warm Boot
-	JP	CONST		; 02 console input status	* (IOP+12)
-	JP	CONIN		; 03 console input		* (IOP+15)
-	JP	CONOUT		; 04 console output		* (IOP+18)
+BIOSJT:	JP	CBOOT		; 00 00 Cold Boot
+	JP	WBOOT		; 03 01 Warm Boot
+	JP	CONST		; 06 02 console input status	* (IOP+12)
+	JP	CONIN		; 09 03 console input		* (IOP+15)
+	JP	CONOUT		; 0C 04 console output		* (IOP+18)
 	JP	LIST		; 05 list output		* (IOP+21)
 	JP	AUXOUT		; 06 aux out (punch)		* (IOP+24)
 	JP	AUXIN		; 07 aux in (reader)		* (IOP+27)
@@ -125,107 +200,446 @@ BIOSJT:	JP	CBOOT		; 00 Cold Boot
 
 	JP	USERF		; 30 User-defined function
 
+	RET			; 31 Reserved
+	NOP
+	NOP
+	RET			; 32 Reserved
+	NOP
+	NOP
+
 ; --- <<< End of CP/M 3 Vectors >>>
 
-	JP	DIRDIO		; 31 Direct Disk I/O
-	JP	STFARC		; 32 Set Bank for FRJP and FRCALL
-	JP	FRJP		; 33 Jump to (HL) in Alternate Bank
-	JP	FRCLR		; 34 Clear Stack switcher from Alt Bank Jumps
-				;	(used for error exits)
-	JP	FRGETB		; 35 Load A,(HL) from Alternate Bank
-	JP	FRGETW		; 36 Load DE,(HL) from Alternate Bank
-	JP	FRPUTB		; 37 Load (HL),A to Alternate Bank
-	JP	FRPUTW		; 38 Load (HL),DE to Alternate Bank
-	JP	RETMEM		; 39 Return Current Active Memory Bank
-
-
-; !!TODO!! Use ZINC.INC for address config
-CPR	EQU	BIOSJT-800H-0E00H
-DOS	EQU	BIOSJT-0E00H
-
 ; End of BIOS Jump Table
-	PAGE
-;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-;	Boot / Banked    Routine    Linkage
-;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
-	  IF  BANKED
-	COMMON	/BANK2/
-ROMJT:
-	   IF  INROM
-	JP	INSYNC
-INSYNC:	JP	BOOTER		; Cold start loader
-	   ELSE
-	JP	0		; Reserved
-	JP	0
-	   ENDIF		; Inrom
-JDIRIO:	JP	DIRIO		; Low Level HDC/FDC Functions
-JHDCIO:	JP	DIRIO		; Low Level HDC Functions (combined w/FDCIO)
-JBREAD:	JP	BREAD		; BIOS Read
-JBWRT:	JP	BWRT		; BIOS Write
-JBSTRN:	JP	BSTRN		; BIOS Sectran
-	   IF  INROM
-	INCLUDE	BOOTROM.Z80	; Boot Routines
-	   ENDIF		; Inrom
-	  ENDIF			; Banked
-	PAGE
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 ;	  C o n f i g u r a t i o n    A r e a
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-				; << ****** HARDWARE SPECIFIC ****** >>
-				; <<  Insert ICFG-xxx to initialize  >>
-	INCLUDE	B0:ICFG-ZX.Z80	; <<    your computer's IO system    >>
-	PAGE
-				; << ****** Hardware Specific ****** >>
-				; << Enter Low level Byte I/O driver >>
-	INCLUDE	B0:IIO-ZX.Z80	; <<  routines in file IIO-xxxx.Z80  >>
-	PAGE
+; ICFG-ZX.Z80 start
+;:::::::::::::::::::::::::::::::::::::::::::********************************
+;	I/O  Configuration  Area	    ******  Hardware Specific ******
+;	  - ZX Spectrum +3 -		    ********************************
+;
+;:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+CONFIG:
+IOBYT:	DEFB	00000000B	; LST:=CRT, AUX:=CRT, CON:=CRT
+SYSDRV:	DEFB	0		; System drive (a=0, b=1...)
+
+HICOMM:	DEFB	0C0H		; Page address of start of high common memory
+
+NUMDPB:
+	DEFB	0		; Number of DPBs in Common RAM
+	DEFB	0		; Number of Banked DPBs
+
+AUTOCMD: DEFB	8,'STARTUP ',0	; Startup command for Z3
+
+;------------ Fixed IOCONFIG ---------------
+
+SPEED:	DEFB	MHZ		; Set to processor speed value in Configuration
+WAITS:	DEFB	00000010B	; Number of additional Memory & IO Wait states
+;		||||++++--- # of IO Wait States (bits 3-0)
+;		++++------- # of Memory Wait States (bits 7-4)
+
+RELOD0:	DEFW	2560*MHZ	; 16-bit constant for counter/timer refresh
+				;  based on 50 mS Interrupts from Timer/Counter
+
+;======= End of Fixed Config ======== Device Config follows ========
+
+; icfg-zx.z80 end
+
+
+; IIO-ZX.Z80 start
+;:::::::::::::::::::::::::::::::::::::::::::::::::*************************
+;		 Byte I/O Routines		  *** Hardware Specific ***
+; Input routines do NOT mask MSB for 8-bit data.  *************************
+;		- ZX Spectrum +2A/+3 -
+;
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+	CSEG
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+;	   Byte  Device  Control  Tables
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+DEVCFG:
+CRT:	DEFB	'CRT '		; 4-Char ID
+	DEFB	00000000B	; Baud Rate (None)
+;		||||||||
+;		||||++++---- Baud Rate setting (9600 bps)
+;		++++-------- Maximum Baud Rate (38.4 kbps)
+; Rates are as:
+; 0000 = None	0001 = 134.5	0011 = 50	0011 = 75
+; 0100 = 150	0101 = 300	0110 = 600	0111 = 1200
+; 1000 = 2400	1001 = 4800	1010 = 9600	1011 = 19200
+; 1100 = 38400	1101 = 76800	1110 = 115200	1111 = Fixed
+
+	DEFB	11000000B	; Config Byte
+;		|||||||+---------- Stop Bits 1 (1), 2 (0)
+;		||||||+----------- Parity Enable (1), Disable (0)
+;		|||||+------------ Parity Even (1), Odd (0)
+;		||||+------------- Bits 8 (0), 7 (1)
+;		|||+-------------- Xon-Xoff Handshake
+;		||+--------------- CTS/RTS Handshake
+;		|+---------------- Input Device No (0), Yes (1)
+;		+----------------- Output Device No (0), Yes (1)
+
+	DEFB	0FFH		; Input Data Mask
+	DEFB	0FFH		; Output Data Mask
+
+	DEFW	CRTOT		; CRT 1 byte output
+	DEFW	CRTOS		; CRT 1 output status
+	DEFW	CRTIN		; CRT 1 byte input
+	DEFW	CRTIS		; CRT 1 input status
+
+LPT:	DEFB	'LPT '		; 4-Char ID
+	DEFB	00000000B	; Baud Rate (None)
+	DEFB	10000001B	; Config Byte
+	DEFB	0FFH		; Input Data Mask
+	DEFB	07FH		; Output Data Mask
+
+	DEFW	LPTOT		; LPT 2 byte output
+	DEFW	LPTOS		; LPT 2 output status
+	DEFW	LPTIN		; LPT 2 byte input
+	DEFW	LPTIS		; LPT 2 input status
+
+SIO:	DEFB	'SIO'		; 4-Char ID
+	DEFB	10111010B	; Baud Rate (19200 Max 9600 set)
+	DEFB	11000000B	; Config Byte (Output Only)
+	DEFB	0FFH		; Input Data Mask
+	DEFB	0FFH		; Output Data Mask
+
+	DEFW	SIOOT		; SIO byte output
+	DEFW	SIOOS		; SIO output status
+	DEFW	SIOIN		; SIO byte input
+	DEFW	SIOIS		; SIO input status
+
+NULL:	DEFB	'NULL'		; 4-Char ID
+	DEFB	00000000B	; Baud Rate (None)
+	DEFB	11000000B	; Config Byte
+	DEFB	0FFH		; Input Data Mask
+	DEFB	0FFH		; Output Data Mask
+
+	DEFW	ISFALSE		; Null output
+	DEFW	ISTRUE		; Null output status
+	DEFW	ISFALSE		; Null input
+	DEFW	ISTRUE		; Null input status
+	DEFB	0		; - End-of-Table marker
+
+MAXBDV	EQU	[$-DEVCFG-1]/[LPT-CRT] ; Number of Character Devices Defined
+
+DEVTBL:	LD	HL,DEVCFG	; BYTE device table
+	RET			; CP/M-3 device init
+
+
+CRTOT:
+
+; **********************************
+; *                                *
+; * MMU: 0, 1, 2, 3 / ZINC: Bank 1 *
+; *                                *
+; **********************************
+
+			PUSH	HL
+			PUSH	BC
+			PUSH	DE
+
+			LD	D, C
+; Switch to 48 BASIC
+			LD	A, (CBANK678)
+			AND	11111000B
+			OR	00000100B
+			LD	L, A
+			LD	A, (CBANKM)
+			AND	11101000B
+			OR	00010011B
+			LD	BC, BANK1
+			OUT	(C), A
+
+			LD	BC, BANK2
+			OUT	(C), L
+
+			LD	(BANKM), A
+			LD	A, L
+			LD	(BANK678), A
+; ********************
+; *                  *
+; * MMU: R3, 5, 2, 3 *
+; *                  *
+; ********************
+
+; Say C
+			LD	A, D
+			CP	0AH		; No LF support
+			JR	Z, SKIP
+			RST	10H
+
+SCR_CT:			EQU	23692		; scroll lines counter
+			LD	HL, SCR_CT
+			LD	(HL), 255
+
+SKIP:
+; Switch back to ZINC Bank 1
+
+			LD	A, (BANKM)
+			LD	L, A
+			LD	A, (BANK678)
+			AND	11111000b
+			OR	00000001b
+			LD	BC, BANK2
+			OUT	(C), A
+			LD	(CBANK678), A
+			LD	A, L
+			LD	(CBANKM), A
+
+; **********************************
+; *                                *
+; * MMU: 0, 1, 2, 3 / ZINC: Bank 1 *
+; *                                *
+; **********************************
+
+			POP	DE
+			POP	BC
+			POP	HL
+
+			RET
+
+CRTIN:
+; **********************************
+; *                                *
+; * MMU: 0, 1, 2, 3 / ZINC: Bank 1 *
+; *                                *
+; **********************************
+
+; Switch to 48 BASIC
+			LD	A, (CBANK678)
+			AND	11111000B
+			OR	00000100B
+			LD	L, A
+			LD	A, (CBANKM)
+			AND	11101000B
+			OR	00010011B
+			LD	BC, BANK1
+			OUT	(C), A
+
+			LD	BC, BANK2
+			OUT	(C), L
+
+			LD	(BANKM), A
+			LD	A, L
+			LD	(BANK678), A
+; ********************
+; *                  *
+; * MMU: R3, 5, 2, 3 *
+; *                  *
+; ********************
+
+			LD	HL, LAST_K
+			LD	(HL), 0
+			EI
+LOOP:			LD	A, (HL)
+			CP	0
+			JR	Z, LOOP
+			LD	H, A
+
+; Switch back to ZINC Bank 1
+
+			LD	A, (BANKM)
+			LD	L, A
+			LD	A, (BANK678)
+			AND	11111000b
+			OR	00000001b
+			LD	BC, BANK2
+			OUT	(C), A
+			LD	(CBANK678), A
+			LD	A, L
+			LD	(CBANKM), A
+
+; **********************************
+; *                                *
+; * MMU: 0, 1, 2, 3 / ZINC: Bank 1 *
+; *                                *
+; **********************************
+
+			LD	A, H
+			RET
+
+CRTOS:
+CRTIS:
+LPTOT:
+LPTOS:
+LPTIN:
+LPTIS:
+SIOOT:
+SIOOS:
+SIOIN:
+SIOIS:
+			RET
+
+ISTRUE:			OR	0FFH
+			RET
+
+;:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+;::	  D e v i c e    I n i t i a l i z a t i o n	    ::
+;:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+; This routine must set all configurable devices in the system dynamically.
+; Many support routines and possibly user applications will vary some of
+; the data structures for optimum performance.  Ill-behaved routines that
+; directly address hardware and exit with altered states may be restored
+; by calling this routine via the Jump Table.
+;  If the Bios is assembled for Boot Track installation (MOVCPM True),
+; the Device swapping, and attendant dynamic configuration is disabled
+; resulting in fixed device configurations.
+
+			CSEG
+DEVINI:
+			RET
+
+; IIO-ZX.Z80 end
+
+
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 ;		Cold   Start   Code 
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
-	DSEG
-				; << ***** Hardware Specific ***** >>
-				; << Insert the Cold boot routines >>
-	INCLUDE	B0:CBOOT-ZX.Z80	; <<     in file CBOOT-xx.Z80      >>
+; CBOOT-ZX.Z80 start
+;:::::::::::::::::::::::::::::::::::::::::::::::::::***********************
+;  CBOOT.	B/P BIOS Cold Boot Module.	    ** Hardware Specific **
+;  This MUST be the Last Module in the BIOS	    ** for prompts, Env  **
+;   because it is overwritten by RAM Data.	    ** and Termcap Dflts **
+;           - ZX Spectrum +3 -			    ***********************
+;
+;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-; Deblocking Buffer Allocation
 
-	  IF  [BANKED OR INROM]
-	COMMON	/B2RAM/
-	   IF  INROM
-HSTBUF:	DEFS	INITCS		; Use a 1k buffer w/below
-	   ELSE
-HSTBUF	EQU	CBOOT0		; Use CBOOT0 code for part of buffer w/below
-	   ENDIF	;inrom
-	  ELSE
-	DSEG
-HSTBUF	EQU	CBOOT
-	  ENDIF		;not banked
-	  IF  CDROM
-	DEFS	2048-(INITCS)	; Use a 2k buffer for CDROM block size
-	  ELSE
-;	DEFS	1024-(INITCS)	; Use a 1 k buffer
-	  ENDIF		;cdrom
+;
+;  Cold boot entry.  This code is executed only once and so may be
+;  overwritten subsequently by the BIOS.  In Non-banked systems, this code
+;  is placed in the Host Buffer, HSTBUF, allowing up to 1024 bytes in the
+;  section, although much less will fit on the boot tracks.  In Banked
+;  systems, a small resident part (up to 128 bytes) occupies the Directory
+;  Sector Buffer, DIRBUF, while the remainder is placed in the banked
+;  HSTBUF, allowing both sectors to be overwritten without penalty.
+;  To insure minimum disruption in assembling and linking the BIOS, this
+;  module must be one of the first linked to place HSTBUF/DIRBUF at the
+;  beginning of B2RAM and DSEG.
 
-HSTSIZ	EQU	$-HSTBUF	; Needed for Hard Drive Direct Access
+CBOOT:
 
-	  IF  BANKED AND [[INROM] OR [NOT IBMOVS]]
-	DSEG
-IBMVBF:	DEFS	256		; Inter-bank move buffer
-	  ENDIF
-	PAGE
+; **********************************
+; *                                *
+; * MMU: 0, 1, 2, 3 / ZINC: Bank 1 *
+; *                                *
+; **********************************
+
+			DI
+
+; Switch to 48 BASIC
+			LD	A, (CBANK678)
+			AND	11111000B
+			OR	00000100B
+			LD	L, A
+			LD	A, (CBANKM)
+			AND	11101000B
+			OR	00010011B
+			LD	BC, BANK1
+			OUT	(C), A
+
+			LD	BC, BANK2
+			OUT	(C), L
+
+			LD	(BANKM), A
+			LD	A, L
+			LD	(BANK678), A
+
+; ********************************
+; *                              *
+; * MMU: R3, 5, 2, 3 / 48K BASIC *
+; *                              *
+; ********************************
+
+; Open stream #1 for printing
+
+CHAN_OPEN:		EQU	01601H
+
+			LD	A, 2
+			CALL	CHAN_OPEN
+			LD	A, 22		; AT 0, 0
+			RST	10H
+			LD	A, 0
+			RST	10H
+			LD	A, 0
+			RST	10H
+
+; Switch back to ZINC Bank 1
+
+			LD	A, (BANKM)
+			LD	L, A
+			LD	A, (BANK678)
+			AND	11111000b
+			OR	00000001b
+			LD	BC, BANK2
+			OUT	(C), A
+			LD	(CBANK678), A
+			LD	A, L
+			LD	(CBANKM), A
+
+; **********************************
+; *                                *
+; * MMU: 0, 1, 2, 3 / ZINC: Bank 1 *
+; *                                *
+; **********************************
+
+CBOOT0:						; Passthrow WBOOT
+
+
+;======================== End of CBOOT =============================
+
+; CBOOT-zx.Z80 end
+
+; WBOOT-ZX.Z80 start
+;:::::::::::::::::::::::::::::::::::::::************************************
+;	Warm  Boot  Routine		***  Machine Dependant for Moves ***
+;	  ZX Spectrum +3		***  and custom load formatting  ***
+;					************************************
+;:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+WBOOT:			DI
+			LD	SP, 0DC00H
+			LD	BC, 80H		; Default DMA address is 80H
+			CALL	SETDMA
+
+			LD	A, 0C3H		; C3 is a JMP instruction
+			LD	(0), A		; For JMP to WBOOT
+			LD	(5), A		; For JMP to BDOS
+			LD	HL, BIOSJT+3	; Wboot entry point
+			LD	(1), HL		; Set address field for JMP at 0
+			LD	HL, BDOSLOC+6	; BDOS entry point
+			LD	(6), HL		; Set Address field of jump at 5 to BDOS
+			LD	A, 0C9H		; RET opcode
+			LD	(38H), A
+			LD	A, 0EDH		; RETN prefix
+			LD	(66H), A
+			LD	A, 045H		; RETN opcode
+			LD	(67H), A
+
+			LD	HL, (IOBYT)	; Get Default Drive/User and IOBYTE
+			LD	(3), HL		; ..Set values in TPA bank
+
+			EI
+
+			CALL	PRINT
+			DB	"BIOS V1.0",0
+			JP	CCPLOC
+
+; WBOOT-ZX.Z80 end
+
+
+
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 ;		Disk   Data   Structures
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-; NOTE: The SB-180 does not have the ability to automatically handle "High-
-;       Density 5.25" and 3.5" disk drives since the Density-Select line is
-;       not implemented, and the Motor control signal is also used to switch
-;       the data rate between 250 and 500 kbps.  This results in the drive
-;       motors being turned off at the "high-density" data rates.  If these
-;       problems are addressed, you may need to increase the MXFALC value to
-;       880 to allow enough space for 1.76 MB 3.5" Drives.
 ;
+
 MXFDIR	EQU	255		; Max number of dir entries-1 for floppy
 	  IF  FLOPY8 OR FLOPYH	; Max number of alloc blocks for floppys.
 MXFALC	EQU	720		; If 8" drives are to be accomodated, set
@@ -234,155 +648,8 @@ MXFALC	EQU	400		; maximum is 400 (800 KB) for 80 track, DS.
 	  ENDIF
 
 	CSEG
-	  IF  BANKED
-	COMMON  /BANK2/
-	  ENDIF
-	  IF  AUTOSL
-DPB:				; Marker for DPB start if Autoselecting
-	INCLUDE	B0:DPB.LIB		; Default common autoselecting DD/SD formats
-	   IF  FLOPYH
-	INCLUDE	B0:DPB-H.LIB	; "High-Density" Autoselecting Disk formats
-	   ENDIF		;  (See note above)
-	   IF  FLOPY8
-	INCLUDE	B0:DPB-8.LIB	; 8" Autoselecting Disk formats
-	   ENDIF
-	   IF  MORDPB
-	INCLUDE	B0:DPB2.LIB	; Additional assignable DPB's if desired
-	   ENDIF
-	  ELSE		;Not autosl
-	CSEG			; Go to Code segment, banked or Not
-DPB:				; Alternate DPB marker if Not Autoselecting
-	INCLUDE	B0:DPBRAM.LIB	; RAM-based DPB's assigned per physical format
-	  ENDIF
-NRDPB	EQU	[$-DPB]/DPBSIZ	; Calc number of DPB's
 
-	CSEG			; Hard & Ramdisk DPBs and DPHs go in Code Seg
-	  IF  HARDDSK
-				; << ****** Hardware Specific ****** >>
-				; <<  Insert DPB Info for Hard Disk  >>
-	INCLUDE	DPBHD-ZX.LIB	; <<     Drives as DPBHD-xx.LIB      >>
-	  ENDIF
-	  IF  RAMDSK
-				; << ****** Hardware Specific ****** >>
-				; <<  Insert DPB Info for RAM Disk   >>
-	INCLUDE	DPBM-ZX.LIB	; <<     in file DPBM-xxx.LIB        >>
-	  ENDIF
-	PAGE
-	INCLUDE	B0:DPH.LIB		; Disk parameter headers
 
-	  IF  HARDDSK
-	INCLUDE	B0:DPHHD.LIB	; Insert DPH Info for Hard Disk Partitions
-	  ENDIF
-
-	  IF  RAMDSK
-	INCLUDE	B0:DPHM.LIB	; Insert DPH Info for RAM Disk
-	  ENDIF
-	PAGE
-;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-;     Disk   Driver   Low - Level   Function   Links
-;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-; Direct  Disk  I / O
-;  Call with: Function Number in C, Driver number in B,
-;	      Args in A, DE, HL
-;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-	CSEG
-DIRDIO:
-	  IF  BANKED
-	CALL	BIOSTK
-	CALL	GOSYSB		; Bank in the system bank
-	JP	JDIRIO		; And jump to Banked-BIOS function
-
-	COMMON	/BANK2/
-	  ENDIF
-
-DIRIO:	PUSH	HL		; Save user's HL
-	PUSH	AF		;   and A reg for range checks
-	LD	A,B
-	CP	MAXDDA		; Legal Driver #?
-	JR	NC,DIRIOX	; ..jump Error Exit if Not
-	PUSH	BC
-	LD	HL,DDIOTB
-	LD	C,B		; Driver number
-	LD	B,0
-	ADD	HL,BC
-	ADD	HL,BC		; Index into table
-	ADD	HL,BC
-	LD	A,(HL)		; Max call number
-	INC	HL
-	LD	C,(HL)
-	INC	HL
-	LD	H,(HL)
-	LD	L,C		; Service vector table address in HL
-	POP	BC		; Requested call
-	DEC	A		; Correct Max Call # for Testing
-	JP	M,DIRIOX	; ..jump Error exit if 0 --> FF (No Calls)
-	CP	C		; Greater than Maximum Function?
-	JR	C,DIRIOX	; ..jump Error exit if so
-	PUSH	BC		; else Save BC
-	LD	B,0
-	ADD	HL,BC
-	ADD	HL,BC		; Add twice for Word index
-	LD	B,(HL)
-	INC	HL
-	LD	H,(HL)
-	LD	L,B		; Put vector in HL
-	POP	BC		; Restore User's BC register
-	POP	AF		;  Restore A and Flags
-	EX	(SP),HL		;   restore HL, Vector to TOS
-	RET			; Jump to Routine
-
-DIRIOX:	POP	AF		; Clear stack
-	POP	HL
-	OR	0FFH		; Set Error return
-	RET			;   and quit
-
-; Direct Disk Access Table Pointer Table
-
-DDIOTB:	DEFB	0
-	DEFW	00		; No Driver 0
-	DEFB	MAXFFN
-	DEFW	FDFUNC		; 1 is Primary Floppy Driver
-	  IF  HARDDSK
-	DEFB	MAXHFN
-	DEFW	HDFUNC		; 2 is Primary Hard Disk Driver
-	  ENDIF		;harddsk
-	  IF  [RAMDSK AND NOT HARDDSK]
-	DEFB	0
-	DEFW	00		; (Dummy 2 if not installed)
-	  ENDIF		;ramdsk and not harddsk
-	  IF  RAMDSK
-	DEFB	0
-	DEFW	00		; 3 is Primary RAM Disk Driver (No Functions)
-	  ENDIF		;ramdsk
-
-MAXDDA	EQU	($-DDIOTB)/3	; Number of entries in pointer table
-
-; Floppy Drive Function Table and Numbers
-
-FDFUNC:	DEFW	STMODE		; 00 set mode
-	DEFW	STSIZE		; 01 set drive size
-	DEFW	STHDRV		; 02 set head and drive
-	DEFW	STSECT		; 03 set sector #, size and eot
-	DEFW	SPEC		; 04 specify srt, hlt, hut
-	DEFW	RECAL		; 05 home the floppy
-	DEFW	SEEK		; 06 seek track
-	DEFW	SREAD		; 07 read
-	DEFW	SWRITE		; 08 write
-	DEFW	READID		; 09 read id
-	DEFW	RETDST		; 10 return drive status & result ptr
-	DEFW	FMTTRK		; 11 format a track
-MAXFFN	EQU	[$-FDFUNC]/2
-
-; Hard Disk Function Table and Numbers
-
-	  IF  HARDDSK
-HDFUNC:	DEFW	HDVALS		; 00 Set Data Addr, Return Comnd Blk Size
-	DEFW	HDSLCT		; 01 Select a Hard Disk Drive Unit
-	DEFW	HD_RW		; 02 Execute Disk Drive Command directly
-MAXHFN	EQU	[$-HDFUNC]/2
-	  ENDIF		;harddsk
-	PAGE
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 ;	Banked   Memory   Support   Routines
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -390,24 +657,17 @@ MAXHFN	EQU	[$-HDFUNC]/2
 ;  Bank Control Routines.  Used only in Banked Systems
 ;::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-	  IF  BANKED		; << ****** HARDWARE SPECIFIC ****** >>
-				; <<  Enter the Inter-Bank Movement  >>
-	INCLUDE	IBMV-ZX.Z80	; <<    routines in IBMV-xxx.Z80     >>
+; IBMVHOOK.Z80 start
 
-	  ELSE			; If Not Banked, Use these hooks
-
-MOVE:	LDIR
-	RET
-
-SETBNK:
+				CSEG
+MOVE:			LDIR
+SETBNK:			RET
 SELMEM:
 RETMEM:
 XMOVE:
 GOSYSB:
 FRCLR:
-STFARC:	RET
-
-FRJP:	JP	(HL)
+STFARC:			RET
 
 FRGETB:	LD	A,(HL)
 	RET
@@ -427,8 +687,9 @@ FRPUTW:	LD	(HL),E
 	DEC	HL
 	RET
 
-	  ENDIF		;(not) banked
-	PAGE
+; IBMVHOOK.Z80 end
+
+
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 ;	Core   BIOS   Code
 ;* * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -441,131 +702,288 @@ FRPUTW:	LD	(HL),E
 DRVTBL:	LD	HL,DPHTBL	; Point to DPH table
 	RET
 
-	PAGE
-	INCLUDE	B0:BYTEIO.Z80	; Con:, aux:, lst: redirection
-	PAGE
-	INCLUDE	B0:SELRWD.Z80	; Physical driver link for disks
-	PAGE
-	INCLUDE	B0:DEBLOCK.Z80	; Hstbuf deblocker
-	PAGE
-	INCLUDE	B0:SECTRAN.Z80	; Sector translation
-	PAGE
-	  IF  AUTOSL
-	INCLUDE	B0:SELFLP2.Z80	; Floppy disk select
-	  ELSE
-	INCLUDE	B0:SELFLP1.Z80
-	  ENDIF
-	PAGE
-	INCLUDE	B0:FLOPPY.Z80	; Hardware independent floppy routines
-	PAGE
-				; << ****** Hardware Specific ****** >>
-				; <<  Enter routines for your Floppy >>
-	INCLUDE	B0:FDC-XB.Z80	; << disk controller in FDC-xxxx.Z80 >>
-	PAGE
-			 	; << ****** Hardware Specific ****** >>
-				; <<  Enter routines for your timer  >>
-	  IF  CLOCK
-	INCLUDE	B0:TIM-ZX.Z80	; <<    and clock in TIM-xxxx.Z80    >>
-	   ENDIF
-	  IF  HARDDSK
-	PAGE
-				; << ****** Hardware Specific ****** >>
-				; << Enter driver routines for your  >>
-	   IF  IDE		; <<     Hard Drive subsystem	     >>
-	INCLUDE	IDE.Z80		; Generic GIDE Module
-	   ELSE
-	INCLUDE	SCSI-ZX.Z80	; Basic Polled 5380 driver for SB-180
-	   ENDIF
-	  ENDIF
-	  IF  RAMDSK
-	PAGE
-				; << ****** Hardware Specific ****** >>
-				; <<  Enter driver routines for RAM  >>
-	INCLUDE	B0:RAMD-ZX.Z80	; <<      Disk in RAMD-xxx.Z80       >>
-	  ENDIF
-	PAGE
-				; << ****** Hardware Specific ****** >>
-				; <<   Enter Warm Boot routines in   >>
-	INCLUDE	B0:WBOOT-ZX.Z80	; <<          WBOOT-xx.Z80           >>
+;======================= End of DPBRAM.LIB ===========================
+; DPBRAM.LIB end
 
-				; << ****** Hardware Specific ****** >>
-				; <<  Enter routines for your USERF >>
-	INCLUDE	B0:USERF-XB.Z80	; << function USERF-xxxx.Z80 >>
-	PAGE
+; BYTEIO.Z80 start
+;**************************************************************************
+; BYTEIO.  Character IO High-Level Routines.	(MUST be in Common Memory)
+;  Calling parameters apply to both High and Low-Level routines.
+;
+; Output Routines - Enter: C = Character to be sent
+;		    Exit : None
+;
+; Input Routines  - Enter: None
+;		    Exit : A = Character received from driver
+;
+; Status Routines - Enter: None
+;		    Exit : A = 0FFH if I/O Ready, 0 if Not Ready
+;
+; Routines may Use: AF,DE.	All other registers preserved/unaffected
+; NOTE: Low-Level routines MUST preserve HL and BC.
+;
+; 1.1a- 26 Feb 93 - Remove Char Jump table.  Integrate in IIO-xx.	HFB
+; 1.1 - 31 Aug 92 - General Release.  Mod to work from other banks.	HFB
+; 1.0 -  3 Jul 92 - First General Release.				HFB
+; 0.0 - 12 Jun 91 - Initial Test Release.				HFB
+;**************************************************************************
+
+DEVINP	EQU	10000000B	; Input data request
+DEVIST	EQU	11000000B	; Input status request
+DEVOUT	EQU	00000000B	; Output data request
+DEVOST	EQU	01000000B	; Output status request
+
+CONFLD	EQU	0		; Iobyte offset for CONsole field
+AUIFLD	EQU	2		; Iobyte offset for AUX input field
+AUOFLD	EQU	4		; Iobyte offset for AUX output field
+LSTFLD	EQU	6		; Iobyte offset for LIST field
+
+IOBYTE	EQU	0003H		; Address of CP/M 2.2 IOBYTE
+
 
 ;.....
-; Status bytes of general use placed at end of Data area
+; Auxiliary Input
 
-	DSEG
+AUXIN:	LD	A,DEVINP	; AUX IN (reader)
+	DEFB	11H		; ..Junk DE and fall thru
+AUXIST:	LD	A,DEVIST	; AUX Input Status
+	OR	AUIFLD		; Identify logical device
+	JR	GODEV		; Go to redirection code
 
-FDONE:	DEFS	1		; FDC Flag 0=Ready, 1=Busy, 0FFH=Done
-HDONE:	DEFS	1		; HDC Flag 0=Ready, 1=Busy, 0FFH=Done
-ERFLAG:	DEFS	1		; Disk Operation Error Code
-	DEFS	3		; (reserved)
+;.....
+; Auxiliary Output
 
-; Add Character IO buffers here to insure they are at end of DSEG
+AUXOUT:	LD	A,DEVOUT	; AUX OUT (punch)
+	DEFB	11H		; ..Junk DE and fall thru
+AUXOST:	LD	A,DEVOST	; AUX Output Status
+	OR	AUOFLD		; Identify logical device
+	JR	GODEV		; Go to redirection code
 
-	  IF  BUFAUX
-COM1Q:	DEFS	1		; Char count in Queue
-	DEFS	QSIZE		; 1 to 255 characater type-ahead buffer
-	  ENDIF
+;.....
+; List (Printer)
 
-	  IF  BUFCON
-COM2Q:	DEFS	1		; Char count in Queue
-	DEFS	QSIZE		; 1 to 255 characater type-ahead buffer
-	  ENDIF
+LIST:	LD	A,DEVOUT	; LIST Output (Printer)
+	DEFB	11H		; ..junk DE and fall thru
+LISTST:	LD	A,DEVOST	; LIST Output Status
+	OR	LSTFLD		; Identify logical device
+	JR	GODEV		; Go to redirection code
 
-	  IF  BUFAUX OR BUFCON
-	DEFS	12		; Stack for Buffered Character IO routines
-INTSP:	DEFS	2		;   Storage for entry Stack Pointer
-	  ENDIF
+;.....
+; Console
 
-; Flags for Xon/Xoff Flow Control on Serial Ports
-	  IF  XONOFF
-COM1WT:	DEFS	1		; B7=0 - Ok, B7=1 - Output Wait
-COM2WT:	DEFS	1		;   B0=0 - Ok, B0=1 - Input Wait
-	  ENDIF
+CONOUT:	LD	A,DEVOUT	; CONsole Output
+	DEFB	11H		; ..Junk DE and fall thru
+CONOST:	LD	A,DEVOST	; CONsole Output Status
+	DEFB	11H		; ..junk DE and fall thru
+CONIN:	LD	A,DEVINP	; CONsole Input
+	DEFB	11H		; ..Junk DE and fall thru
+CONST:	LD	A,DEVIST	; CONsole Input Status
+			;..Fall thru to..
+;.....
+; Redirection Code
 
-PAOR:	DEFS	1		; Parallel Output Ready Flag
+GODEV:	PUSH	HL		; Save HL through here
+	PUSH	AF		; Save service type
+	AND	7		; Save only shift count
+	LD	L,A
+	LD	A,(IOBYTE)	; Get IOBYTE value
+	JR	Z,GODEV2	; If console selected
+GODEV1:	RRCA			; Shift device number into D0,D1
+	DEC	L		; .using L as counter
+	JR	NZ,GODEV1	; ..looping til shifted
+GODEV2:	AND	0011B		; Mask for device
+	ADD	A,A		; .double count
+	LD	L,A		; Save in L			  (00000dd0)
+	POP	AF		; Get service type
+	AND	11000000B	; Mask input and status bits	  (tt000000)
+	OR	L		; Add service request to device # (tt000dd0)
+	RLCA
+	RLCA
+	RLCA			; D0=0, D1-D2=service, D4-D5=device (00dd0tt0)
+	OR	00001000B	; Bypass Device Config/ID bytes (00dd1tt0)
+	LD	HL,DEVCFG	; .offset from base of Device Config Table
+VECTA:	CALL	ADDAHL		; Offset HL by A forming pointer in table
+	LD	A,(HL)		; Fetch routine address
+	INC	HL
+	LD	H,(HL)
+	LD	L,A		; ..in HL
+	EX	(SP),HL		; Swap with (HL) on Stack top
 
-	  IF  [BANKED AND ZSDOS2]
-	COMMON	/B2RAM/		; Put this label in Banked Memory
-	  ENDIF			;   else in DSEG
-BRAME:	DEFS	2		; Use as dynamic sizing label for Hard Drive
-				;  ALV buffers, and storage area for sizing.
-				; ALV Buffers build up from here in memory.
+;.....
+; Return A=False w/Flags Set
 
-DATAE	EQU	$-CBOOT
-	CSEG
+ISFALSE: XOR	A
+	RET
 
-; Display warning if we are assembling for MOVCPM integration and the
-; combined CSEG/Initialized DSEG size exceeds 1 or 2 Boot Records
+;.....
+; Print routine prints to console the Null or Zero-terminated string at (SP)
 
-FINAL	EQU	$-BIOSJT+INITCS		; Final Code/Data Size
+PRINT:	EX	(SP),HL		; Print inline 0 or Hi-bit terminated
+PSTR:	LD	A,(HL)		; General purpose print 0 or Hi-bit
+	INC	HL		; Terminated string pointed to by HL
+	OR	A
+	JR	Z,PSTRX		; Exit if null found in string
+	LD	C,A
+	CALL	CONOUT		; Send to console device
+	BIT	7,C		; Test for Hi-bit terminator
+	JR	Z,PSTR		; ..loop if Not finished
+PSTRX:	EX	(SP),HL		; Else swap Ptr to next instr for entry HL val
+	RET			; ..and return to caller
 
-PRINTX	MACRO	xx
-	.printx	xx
-	ENDM
+;========================== End of BYTEIO ================================
 
-	  IF  MOVCPM AND FINAL > 4480
-	.printx
-	.printx **** BIOS too big (>4480 bytes) for Boot Tracks! ****
-	PRINTX	%FINAL
-	.printx
-	  ELSE
-	   IF  MOVCPM AND FINAL > 4352
-	.printx
-	.printx ++++ BIOS exceeds 2-sector (4352 byte) Boot Record ++++
-	PRINTX	%FINAL
-	.printx
-	   ENDIF
-	  ENDIF
+; BYTEIO.Z80 end
 
-NSECTS	EQU	($+INITCS-BIOSJT)/128+1
-	  IF  INROM
-	INCLUDE	BOOTRAM.Z80
-	  ENDIF
+; XBIOS.Z80 start
+;**************************************************************************
+;    Hardware  Independent  Disk  Routines for XBIOS
+;
+; This module uses Amstrad XBIOS for disk operations
+;
+;**************************************************************************
 
-	DEFS	0E00H-($-BIOSJT)-DATAE
+
+SELDSK:						; 09 select logical drive
+			LD	A, C
+			ADD	A, A		; Form table index value
+			LD	HL, DPHTBL	; Point to DPH header table
+			CALL	ADDAHL		; Index into table
+			LD	E, (HL)
+			INC	HL
+			LD	D, (HL)		; DPH pointer for logical drive in DE
+
+;DD LOGIN - 0092h
+;
+;Log in a floppy disc.
+;
+;Entered with: C=disc unit(0 or 1), IX=address of drive XDPB.
+;
+;Returns: If OK, carry set, A=format type, BC corrupt,
+; DE=size of double-bit allocation vector, HL=size of hash table, 
+; XDPB initialised. If error, A=error number, BC DE HL XDPB corrupt.
+
+			EX	DE, HL
+			RET
+HOME:			RET			; 08 seek track 0
+SETTRK:						; 10 select track
+SETSEC:						; 11 select sector
+SETDMA:						; 12 set dma address for disk xfer
+READ:						; 13 disk read
+WRITE:						; 14 disk write
+SECTRN:						; 16 logical -> physical sector xlate
+FLUSH:
+
+			RET
+
+; XBIOS.Z80 end
+
+
+; Routine to Add A to HL
+
+ADDAHL:			ADD	A,L		; Add A to LSB
+			LD	L,A
+			RET	NC		; Exit if no H adjustment
+			INC	H		; Else had Carry, so add 1 to MSB
+			RET			; And exit
+
+
+
+
+
+; USERF-XB.Z80 start
+
+;:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+;	Amstrad XBIOS gate
+;:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+USERF:	RET
+
+; USERF-XB.Z80 end
+
+; Disk parameter handlers table (filled by CBOOT via XBIOS calls)
+
+DPHTBL:
+			DEFW	DPH0	; A
+			DEFW	00	; B
+			DEFW	00	; C
+			DEFW	00	; D
+			DEFW	00	; E
+			DEFW	00	; F
+			DEFW	00	; G
+			DEFW	00	; H
+			DEFW	00	; I
+			DEFW	00	; J
+			DEFW	00	; K
+			DEFW	00	; L
+			DEFW	00	; M
+			DEFW	00	; N
+			DEFW	00	; O
+			DEFW	00	; P
+
+; Disk Parameter Handler
+
+DPH0:			DW	0	;Address of sector translation table
+			DW	0,0,0	;Used as workspace by ZINC
+			DW	DIRBUF	;Address of a 128-byte sector buffer; this is 
+					;the same for all DPHs in the system.
+			DW	DPB0	;Address of the DPB 
+					;giving the format of this drive.
+			DW	CSV0	;Address of the directory checksum vector
+					;for this drive.
+			DW	ALV0	;Address of the allocation vector
+					;for this drive.
+
+; Disk Parameter Block, generated by XBIOS DD LOGIN via SETDSK BIOS function
+
+DPB0:			DEFW	0	;Number of 128-byte records per track
+			DEFB	0	;Block shift. 3 => 1k, 4 => 2k, 5 => 4k....
+			DEFB	0	;Block mask. 7 => 1k, 0Fh => 2k, 1Fh => 4k...
+			DEFB	0	;Extent mask, see later
+			DEFW	0	;(no. of blocks on the disc)-1
+			DEFW	0	;(no. of directory entries)-1
+			DEFB	0	;Directory allocation bitmap, first byte
+			DEFB	0	;Directory allocation bitmap, second byte
+			DEFW	0	;Checksum vector size, 0 or 8000h for a fixed disc.
+					;No. directory entries/4, rounded up.
+			DEFW	0	;Offset, number of reserved tracks
+; CP/M 3.1 extensions
+			DEFB	0	;Physical sector shift, 0 => 128-byte sectors
+					;1 => 256-byte sectors  2 => 512-byte sectors...
+			DEFB	0	;Physical sector mask,  0 => 128-byte sectors
+					;1 => 256-byte sectors, 3 => 512-byte sectors...
+; XBIOS extensions
+			DEFB	0	;Byte 17	Bits 0...1 Sidedness
+					;			0 = Single sided
+					;			1 = Double sided (alternating sides)
+					;			2 = Double sided (successive sides)
+					;		Bits 2...6 Reserved (set to 0)
+					;		Bit 7 Double track
+			DEFB	0	;Byte 18	Number of tracks per side
+			DEFB	0	;Byte 19	Number of sectors per track
+			DEFB	0	;Byte 20	First sector number
+			DEFW	0	;Bytes 21...22	Sector size
+			DEFB	0	;Byte 23	Gap length (read/write)
+			DEFB	0	;Byte 24	Gap length (format)
+			DEFB	0	;Byte 25	Bit 7 Multi-track operation
+					;			1 = multi-track
+					;			0 = single track
+					;		Bit 6 Modulation mode
+					;			1 = MFM mode
+					;			0 = FM mode
+					;		Bit 5 Skip deleted data address mark
+					;			1 = skip deleted data address mark
+					;			0 = don't skip deleted address mark
+					;		Bits 0...4 = 0
+			DEFB	0	;Byte 26	Freeze flag
+					;			00h (0) = auto-detect disk format
+					;			FFh (255) = don't auto-detect disk format
+CSV0:			DEFS	1
+ALV0:			DEFS	1
+
+DIRBUF:			DEFS	128
+
+	DEFS	BIOSSIZE-($-BIOSJT)
+
 
 	END

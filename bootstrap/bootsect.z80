@@ -271,7 +271,7 @@ BOOT_PHASE2:
 			CALL	OPEN
 			LD	BC, 3		; ld b, 0 (fd); ld c, 3 (RAM page 3)
 			LD	HL, 0DC00H
-			LD	DE, 02400H
+			LD	DE, 01C00H
 			CALL	READ
 			CALL	CLOSE
 

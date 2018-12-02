@@ -61,12 +61,7 @@ Z80	EQU	0		; Z80 check
 	INCLUDE	ZINCHEAD.INC
 ;
         EXT     BDOS            ; SYSLIB
-;
-; DEFINE BOOLEANS
-;
-FALSE:	EQU	0
-TRUE:	EQU	NOT FALSE
-;
+
 ;************************************************************
 ;
 ;		--  User customizable options --

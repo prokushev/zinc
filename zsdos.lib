@@ -2,9 +2,6 @@
 ; ZSDOS Customization.  		-HFB,  18 Sept 1987
 ;					revised 07/17/88 CWC
 
-FALSE	EQU	0
-TRUE	EQU	NOT FALSE
-
 ; Set these conditionals before assembly
 
 ;****************************************************************************
@@ -109,12 +106,6 @@ RESDSK	EQU	FALSE
 SETDSK	EQU	004BH		; Set to suit your system (bh)
    ENDIF		; resdsk (bh)
 
-;----------
-;   The following equate is used to produce separate code and data segments
-; for blowing ZSDOS into ROM.  Calling BDOS Function 0 will initialize the
-; Data Segment to default values.
-
-ROM	EQU	FALSE		; Separate data and code?
 
 ;----------
 ;   Many ZSDOS features can be controlled while ZSDOS is running by altering
