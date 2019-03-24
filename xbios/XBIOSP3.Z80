@@ -86,6 +86,8 @@ BANK1			EQU	07FFDh		;"horizontal" and RAM switch port
 
 			ORG	00H
 
+; 0000	RST 0: Default timer interrupt handler.
+
 RST00H:			RET
 
 			ORG	08H
@@ -95,15 +97,26 @@ RST10H:			RET
 			ORG	18H
 RST18H: 	        RET
 			ORG	20H
+; 0020	RST 20: SVC_CATCHUP — perform a subset of timer interrupt functions.
 RST20H:			RET
 			ORG	28H
 RST28H:			RET
 			ORG	30H
+; 0030	RST 30: Kernel panic
 RST30H:			RET
 			ORG	38H
+; 0038	IM 1 interrupt handler.
 RST38H:			RET
+			ORG	3BH
+; 003B	Step down the 50Hz system clock to a 1Hz ticker for CP/M.
+			ORG	54H
+; 0054	Set the border color to A.
 			ORG	66H
 NMI:			RETN
+
+;0075	0FFh if a second floppy drive is present, else 0
+			ORG	75H
+			DB	00H
 
 			ORG	80H
 ;
@@ -443,7 +456,8 @@ XTE_SET_BORDER:
 ;
 
 XTE_SET_SPEED:
-        RET
+		SCF		; Set Carry flag
+	        RET		; Return
 
 
 ;********************************
@@ -690,6 +704,7 @@ XMSG_SYSMSG:
 21C8-21ED	Device driver tables
 21EE-2417	Unknown
 2418-2FFF	Available for loadable drivers or disc buffers.
+
 3000-3FFF	Fonts
 
 

@@ -1,6 +1,6 @@
 ;
 ;    Spectrum +2A/+3 XBIOS 5x8 FONT: Spectrum +2A/+3 XBIOS implementation
-;    for ZINC
+;    for ZINC (Stub, not finished)
 ;    Copyright (C) 2018  Yuri Prokushev <yuri.prokushev@gmail.com>
 ;
 ;    This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 ;    along with this program; if not, write to the Free Software
 ;    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 ;
-; This file represents Amstrad CP/M Plus 8x8 character set
+; This file represents Amstrad CP/M Plus 5x8 character set
 ; (See more at https://en.wikipedia.org/wiki/Amstrad_CP/M_Plus_character_set)
 ; Charset martix resides in ZINC Bank 0 at address 03000H (ZX RAM page 4)
 ;

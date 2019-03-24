@@ -317,8 +317,11 @@ SPSAVE:	DEFW	0		; Stack pointer location
 	DEFB	'.F.Bow'
 IXSAVE:	DEFB	'er'		; User's IX register
 ZSDOSS:				; ZSDOS stack
-
-BGRAMTOP EQU	ZSDOSS
+;--------------------------------------------------------------------
+;
+;
+DELIM	DEFB	'$'		; Function 9 end delimiter
+BGRAMTOP EQU	DELIM
 	PAGE
 	CSEG
 ;**********************************************************************
@@ -353,15 +356,10 @@ ENTRY:	XOR	A		; Clear A
 
 	CP	98		; Is it less than Cmd98?
 	RET	C		; ..return if so
-	IF	CPM3API		; CP/M 3 API
 	CP	107+1		; Is it greater than Cmd107?
-	ELSE			; CP/M 2 API
-	CP	103+1		; Is it greater than Cmd103?
-	ENDIF
 	RET	NC		; ..quit if so
 	SUB	98-MAXCMD	; Rework so 98-->49..107-->58
-	LD	C,A		; Save reworked function #
-			; ..fall thru to entry0..
+				; ..fall thru to entry0..
 
 ; If Non-disk Function (ie Function # less than 12), push the address of
 ;  the SAVEA routine on the Stack (save A reg as return code).	Saves
@@ -369,13 +367,10 @@ ENTRY:	XOR	A		; Clear A
 
 ENTRY0:	LD	HL,SAVEA
 	PUSH	HL		; Vector return thru A reg save
-ENTRY1:	LD	HL,CTABLE	; Load table
-	ADD	HL,BC		; Add
-	ADD	HL,BC		; Add twice to get word value
-	LD	A,(HL)		; Get LSB
-	INC	HL		; Pointer to MSB
-	LD	H,(HL)		; Get MSB
-	LD	L,A		; Save LSB in L
+
+ENTRY1:	ADD	A,A
+	LD	(ENTRY3+1),A
+ENTRY3:	LD	HL,(CTABLE)
 
 ; Copy byte argument into A and C to simplify Function calls.  This allows
 ;  direct BIOS jumps for several functions with resulting code savings.
@@ -384,10 +379,49 @@ ENTRY1:	LD	HL,CTABLE	; Load table
 	LD	A,E		; And in A for others
 	JP	(HL)		; Jump to routine
 
+;******************************************************
+;*    N o n - D i s k   F u n c t i o n s   Part 1    *
+;******************************************************
+
+;.....
+; I/O Routines
+
+; ZSDOS Console Input.	Read character from Console and Echo
+;  If Char=CR,LF,TAB,CONTH or >=Space
+
+CMND01:	CALL	GETCH		; Get character (and test it  jww)
+	RET	C		; Less than space, exit
+PUTCH:	PUSH	HL		; Save regs for other calls
+	CALL	WRCON		; Echo character
+	POP	HL
+	RET
+
+CMND07	EQU	DUMMY
+CMND08	EQU	DUMMY
+
+
+CMD101	EQU	DUMMY
+
+
+; Echo CR,LF
+
+CROUT:	LD	DE,MCRLF	; Fall through to output routine
+
+; Output Message
+
+CMND09:	LD	A,(DE)		; Get byte from buffer
+	LD	HL,DELIM	; End delimiter
+	CP	(HL)		; Test last byte
+	RET	Z		; Yes, then return to caller
+	INC	DE		; Point to next byte
+	CALL	WRCON		; Output character
+	JR	CMND09		; And test again
+
 	PAGE
 ;******************************************************
 ;*	 C O M M A N D	    T A B L E		      *
 ;******************************************************
+	ORG	ZSDOS+0100H	; 256 boundary
 CTABLE:
 	  IF  ROM
 	DEFW	RAMINI		; Set up RAM
@@ -445,22 +479,20 @@ CTABLE:
 
 MAXCMD	EQU	($-CTABLE)/2	; Jww
 
-	DEFW	CMD98		; Get Time	; 49
-	DEFW	CMD99		; Set Time	; 50
-	DEFW	CMD100		; Get Flags	; 51
-	DEFW	CMD101		; Set Flags	; 52
-	DEFW	CMD102		; Get Stamp	; 53
-	DEFW	CMD103		; Put Stamp	; 54
-	IF	CPM3API		; CP/M 3 API
+	DEFW	CMD98		; Get Time		; 49
+	DEFW	CMD99		; Set Time		; 50
+	DEFW	CMD100		; Get/Set end delimiter	; 51
+	DEFW	CMD101		; Set Flags		; 52
+	DEFW	CMD102		; Get Stamp		; 53
+	DEFW	CMD103		; Put Stamp		; 54
 	DEFW	DUMMY		; 	; 55
 	DEFW	DUMMY		; 	; 56
 	DEFW	DUMMY		; 	; 57
 	DEFW	CMD107		; Get serial	; 58 CP/M 3
-	ENDIF
 
 	PAGE
 ;******************************************************
-;*	 N o n - D i s k     F u n c t i o n s	      *
+;*    N o n - D i s k   F u n c t i o n s   Part 2    *
 ;******************************************************
 
 	  IF  ROM
@@ -493,14 +525,15 @@ RAMIN2:	LD	(HL),A
 ;.....
 ; I/O Routines
 
-; ZSDOS Console Input.	Read character from Console and Echo
-;  If Char=CR,LF,TAB,CONTH or >=Space
+; Set/Get delimiter
 
-CMND01:	CALL	GETCH		; Get character (and test it  jww)
-	RET	C		; Less than space, exit
-PUTCH:	PUSH	HL		; Save regs for other calls
-	CALL	WRCON		; Echo character
-	POP	HL
+CMD100:	LD	HL, DELIM
+	INC	DE
+	LD	A,D
+	OR	E
+	LD	A, (HL)
+	RET	Z
+	LD	(HL), E	
 	RET
 
 ; Direct Console Input/Output
@@ -549,14 +582,6 @@ GETCH:	LD	HL,LASTCH	; Check ZSDOS type ahead for char
 	CP	' '		; Test >=space
 	RET			; ..and return to caller
 
-; Set I/O Status Byte
-
-CMND08:	LD	(RAMLOW+0003H),A ; And save it in RAM and fall through
-
-; Get I/O Status Byte
-
-CMND07:	LD	A,(RAMLOW+0003H) ; Get I/O byte from RAM
-	RET
 
 ; Buffered Console Read
 
@@ -810,19 +835,6 @@ CMND11:	CALL	DCIO2		; Get character present status
 GCONS2:	LD	(LASTCH),A	; Save character
 	LD	A,1		; Character present code
 	RET			; Return to caller
-
-; Echo CR,LF
-
-CROUT:	LD	DE,MCRLF	; Fall through to output routine
-
-; Output Message
-
-CMND09:	LD	A,(DE)		; Get byte from buffer
-	CP	'$'		; Test last byte
-	RET	Z		; Yes, then return to caller
-	INC	DE		; Point to next byte
-	CALL	WRCON		; Output character
-	JR	CMND09		; And test again
 
 	PAGE
 ;**********************************************
@@ -1132,14 +1144,6 @@ CMND25:	LD	A,(DEFDRV)	; Get current drive
 SAVEA:	LD	(PEXIT),A	; Return character
 DUMMY:	RET			; ..and exit ZSDOS
 
-; Set flags
-
-CMD101:	LD	(FLAGS),A	; Set ZSDOS flags
-				; ..and fall thru
-; Get flags
-
-CMD100:	LD	A,(FLAGS)	; Get ZSDOS flags
-	JR	SAVEA		; ..and exit
 
 ; Change Status
 
@@ -1150,7 +1154,7 @@ CMND30:	CALL	SELDRV		; Select drive from FCB
 ; Return CP/M Version Number
 
 ZDPCH1:
-CMND12:	LD	HL,22H		; Set CP/M compatable version number
+CMND12:	LD	HL,31H		; Set CP/M compatable version number
 	  IF  NOT ZS		; (crw)
 	CP	'D'		; IS Caller testing for DS?
 	JR	NZ,SAVHL	; ..exit if Not

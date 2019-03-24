@@ -15,4 +15,6 @@ v3.2
  * bootsector installer for +3DOS
  * BIOS/BDOS/CCP combined to one image ZINC. Bootsector rewritten to use ZINC.BIN.
  * XBIOS with Fint8x8 and Font5x8 combined to one image. Bootsector modified to use XBIOS.BIN.
- * Some CCP resident commands turned of via ZINC.INC
+ * Some CCP resident commands turned off via ZINC.INC
+ * CPMLDR clone added
+ * BDOS version changed to 3.1 (as CP/M 3), starting to add CP/M Plus functions.

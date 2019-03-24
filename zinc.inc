@@ -181,22 +181,22 @@ BIOSLOC		EQU	BDOSLOC+BDOSSIZE; BIOS Location
 
 ;--- Compatible API's
 
-CPM3API		EQU	NO		; CP/M 3 API support
+CPM3API		EQU	YES		; CP/M 3 API support
 
 BPBIOSAPI	EQU	NO		; B/P BIOS API support
 
 XBIOSAPI	EQU	YES		; Amstrad XBIOS API support
-				; Use Amstrad XBIOS instead of B/P BIOS code for
-				; disk operations. This turns off all disk support
-				; code of B/P BIOS
+					; Use Amstrad XBIOS instead of B/P BIOS code for
+					; disk operations. This turns off all disk support
+					; code of B/P BIOS
 
 ;--- CCP resident commands support ---
 
 Z_EXTCCP	EQU	NO		; CCP is Transient
-Z_GO		EQU	YES		; CCP resident GO command support
-Z_JUMP		EQU	YES		; CCP resident JUMP command support
-Z_LIST		EQU	YES		; CCP resident LIST command support
-Z_DFU		EQU	YES		; CCP resident DFU command support
-Z_SAVE		EQU	YES		; CCP resident SAVE command support
-Z_GET		EQU	YES		; CCP resident GET command support
+Z_GO		EQU	NO		; CCP resident GO command support
+Z_JUMP		EQU	NO		; CCP resident JUMP command support
+Z_LIST		EQU	NO		; CCP resident LIST command support
+Z_DFU		EQU	NO		; CCP resident DFU command support
+Z_SAVE		EQU	NO		; CCP resident SAVE command support
+Z_GET		EQU	NO		; CCP resident GET command support
 
